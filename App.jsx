@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from './src/lib/supabaseClient';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarPDFCotizacion } from './pdfGenerator.js';
 
@@ -62,7 +63,7 @@ const LoginPage = ({ onLogin }) => {
       <div className="relative z-10 w-full max-w-md px-6">
         {/* Logo KODIAK */}
         <div className="text-center mb-8">
-          <div className="inline-block mb-4">
+          <div className="inline-block mb-6">
             <img 
               src="/logo-kodiak.png" 
               alt="KODIAK" 
@@ -70,18 +71,16 @@ const LoginPage = ({ onLogin }) => {
               style={{ filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3))' }}
             />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2" style={{ 
-            textShadow: '0 2px 10px rgba(0, 0, 0, 0.3)',
-            letterSpacing: '0.1em'
-          }}>
-            KODIAK
-          </h1>
-          <p className="text-white/90 text-lg font-light tracking-wide">
-            Manufacture Software
-          </p>
-          <p className="text-white/70 text-sm mt-1">
-            Building Me
-          </p>
+          
+          {/* Logo Building Me en blanco */}
+          <div className="mb-4">
+            <img 
+              src="/logo-building-me.png" 
+              alt="Building Me" 
+              className="h-12 mx-auto"
+              style={{ filter: 'brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.3))' }}
+            />
+          </div>
         </div>
 
         {/* Card de Login con efecto glassmorphism */}
@@ -1461,12 +1460,88 @@ const InformesModule = ({ activeModule }) => {
   );
 };
 
+// Modal Buscar Protocolo
+const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
+  const [codigoProtocolo, setCodigoProtocolo] = useState('');
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold text-white">Buscar Protocolo</h3>
+            <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Código del Protocolo
+          </label>
+          <input
+            type="text"
+            value={codigoProtocolo}
+            onChange={(e) => setCodigoProtocolo(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] font-mono text-lg"
+            placeholder="Ej: 30650"
+            autoFocus
+          />
+          
+          <div className="flex justify-end space-x-3 mt-6">
+            <button
+              onClick={onClose}
+              className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                const protocolo = sharedProtocolos.find(p => p.folio === codigoProtocolo);
+                if (protocolo) {
+                  onSeleccionar(protocolo);
+                } else {
+                  alert('Protocolo no encontrado. Verifica el código.');
+                }
+              }}
+              disabled={!codigoProtocolo}
+              className="px-6 py-3 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            >
+              Buscar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Componente de Módulo de Órdenes de Compra
-const OrdenesCompraModule = ({ user }) => {
+const OrdenesCompraModule = ({ 
+  user,
+  sharedOrdenesCompra = [],
+  setSharedOrdenesCompra = () => {},
+  sharedProtocolos = [],
+  datosPreOC,
+  onOCCreada,
+  onCancelarPreOC
+}) => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
-  const [ordenes, setOrdenes] = useState([
+  const [showBuscarProtocolo, setShowBuscarProtocolo] = useState(false);
+  
+  // Abrir modal automáticamente si hay datosPreOC
+  useEffect(() => {
+    if (datosPreOC) {
+      setShowNewModal(true);
+    }
+  }, [datosPreOC]);
+  
+  // Usar sharedOrdenesCompra o datos de ejemplo
+  const ordenesData = sharedOrdenesCompra.length > 0 ? sharedOrdenesCompra : [
     {
       id: '1',
       numero: 'OC-17403',
@@ -1496,7 +1571,11 @@ const OrdenesCompraModule = ({ user }) => {
       estado: 'Emitida',
       observaciones: ''
     }
-  ]);
+  ];
+  
+  const ordenes = ordenesData;
+  const setOrdenes = setSharedOrdenesCompra;
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -1569,6 +1648,7 @@ const OrdenesCompraModule = ({ user }) => {
             </button>
           )}
           <button
+            onClick={() => setShowBuscarProtocolo(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
             style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
@@ -1678,6 +1758,7 @@ const OrdenesCompraModule = ({ user }) => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° OC</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Protocolo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Producto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
@@ -1696,6 +1777,11 @@ const OrdenesCompraModule = ({ user }) => {
                     <span className="font-mono text-gray-600">{orden.codigoProtocolo}</span>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{orden.fecha}</td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-gray-700 truncate max-w-xs" title={orden.items && orden.items.length > 0 ? orden.items[0].descripcion : 'Sin items'}>
+                      {orden.items && orden.items.length > 0 ? orden.items[0].descripcion : 'Sin items'}
+                    </p>
+                  </td>
                   <td className="px-6 py-4">
                     <div>
                       <p className="font-semibold text-gray-800">{orden.proveedor}</p>
@@ -1784,6 +1870,18 @@ const OrdenesCompraModule = ({ user }) => {
             setOrdenes(prev => prev.map(o => 
               o.id === ordenActualizada.id ? ordenActualizada : o
             ));
+          }}
+        />
+      )}
+      
+      {/* Modal Buscar Protocolo */}
+      {showBuscarProtocolo && (
+        <ModalBuscarProtocolo
+          sharedProtocolos={sharedProtocolos}
+          onClose={() => setShowBuscarProtocolo(false)}
+          onSeleccionar={(protocolo) => {
+            setShowNewModal(true);
+            setShowBuscarProtocolo(false);
           }}
         />
       )}
@@ -2048,14 +2146,20 @@ const NuevaOCModal = ({ onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Forma de Pago *</label>
-                <input
-                  type="text"
+                <select
                   required
                   value={formData.formaPago}
                   onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                  placeholder="Ej: Contado, 30 días"
-                />
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="">Seleccione...</option>
+                  <option value="Contado Efectivo">Contado Efectivo</option>
+                  <option value="30 días">30 días</option>
+                  <option value="60 días">60 días</option>
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Caja Chica">Caja Chica</option>
+                  <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Responsable Compra *</label>
@@ -3308,6 +3412,7 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
   );
 };
 
+// Modal Seleccionar Cotización Ganada
 const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) => {
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
@@ -3357,12 +3462,12 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
                           {cotizacion.unidadNegocio}
                         </span>
                       </div>
-                      <p className="font-bold text-gray-800 text-xl mb-1">{cotizacion.cliente}</p>
-                      <p className="text-gray-600 mb-3">{cotizacion.rutCliente}</p>
+                      <p className="font-bold text-gray-800 text-xl mb-1">{cotizacion.nombreProyecto || 'Sin nombre de proyecto'}</p>
+                      <p className="text-gray-600 mb-1">{cotizacion.cliente}</p>
+                      <p className="text-gray-500 text-sm mb-3">{cotizacion.rutCliente}</p>
                       <div className="flex items-center space-x-6 text-sm text-gray-600">
                         <span>📅 {cotizacion.fecha}</span>
                         <span>👤 {cotizacion.contacto}</span>
-                        <span>📧 {cotizacion.email}</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -3370,9 +3475,9 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
                       <p className="text-3xl font-bold" style={{ color: '#235250' }}>
                         {formatCurrency(cotizacion.total)}
                       </p>
-                      <button className="mt-3 px-6 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold">
+                      <div className="mt-3 px-6 py-2 bg-[#45ad98] text-white rounded-lg font-semibold text-center">
                         Seleccionar →
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3386,17 +3491,36 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
 };
 
 // Componente de Módulo de Protocolos de Compra
-const ProtocolosModule = () => {
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [showDetalleModal, setShowDetalleModal] = useState(false);
+// ========================================
+// MÓDULO DE PROTOCOLOS - VERSIÓN COMPLETA
+// Reemplaza el ProtocolosModule existente
+// ========================================
+
+const ProtocolosModule = ({
+  sharedProtocolos = [],
+  setSharedProtocolos = () => {},
+  sharedOrdenesCompra = [],
+  sharedCotizaciones = [],
+  protocoloParaAbrir,
+  onAdjudicarCompra,
+  onAdjudicarVentaDesdeCotizacion,
+  onLimpiarProtocoloParaAbrir
+}) => {
+  const [vistaActual, setVistaActual] = useState('listado'); // 'listado' o 'detalle'
   const [protocoloSeleccionado, setProtocoloSeleccionado] = useState(null);
-  const [protocolos, setProtocolos] = useState([
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [mostrarFormularioOC, setMostrarFormularioOC] = useState(false);
+  const [datosPreOC, setDatosPreOC] = useState(null);
+  
+  // Usar sharedProtocolos o datos de ejemplo si está vacío
+  const protocolos = sharedProtocolos.length > 0 ? sharedProtocolos : [
     {
       id: '1',
       folio: '30650',
       numeroCliente: '1000',
       numeroCotizacion: '000002',
       cliente: 'Constructora ABC Ltda.',
+      nombreProyecto: 'Señalética Edificio Las Condes',
       rutCliente: '77.654.321-0',
       tipo: 'Venta',
       ocCliente: 'OC-2025-001',
@@ -3409,21 +3533,109 @@ const ProtocolosModule = () => {
           id: 1,
           cantidad: 2,
           descripcion: 'Sello Pasador Centro',
-          proveedor1: { nombre: 'ACERBEN SPA', cantidad: 2, oc: '61324', factura: '', estadoPago: 'Pendiente' },
-          proveedor2: null,
-          porcentaje: 100
+          valorUnitario: 250000
         },
         {
           id: 2,
           cantidad: 2,
           descripcion: 'Tope Pasador Superior',
-          proveedor1: { nombre: 'ACERBEN SPA', cantidad: 2, oc: '61324', factura: '', estadoPago: 'Pendiente' },
-          proveedor2: null,
-          porcentaje: 100
+          valorUnitario: 180000
         }
       ]
     }
-  ]);
+  ];
+  
+  const setProtocolos = setSharedProtocolos;
+  const ordenesCompra = sharedOrdenesCompra;
+
+
+  // Si está en vista detalle, mostrar protocolo completo
+  if (vistaActual === 'detalle' && protocoloSeleccionado) {
+    return (
+      <VistaDetalleProtocolo
+        protocolo={protocoloSeleccionado}
+        ordenesCompra={ordenesCompra}
+        onVolver={() => {
+          setVistaActual('listado');
+          setProtocoloSeleccionado(null);
+        }}
+        onAdjudicarCompra={() => {
+          if (onAdjudicarCompra) {
+            onAdjudicarCompra(protocoloSeleccionado);
+          }
+        }}
+        onActualizar={(protocoloActualizado) => {
+          setProtocolos(prev => prev.map(p => 
+            p.id === protocoloActualizado.id ? protocoloActualizado : p
+          ));
+          setProtocoloSeleccionado(protocoloActualizado);
+        }}
+      />
+    );
+  }
+
+  // Vista de listado
+  return (
+    <>
+      <VistaListadoProtocolos
+        protocolos={protocolos}
+        onVerDetalle={(protocolo) => {
+          setProtocoloSeleccionado(protocolo);
+          setVistaActual('detalle');
+        }}
+        onNuevoProtocolo={() => setShowNewModal(true)}
+      />
+
+      {/* Modal Nueva OC desde Protocolo */}
+      {mostrarFormularioOC && datosPreOC && (
+        <FormularioOCDesdeProtocolo
+          datosProtocolo={datosPreOC}
+          onClose={() => {
+            setMostrarFormularioOC(false);
+            setDatosPreOC(null);
+          }}
+          onGuardar={(nuevaOC) => {
+            // Agregar la nueva OC
+            const ocConId = {
+              ...nuevaOC,
+              id: Date.now().toString(),
+              numero: `OC-${17403 + ordenesCompra.length}`,
+              fecha: new Date().toISOString().split('T')[0],
+              estado: 'Emitida'
+            };
+            setOrdenesCompra(prev => [...prev, ocConId]);
+            setMostrarFormularioOC(false);
+            setDatosPreOC(null);
+            alert('Orden de Compra creada exitosamente y vinculada al protocolo');
+          }}
+        />
+      )}
+
+      {/* Modal Nuevo Protocolo */}
+      {showNewModal && (
+        <NuevoProtocoloModal
+          onClose={() => setShowNewModal(false)}
+          onSave={(nuevoProtocolo) => {
+            const protocolo = {
+              ...nuevoProtocolo,
+              id: Date.now().toString(),
+              folio: `${30650 + protocolos.length}`,
+              fechaCreacion: new Date().toISOString().split('T')[0],
+              estado: 'Abierto'
+            };
+            setProtocolos(prev => [...prev, protocolo]);
+            setShowNewModal(false);
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+// ========================================
+// VISTA LISTADO DE PROTOCOLOS
+// ========================================
+const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -3471,7 +3683,7 @@ const ProtocolosModule = () => {
           <p className="text-gray-600">Gestión completa de proyectos y órdenes de compra</p>
         </div>
         <button
-          onClick={() => setShowNewModal(true)}
+          onClick={onNuevoProtocolo}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
           style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
         >
@@ -3540,6 +3752,7 @@ const ProtocolosModule = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Folio</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cliente</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
@@ -3563,6 +3776,9 @@ const ProtocolosModule = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <p className="font-semibold text-gray-700">{protocolo.nombreProyecto || 'Sin nombre'}</p>
+                  </td>
+                  <td className="px-6 py-4">
                     <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
                       {protocolo.tipo}
                     </span>
@@ -3582,10 +3798,7 @@ const ProtocolosModule = () => {
                   </td>
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => {
-                        setProtocoloSeleccionado(protocolo);
-                        setShowDetalleModal(true);
-                      }}
+                      onClick={() => onVerDetalle(protocolo)}
                       className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold"
                     >
                       Abrir Tablero
@@ -3603,36 +3816,579 @@ const ProtocolosModule = () => {
           </div>
         )}
       </div>
-
-      {/* Modales */}
-      {showNewModal && (
-        <NuevoProtocoloModal 
-          onClose={() => setShowNewModal(false)}
-          onSave={(nuevoProtocolo) => {
-            setProtocolos(prev => [...prev, nuevoProtocolo]);
-            setShowNewModal(false);
-          }}
-        />
-      )}
-
-      {showDetalleModal && protocoloSeleccionado && (
-        <DetalleProtocoloModal 
-          protocolo={protocoloSeleccionado}
-          onClose={() => {
-            setShowDetalleModal(false);
-            setProtocoloSeleccionado(null);
-          }}
-          onUpdate={(protocoloActualizado) => {
-            setProtocolos(prev => prev.map(p => 
-              p.id === protocoloActualizado.id ? protocoloActualizado : p
-            ));
-          }}
-        />
-      )}
     </div>
   );
 };
 
+// ========================================
+// VISTA DETALLE DEL PROTOCOLO (PÁGINA COMPLETA)
+// ========================================
+const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar }) => {
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
+  const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
+
+  const cambiarEstado = (nuevoEstado) => {
+    onActualizar({ ...protocolo, estado: nuevoEstado });
+  };
+
+  return (
+    <div>
+      {/* Header con botón volver */}
+      <div className="mb-6">
+        <button
+          onClick={onVolver}
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-4"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="font-semibold">Volver al listado</span>
+        </button>
+
+        <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">Protocolo {protocolo.folio}</h2>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Cliente:</p>
+                  <p className="font-semibold text-gray-800">{protocolo.cliente}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">N° Cotización:</p>
+                  <p className="font-semibold text-gray-800">#{protocolo.numeroCotizacion}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Unidad de Negocio:</p>
+                  <p className="font-semibold text-gray-800">{protocolo.unidadNegocio}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Monto Total:</p>
+                  <p className="font-semibold text-gray-800">{formatCurrency(protocolo.montoTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">OC Cliente:</p>
+                  <p className="font-semibold text-gray-800">
+                    {protocolo.ocCliente || <span className="text-gray-400">Sin OC</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col space-y-2">
+              <select
+                value={protocolo.estado}
+                onChange={(e) => cambiarEstado(e.target.value)}
+                className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+              >
+                <option value="Abierto">🟢 Abierto</option>
+                <option value="En Proceso">🟡 En Proceso</option>
+                <option value="Cerrado">✅ Cerrado</option>
+                <option value="Anulado">❌ Anulado</option>
+                <option value="Despachado Parcial">📦 Despachado Parcial</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Botón Adjudicar Compra */}
+          <div className="flex space-x-3">
+            <button
+              onClick={onAdjudicarCompra}
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            >
+              <ShoppingCart className="w-5 h-5 inline mr-2" />
+              Adjudicar Compra (Crear OC)
+            </button>
+            <button
+              onClick={() => {
+                const ocCliente = prompt('Ingrese el número de OC del cliente:');
+                if (ocCliente) {
+                  onActualizar({ ...protocolo, ocCliente });
+                }
+              }}
+              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              style={{ borderColor: '#45ad98', color: '#235250' }}
+            >
+              📄 Ingresar OC Cliente
+            </button>
+            <button
+              onClick={() => {
+                alert(`Generando PDF del Protocolo ${protocolo.folio}...\n\nFuncionalidad en desarrollo.`);
+              }}
+              className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg"
+            >
+              <Download className="w-5 h-5 inline mr-2" />
+              Generar PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Items del Protocolo */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Items del Proyecto</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Cantidad</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Descripción</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">V. Unitario</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {protocolo.items.map((item, index) => (
+                <tr key={item.id}>
+                  <td className="px-4 py-3">{index + 1}</td>
+                  <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
+                  <td className="px-4 py-3">{item.descripcion}</td>
+                  <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
+                  <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Órdenes de Compra Vinculadas */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">
+          Órdenes de Compra Vinculadas ({ocVinculadas.length})
+        </h3>
+        
+        {ocVinculadas.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">N° OC</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Proveedor</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Monto</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {ocVinculadas.map((oc) => (
+                  <tr key={oc.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono font-bold">{oc.numero}</td>
+                    <td className="px-4 py-3">{oc.fecha}</td>
+                    <td className="px-4 py-3">{oc.proveedor}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
+                        {oc.tipoCosto}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(oc.total)}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
+                        {oc.estado}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No hay órdenes de compra vinculadas a este protocolo</p>
+            <p className="text-sm text-gray-400 mt-2">Usa el botón "Adjudicar Compra" para crear una OC</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ========================================
+// FORMULARIO OC DESDE PROTOCOLO
+// ========================================
+const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
+  const TIPOS_COSTO = [
+    '🚚 Transporte',
+    '🚁 Drone',
+    '💰 Rendiciones',
+    '📦 Varios',
+    '---',
+    'Taller/Fabricación',
+    'Imprenta/Impresión',
+    'Instalación',
+    'Desmontaje',
+    'Arriendo Soporte',
+    'Mobiliario (sillas, mesas)',
+    'Equipamiento (pantallas, TV)',
+    'Materiales',
+    'Grabación Drone',
+    'Transporte Visto Bueno',
+    'Producción Externa',
+    'Terminaciones',
+    'Materiales POP',
+    'Distribución/Logística',
+    'Promotoras/RRHH',
+    'Despacho'
+  ];
+
+  const [formData, setFormData] = useState({
+    codigoProtocolo: datosProtocolo.codigoProtocolo,
+    fechaProtocolo: datosProtocolo.fechaProtocolo,
+    codigoProveedor: '',
+    proveedor: '',
+    rutProveedor: '',
+    direccionProveedor: '',
+    contactoProveedor: '',
+    telefonoProveedor: '',
+    cotizacionProveedor: '',
+    formaPago: '',
+    responsableCompra: '',
+    tipoCosto: '',
+    items: datosProtocolo.items.map(item => ({
+      id: item.id,
+      item: item.descripcion.substring(0, 20),
+      cantidad: item.cantidad,
+      descripcion: item.descripcion,
+      valorUnitario: item.valorUnitario || 0,
+      descuento: 0
+    })),
+    observaciones: ''
+  });
+
+  const proveedores = [
+    { codigo: '1000', nombre: 'ACERBEN SPA', rut: '76.555.123-4', direccion: 'Av. Industrial 5678', contacto: 'Carlos Acero', telefono: '+56 2 2876 5432' },
+    { codigo: '1001', nombre: 'Maderas del Sur Ltda.', rut: '77.234.567-8', direccion: 'Los Aromos 234', contacto: 'Ana Madero', telefono: '+56 9 8765 4321' }
+  ];
+
+  const buscarProveedor = (codigo) => {
+    const prov = proveedores.find(p => p.codigo === codigo);
+    if (prov) {
+      setFormData(prev => ({
+        ...prev,
+        codigoProveedor: codigo,
+        proveedor: prov.nombre,
+        rutProveedor: prov.rut,
+        direccionProveedor: prov.direccion,
+        contactoProveedor: prov.contacto,
+        telefonoProveedor: prov.telefono
+      }));
+    }
+  };
+
+  const calcularSubtotalItem = (item) => {
+    const subtotal = item.cantidad * item.valorUnitario;
+    const descuento = subtotal * (item.descuento / 100);
+    return subtotal - descuento;
+  };
+
+  const calcularTotales = () => {
+    const subtotal = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
+    const iva = subtotal * 0.19;
+    const total = subtotal + iva;
+    return { subtotal, iva, total };
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const { subtotal, iva, total } = calcularTotales();
+    onGuardar({ 
+      ...formData, 
+      subtotal, 
+      iva, 
+      total,
+      unidadNegocio: datosProtocolo.unidadNegocio 
+    });
+  };
+
+  const totales = calcularTotales();
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra</h3>
+              <p className="text-white/80 text-sm mt-1">Desde Protocolo {datosProtocolo.codigoProtocolo}</p>
+            </div>
+            <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+          {/* Info del Protocolo (solo lectura) */}
+          <div className="mb-6 p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+            <h4 className="font-semibold text-blue-800 mb-2">📋 Datos del Protocolo</h4>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-blue-600">Código PR:</p>
+                <p className="font-bold text-blue-900">{datosProtocolo.codigoProtocolo}</p>
+              </div>
+              <div>
+                <p className="text-blue-600">Fecha PR:</p>
+                <p className="font-bold text-blue-900">{datosProtocolo.fechaProtocolo}</p>
+              </div>
+              <div>
+                <p className="text-blue-600">Unidad de Negocio:</p>
+                <p className="font-bold text-blue-900">{datosProtocolo.unidadNegocio}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Datos del Proveedor */}
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Datos del Proveedor</h4>
+            
+            <div className="mb-4 p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <label className="block text-sm font-semibold text-green-800 mb-2">
+                🔍 Código Proveedor
+              </label>
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  value={formData.codigoProveedor}
+                  onChange={(e) => setFormData({...formData, codigoProveedor: e.target.value})}
+                  onBlur={(e) => buscarProveedor(e.target.value)}
+                  className="flex-1 px-4 py-3 border-2 border-green-300 rounded-xl focus:outline-none focus:border-green-500 font-mono text-lg font-bold"
+                  placeholder="Ej: 1000"
+                />
+                <button
+                  type="button"
+                  onClick={() => buscarProveedor(formData.codigoProveedor)}
+                  className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                >
+                  Buscar
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.proveedor}
+                  onChange={(e) => setFormData({...formData, proveedor: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">RUT *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.rutProveedor}
+                  onChange={(e) => setFormData({...formData, rutProveedor: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Datos de la OC */}
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">Datos de la Orden de Compra</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">N° Cotización Proveedor</label>
+                <input
+                  type="text"
+                  value={formData.cotizacionProveedor}
+                  onChange={(e) => setFormData({...formData, cotizacionProveedor: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  placeholder="Ref. del proveedor"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Tipo de Costo * 
+                  <span className="text-xs text-gray-500 ml-2">📊 Para análisis</span>
+                </label>
+                <select
+                  required
+                  value={formData.tipoCosto}
+                  onChange={(e) => setFormData({...formData, tipoCosto: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                >
+                  <option value="">Seleccione tipo...</option>
+                  {TIPOS_COSTO.map((tipo, index) => 
+                    tipo === '---' ? (
+                      <option key={index} disabled>──────────────</option>
+                    ) : (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    )
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Forma de Pago *</label>
+                <select
+                  required
+                  value={formData.formaPago}
+                  onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="">Seleccione...</option>
+                  <option value="Contado Efectivo">Contado Efectivo</option>
+                  <option value="30 días">30 días</option>
+                  <option value="60 días">60 días</option>
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Caja Chica">Caja Chica</option>
+                  <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Responsable Compra *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.responsableCompra}
+                  onChange={(e) => setFormData({...formData, responsableCompra: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Items (pre-cargados del protocolo, editables) */}
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold text-gray-800 mb-4">
+              Items (Pre-cargados del Protocolo - Edita valores)
+            </h4>
+            <div className="space-y-4">
+              {formData.items.map((item, index) => (
+                <div key={item.id} className="bg-gray-50 p-4 rounded-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.cantidad}
+                        onChange={(e) => {
+                          const newItems = [...formData.items];
+                          newItems[index].cantidad = parseInt(e.target.value) || 1;
+                          setFormData({...formData, items: newItems});
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={(e) => {
+                          const newItems = [...formData.items];
+                          newItems[index].descripcion = e.target.value;
+                          setFormData({...formData, items: newItems});
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">V. Unitario</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.valorUnitario}
+                        onChange={(e) => {
+                          const newItems = [...formData.items];
+                          newItems[index].valorUnitario = parseFloat(e.target.value) || 0;
+                          setFormData({...formData, items: newItems});
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descuento %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.descuento}
+                        onChange={(e) => {
+                          const newItems = [...formData.items];
+                          newItems[index].descuento = parseFloat(e.target.value) || 0;
+                          setFormData({...formData, items: newItems});
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(calcularSubtotalItem(item))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Totales */}
+          <div className="bg-gray-50 rounded-xl p-6 mb-6">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-gray-700 font-semibold">Subtotal:</span>
+              <span className="text-xl font-bold text-gray-800">
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.subtotal)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-gray-700 font-semibold">IVA 19%:</span>
+              <span className="text-xl font-bold text-gray-800">
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.iva)}
+              </span>
+            </div>
+            <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
+              <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
+              </span>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-300">
+              <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
+              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
+              <p className="text-gray-600">76.226.767-5</p>
+            </div>
+          </div>
+
+          {/* Botones */}
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            >
+              Crear Orden de Compra
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Modal Nuevo Protocolo (mantener el existente o simplificado)
 // Modal Nuevo Protocolo (Adjudicar Venta)
 const NuevoProtocoloModal = ({ onClose, onSave }) => {
   const [cotizacionesGanadas] = useState([
@@ -4802,35 +5558,58 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 
 // Componente de Módulo de Cotizaciones
 const CotizacionesModule = () => {
-  const [showNewModal, setShowNewModal] = useState(false);
-  const [cotizaciones, setCotizaciones] = useState([
-    {
-      id: '1',
-      numero: '000001',
-      fecha: '2025-01-15',
-      cliente: 'Empresa Demo S.A.',
-      razonSocial: 'Empresa Demo S.A.',
-      rut: '76.123.456-7',
-      unidadNegocio: 'Vía Pública',
-      monto: 5500000,
-      estado: 'emitida',
-      cotizadoPor: 'Paula Ross'
-    },
-    {
-      id: '2',
-      numero: '000002',
-      fecha: '2025-01-20',
-      cliente: 'Constructora ABC Ltda.',
-      razonSocial: 'Constructora ABC Limitada',
-      rut: '77.654.321-0',
-      unidadNegocio: 'Inmobiliarias',
-      monto: 12000000,
-      estado: 'ganada',
-      cotizadoPor: 'Alonso García'
-    }
-  ]);
+const [showNewModal, setShowNewModal] = useState(false);
+  const [showDetalleModal, setShowDetalleModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
+  const [cotizaciones, setCotizaciones] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todas');
+
+  // Cargar cotizaciones desde Supabase
+  useEffect(() => {
+    loadCotizaciones();
+  }, []);
+
+  const loadCotizaciones = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+  .from('cotizaciones')
+  .select(`
+    *,
+    clientes (
+      razon_social,
+      rut
+    )
+  `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Transformar datos de Supabase al formato del frontend
+      const cotizacionesTransformadas = data.map(cot => ({
+        id: cot.id,
+        numero: cot.numero,
+        fecha: cot.fecha,
+        cliente: cot.clientes?.razon_social || 'Sin cliente',
+        nombreProyecto: cot.nombre_proyecto,
+        rut: cot.clientes?.rut || '',
+        unidadNegocio: cot.unidad_negocio,
+        monto: parseFloat(cot.monto),
+        estado: cot.estado,
+        cotizadoPor: cot.cotizado_por
+      }));
+      
+      setCotizaciones(cotizacionesTransformadas);
+    } catch (error) {
+      console.error('Error cargando cotizaciones:', error);
+      alert('Error al cargar cotizaciones desde la base de datos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Estadísticas
   const stats = {
@@ -4872,7 +5651,19 @@ const CotizacionesModule = () => {
       currency: 'CLP'
     }).format(monto);
   };
-
+  
+// Loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45ad98] mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando cotizaciones...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div>
       {/* Header */}
@@ -4950,6 +5741,7 @@ const CotizacionesModule = () => {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cliente</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Unidad Negocio</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
@@ -4968,6 +5760,9 @@ const CotizacionesModule = () => {
                       <p className="font-semibold text-gray-800">{cot.cliente}</p>
                       <p className="text-sm text-gray-500">{cot.rut}</p>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-semibold text-gray-800">{cot.nombreProyecto || 'Sin nombre'}</p>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{cot.unidadNegocio}</td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(cot.monto)}</td>
@@ -5003,6 +5798,58 @@ const CotizacionesModule = () => {
                           </button>
                         </>
                       )}
+                      {/* Crear Protocolo (solo si está ganada) */}
+                      {cot.estado === 'ganada' && (
+                        <button
+                          onClick={() => {
+                            // Crear protocolo directamente desde esta cotización
+                            const nuevoProtocolo = {
+                              id: Date.now().toString(),
+                              folio: `${30650 + Math.floor(Math.random() * 1000)}`,
+                              numeroCotizacion: cot.numero,
+                              numeroCliente: cot.numeroCliente || '1000',
+                              cliente: cot.cliente,
+                              nombreProyecto: cot.nombreProyecto,
+                              rutCliente: cot.rut,
+                              tipo: 'Venta',
+                              ocCliente: '',
+                              estado: 'Abierto',
+                              unidadNegocio: cot.unidadNegocio,
+                              fechaCreacion: new Date().toISOString().split('T')[0],
+                              montoTotal: cot.monto,
+                              items: []
+                            };
+                            alert(`Protocolo creado: ${nuevoProtocolo.folio}\n\nEn producción, esto navegaría al módulo de Protocolos.`);
+                          }}
+                          className="p-2 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
+                          title="Crear Protocolo"
+                        >
+                          <Package className="w-4 h-4 text-purple-600" />
+                        </button>
+                      )}
+                      {/* Ver Detalle */}
+                      <button
+                        onClick={() => {
+                          setCotizacionSeleccionada(cot);
+                          setShowDetalleModal(true);
+                        }}
+                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        title="Ver Detalle"
+                      >
+                        <FileText className="w-4 h-4 text-gray-600" />
+                      </button>
+                      {/* Editar */}
+                      <button
+                        onClick={() => {
+                          setCotizacionSeleccionada(cot);
+                          setShowEditModal(true);
+                        }}
+                        className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
+                        title="Editar Cotización"
+                      >
+                        <Settings className="w-4 h-4 text-orange-600" />
+                      </button>
+                      {/* Descargar PDF */}
                       <button
                         onClick={() => generarPDFCotizacion(cot)}
                         className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
@@ -5035,6 +5882,77 @@ const CotizacionesModule = () => {
           }}
         />
       )}
+      
+      {/* Modal Ver Detalle */}
+      {showDetalleModal && cotizacionSeleccionada && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">Detalle Cotización #{cotizacionSeleccionada.numero}</h3>
+                <button onClick={() => setShowDetalleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg">
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500">Cliente</p>
+                  <p className="font-bold text-lg">{cotizacionSeleccionada.cliente}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Nombre Proyecto</p>
+                  <p className="font-bold text-lg">{cotizacionSeleccionada.nombreProyecto}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">RUT</p>
+                  <p className="font-semibold">{cotizacionSeleccionada.rut}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Unidad de Negocio</p>
+                  <p className="font-semibold">{cotizacionSeleccionada.unidadNegocio}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Fecha</p>
+                  <p className="font-semibold">{cotizacionSeleccionada.fecha}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Monto</p>
+                  <p className="font-bold text-2xl" style={{color: '#235250'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal Editar */}
+      {showEditModal && cotizacionSeleccionada && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">Editar Cotización #{cotizacionSeleccionada.numero}</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg">
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-600 mb-4">Funcionalidad de edición en desarrollo.</p>
+              <p className="text-sm text-gray-500">Aquí se mostrará el formulario para editar la cotización.</p>
+              <button 
+                onClick={() => setShowEditModal(false)}
+                className="mt-4 px-6 py-3 rounded-xl text-white font-semibold"
+                style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -5044,6 +5962,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
   const [formData, setFormData] = useState({
     codigoCliente: '',
     cliente: '',
+    nombreProyecto: '',
     razonSocial: '',
     rut: '',
     direccion: '',
@@ -5224,6 +6143,24 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
                   placeholder="12.345.678-9"
                 />
               </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Nombre del Proyecto * 
+                <span className="text-xs text-gray-500 ml-2">Para identificar rápidamente</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.nombreProyecto}
+                onChange={(e) => setFormData({...formData, nombreProyecto: e.target.value})}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                placeholder="Ej: Stand Feria Inmobiliaria 2025"
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Dirección</label>
                 <input
@@ -5299,14 +6236,20 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
                 />
               </div>
               <div className="md:col-span-3">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Condiciones de Pago</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Condiciones de Pago *</label>
+                <select
+                  required
                   value={formData.condicionesPago}
                   onChange={(e) => setFormData({...formData, condicionesPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                  placeholder="Ej: 50% anticipo, 50% contra entrega"
-                />
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="">Seleccione...</option>
+                  <option value="Contado">Contado</option>
+                  <option value="50% Adelanto">50% Adelanto</option>
+                  <option value="Crédito 30 días">Crédito 30 días</option>
+                  <option value="Crédito 60 días">Crédito 60 días</option>
+                  <option value="Crédito 90 días">Crédito 90 días</option>
+                </select>
               </div>
             </div>
           </div>
@@ -5481,6 +6424,81 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
 const Dashboard = ({ user, onLogout }) => {
   const [activeModule, setActiveModule] = useState('dashboard');
   const [selectedUnit, setSelectedUnit] = useState('Todas');
+
+  // ===== ESTADOS COMPARTIDOS ENTRE MÓDULOS =====
+  const [sharedCotizaciones, setSharedCotizaciones] = useState([]);
+  const [sharedProtocolos, setSharedProtocolos] = useState([]);
+  const [sharedOrdenesCompra, setSharedOrdenesCompra] = useState([]);
+  const [datosPreOC, setDatosPreOC] = useState(null);
+  const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
+
+  // Handlers para comunicación entre módulos
+  const handleAdjudicarVentaDesdeCotizacion = (cotizacion) => {
+    const nuevoProtocolo = {
+      id: Date.now().toString(),
+      folio: `${30650 + sharedProtocolos.length}`,
+      numeroCotizacion: cotizacion.numero,
+      numeroCliente: cotizacion.numeroCliente,
+      cliente: cotizacion.cliente,
+      nombreProyecto: cotizacion.nombreProyecto,
+      rutCliente: cotizacion.rutCliente,
+      tipo: 'Venta',
+      ocCliente: '',
+      estado: 'Abierto',
+      unidadNegocio: cotizacion.unidadNegocio,
+      fechaCreacion: new Date().toISOString().split('T')[0],
+      montoTotal: cotizacion.total,
+      items: cotizacion.items.map((item, index) => ({
+        id: index + 1,
+        cantidad: item.cantidad,
+        descripcion: item.descripcion,
+        valorUnitario: item.precioUnitario
+      }))
+    };
+    
+    setSharedProtocolos(prev => [...prev, nuevoProtocolo]);
+    setSharedCotizaciones(prev => prev.map(c => 
+      c.id === cotizacion.id ? { ...c, adjudicadaAProtocolo: nuevoProtocolo.folio } : c
+    ));
+    
+    setProtocoloParaAbrir(nuevoProtocolo);
+    setActiveModule('protocolos');
+  };
+
+  const handleAdjudicarCompraDesdeProtocolo = (protocolo) => {
+    setDatosPreOC({
+      codigoProtocolo: protocolo.folio,
+      fechaProtocolo: protocolo.fechaCreacion,
+      unidadNegocio: protocolo.unidadNegocio,
+      items: protocolo.items
+    });
+    setActiveModule('ordenes');
+  };
+
+  const handleOCCreada = (nuevaOC) => {
+    const ocConId = {
+      ...nuevaOC,
+      id: Date.now().toString(),
+      numero: `OC-${17403 + sharedOrdenesCompra.length}`,
+      fecha: new Date().toISOString().split('T')[0],
+      estado: 'Emitida',
+      numeroFactura: '',
+      fechaFactura: '',
+      estadoPago: 'Pendiente'
+    };
+    
+    setSharedOrdenesCompra(prev => [...prev, ocConId]);
+    setDatosPreOC(null);
+    
+    if (ocConId.codigoProtocolo) {
+      const protocolo = sharedProtocolos.find(p => p.folio === ocConId.codigoProtocolo);
+      if (protocolo) {
+        setProtocoloParaAbrir(protocolo);
+        setActiveModule('protocolos');
+      }
+    }
+  };
+  // ===== FIN ESTADOS COMPARTIDOS =====
 
   // Datos de ejemplo para el dashboard
   const [stats, setStats] = useState({
@@ -5753,15 +6771,36 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeModule === 'cotizaciones' && (
-            <CotizacionesModule />
+            <CotizacionesModule 
+              sharedCotizaciones={sharedCotizaciones}
+              setSharedCotizaciones={setSharedCotizaciones}
+              onAdjudicarVenta={handleAdjudicarVentaDesdeCotizacion}
+            />
           )}
 
           {activeModule === 'protocolos' && hasAccess('protocolos') && (
-            <ProtocolosModule />
+            <ProtocolosModule 
+              sharedProtocolos={sharedProtocolos}
+              setSharedProtocolos={setSharedProtocolos}
+              sharedOrdenesCompra={sharedOrdenesCompra}
+              sharedCotizaciones={sharedCotizaciones.filter(c => c.estado === 'Ganada' && !c.adjudicadaAProtocolo)}
+              protocoloParaAbrir={protocoloParaAbrir}
+              onAdjudicarCompra={handleAdjudicarCompraDesdeProtocolo}
+              onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}
+              onLimpiarProtocoloParaAbrir={() => setProtocoloParaAbrir(null)}
+            />
           )}
 
           {activeModule === 'ordenes' && hasAccess('ordenes') && (
-            <OrdenesCompraModule user={user} />
+            <OrdenesCompraModule 
+              user={user}
+              sharedOrdenesCompra={sharedOrdenesCompra}
+              setSharedOrdenesCompra={setSharedOrdenesCompra}
+              sharedProtocolos={sharedProtocolos}
+              datosPreOC={datosPreOC}
+              onOCCreada={handleOCCreada}
+              onCancelarPreOC={() => setDatosPreOC(null)}
+            />
           )}
 
           {activeModule === 'proveedores' && hasAccess('proveedores') && (
