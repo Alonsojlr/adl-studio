@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './src/lib/supabaseClient';
+import { getCotizaciones, createCotizacion, updateCotizacion } from './src/api/cotizaciones';
+import { getProtocolos, createProtocolo, updateProtocolo } from './src/api/protocolos';
+import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenesCompra';
+import { getClientes } from './src/api/clientes';
+import { getProveedores } from './src/api/proveedores';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarPDFCotizacion } from './pdfGenerator.js';
 
@@ -1540,41 +1545,50 @@ const OrdenesCompraModule = ({
     }
   }, [datosPreOC]);
   
-  // Usar sharedOrdenesCompra o datos de ejemplo
-  const ordenesData = sharedOrdenesCompra.length > 0 ? sharedOrdenesCompra : [
-    {
-      id: '1',
-      numero: 'OC-17403',
-      codigoProtocolo: '30650',
-      fechaProtocolo: '2025-01-20',
-      fecha: '2025-01-22',
-      codigoProveedor: '1000',
-      proveedor: 'ACERBEN SPA',
-      rutProveedor: '76.555.123-4',
-      direccionProveedor: 'Av. Industrial 5678',
-      contactoProveedor: 'Carlos Acero',
-      telefonoProveedor: '+56 2 2876 5432',
-      cotizacionProveedor: '',
-      formaPago: '30 días',
-      responsableCompra: 'Joaquín López',
-      tipoCosto: 'Taller/Fabricación',
-      unidadNegocio: 'Stand y Ferias',
-      items: [
-        { id: 1, item: 'Acero', cantidad: 10, descripcion: 'Planchas de acero 2mm', valorUnitario: 250000, descuento: 0 }
-      ],
-      subtotal: 2500000,
-      iva: 475000,
-      total: 2975000,
-      numeroFactura: '',
-      fechaFactura: '',
-      estadoPago: 'Pendiente',
-      estado: 'Emitida',
-      observaciones: ''
+  // Cargar órdenes desde Supabase
+  const [ordenes, setOrdenes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrdenes();
+  }, []);
+
+  const loadOrdenes = async () => {
+    try {
+      setLoading(true);
+      const data = await getOrdenesCompra();
+      
+      const transformados = data.map(o => ({
+        id: o.id,
+        numero: o.numero,
+        codigoProtocolo: o.codigo_protocolo,
+        fecha: o.fecha,
+        proveedor: o.proveedores?.razon_social || 'Sin proveedor',
+        rutProveedor: o.proveedores?.rut || '',
+        tipoCosto: o.tipo_costo,
+        formaPago: o.forma_pago,
+        total: parseFloat(o.total),
+        estado: o.estado,
+        numeroFactura: o.numero_factura || '',
+        fechaFactura: o.fecha_factura || '',
+        estadoPago: o.estado_pago || 'Pendiente',
+        items: (o.ordenes_compra_items || []).map(item => ({
+          id: item.id,
+          cantidad: item.cantidad,
+          descripcion: item.descripcion,
+          valorUnitario: parseFloat(item.valor_unitario),
+          descuento: parseFloat(item.descuento || 0)
+        }))
+      }));
+      
+      setOrdenes(transformados);
+    } catch (error) {
+      console.error('Error:', error);
+      setOrdenes([]);
+    } finally {
+      setLoading(false);
     }
-  ];
-  
-  const ordenes = ordenesData;
-  const setOrdenes = setSharedOrdenesCompra;
+  };
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
@@ -3512,40 +3526,44 @@ const ProtocolosModule = ({
   const [mostrarFormularioOC, setMostrarFormularioOC] = useState(false);
   const [datosPreOC, setDatosPreOC] = useState(null);
   
-  // Usar sharedProtocolos o datos de ejemplo si está vacío
-  const protocolos = sharedProtocolos.length > 0 ? sharedProtocolos : [
-    {
-      id: '1',
-      folio: '30650',
-      numeroCliente: '1000',
-      numeroCotizacion: '000002',
-      cliente: 'Constructora ABC Ltda.',
-      nombreProyecto: 'Señalética Edificio Las Condes',
-      rutCliente: '77.654.321-0',
-      tipo: 'Venta',
-      ocCliente: 'OC-2025-001',
-      estado: 'En Proceso',
-      unidadNegocio: 'Inmobiliarias',
-      fechaCreacion: '2025-01-20',
-      montoTotal: 12000000,
-      items: [
-        {
-          id: 1,
-          cantidad: 2,
-          descripcion: 'Sello Pasador Centro',
-          valorUnitario: 250000
-        },
-        {
-          id: 2,
-          cantidad: 2,
-          descripcion: 'Tope Pasador Superior',
-          valorUnitario: 180000
-        }
-      ]
+  // Cargar protocolos desde Supabase
+  const [protocolos, setProtocolos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadProtocolos();
+  }, []);
+
+  const loadProtocolos = async () => {
+    try {
+      setLoading(true);
+      const data = await getProtocolos();
+      
+      const transformados = data.map(p => ({
+        id: p.id,
+        folio: p.folio,
+        numeroCotizacion: p.numero_cotizacion,
+        cliente: p.clientes?.razon_social || 'Sin cliente',
+        nombreProyecto: p.nombre_proyecto,
+        rutCliente: p.clientes?.rut || '',
+        tipo: p.tipo,
+        ocCliente: p.oc_cliente,
+        estado: p.estado,
+        unidadNegocio: p.unidad_negocio,
+        fechaCreacion: p.fecha_creacion,
+        montoTotal: parseFloat(p.monto_total),
+        items: []
+      }));
+      
+      setProtocolos(transformados);
+    } catch (error) {
+      console.error('Error:', error);
+      setProtocolos([]);
+    } finally {
+      setLoading(false);
     }
-  ];
-  
-  const setProtocolos = setSharedProtocolos;
+  };
+
   const ordenesCompra = sharedOrdenesCompra;
 
 
@@ -5575,18 +5593,7 @@ const [showNewModal, setShowNewModal] = useState(false);
   const loadCotizaciones = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-  .from('cotizaciones')
-  .select(`
-    *,
-    clientes (
-      razon_social,
-      rut
-    )
-  `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+      const data = await getCotizaciones();
       
       // Transformar datos de Supabase al formato del frontend
       const cotizacionesTransformadas = data.map(cot => ({
@@ -5599,7 +5606,8 @@ const [showNewModal, setShowNewModal] = useState(false);
         unidadNegocio: cot.unidad_negocio,
         monto: parseFloat(cot.monto),
         estado: cot.estado,
-        cotizadoPor: cot.cotizado_por
+        cotizadoPor: cot.cotizado_por,
+        condicionesPago: cot.condiciones_pago
       }));
       
       setCotizaciones(cotizacionesTransformadas);
@@ -5610,7 +5618,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       setLoading(false);
     }
   };
-
+  
   // Estadísticas
   const stats = {
     total: cotizaciones.length,
