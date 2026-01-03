@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './src/lib/supabaseClient';
 import { getCotizaciones, createCotizacion, updateCotizacion } from './src/api/cotizaciones';
 import { getProtocolos, createProtocolo, updateProtocolo } from './src/api/protocolos';
-import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenesCompra';
+import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenesCompra.js';
 import { getClientes } from './src/api/clientes';
 import { getProveedores } from './src/api/proveedores';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
@@ -5618,7 +5618,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       setLoading(false);
     }
   };
-  
+
   // Estadísticas
   const stats = {
     total: cotizaciones.length,
