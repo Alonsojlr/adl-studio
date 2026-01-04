@@ -37,8 +37,11 @@ export const createOrdenCompra = async (orden, items) => {
   // Luego crear los items
   if (items && items.length > 0) {
     const itemsConOrdenId = items.map(item => ({
-      ...item,
-      orden_id: ordenData[0].id
+      orden_id: ordenData[0].id,
+      cantidad: item.cantidad,
+      descripcion: item.descripcion,
+      valor_unitario: item.valorUnitario || item.valor_unitario,
+      descuento: item.descuento || 0
     }))
     
     const { error: itemsError } = await supabase

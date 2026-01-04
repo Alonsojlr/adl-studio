@@ -5,15 +5,22 @@ import { getProtocolos, createProtocolo, updateProtocolo, deleteProtocolo } from
 import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
+import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
-import { generarPDFCotizacion } from './pdfGenerator.js';
+import { generarOCDesdeTemplate, generarCotizacionPDF, generarOCPDF } from './src/utils/documentGenerator';
 
 // Sistema de autenticación y roles
 const USERS = {
-  'paula': { password: 'admin123', role: 'admin', name: 'Paula' },
-  'alonso': { password: 'admin123', role: 'admin', name: 'Alonso' },
-  'joaquin': { password: 'compras123', role: 'compras', name: 'Joaquín' },
-  'carolina': { password: 'finanzas123', role: 'finanzas', name: 'Carolina' }
+  'alopez@buildingme.cl': { 
+    password: 'Mirusita968!', 
+    role: 'admin', 
+    name: 'Alonso López' 
+  },
+  'paula@buildingme.cl': { 
+    password: 'Tegula175', 
+    role: 'admin', 
+    name: 'Paula Ross' 
+  }
 };
 
 const BUSINESS_UNITS = [
@@ -32,63 +39,53 @@ const LoginPage = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const user = USERS[username.toLowerCase()];
+    setError('');
     
-    if (user && user.password === password) {
-      onLogin({ username: username.toLowerCase(), ...user });
-      setError('');
-    } else {
+    try {
+      const usuario = await autenticarUsuario(username.toLowerCase(), password);
+      
+      onLogin({
+        id: usuario.id,
+        email: usuario.email,
+        username: usuario.email,
+        name: usuario.nombre,
+        role: usuario.rol
+      });
+    } catch (error) {
+      console.error('Error login:', error);
       setError('Usuario o contraseña incorrectos');
       setTimeout(() => setError(''), 3000);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-      {/* Fondo con imagen */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url(/bg-login.png)',
-          filter: 'brightness(0.9)'
-        }}
-      ></div>
+    <div 
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
+      style={{
+        backgroundImage: 'url(/bg-login3.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay oscuro */}
+      <div className="absolute inset-0 bg-black/20"></div>
 
-      {/* Overlay gradient */}
-      <div 
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(135deg, rgba(35, 82, 80, 0.7) 0%, rgba(69, 173, 152, 0.5) 50%, rgba(51, 180, 233, 0.6) 100%)'
-        }}
-      ></div>
-
-      {/* Contenedor del login con glassmorphism */}
+      {/* Contenedor del login */}
       <div className="relative z-10 w-full max-w-md px-6">
-        {/* Logo KODIAK */}
-        <div className="text-center mb-8">
-          <div className="inline-block mb-6">
-            <img 
-              src="/logo-kodiak.png" 
-              alt="KODIAK" 
-              className="h-32 mx-auto drop-shadow-2xl"
-              style={{ filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3))' }}
-            />
-          </div>
-          
-          {/* Logo Building Me en blanco */}
-          <div className="mb-4">
-            <img 
-              src="/logo-building-me.png" 
-              alt="Building Me" 
-              className="h-12 mx-auto"
-              style={{ filter: 'brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.3))' }}
-            />
-          </div>
+        {/* Logo Building Me centrado */}
+        <div className="text-center mb-20">
+          <img 
+            src="/logo-building-me.png" 
+            alt="Building Me" 
+            className="h-20 mx-auto"
+            style={{ filter: 'brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.3))' }}
+          />
         </div>
 
-        {/* Card de Login con efecto glassmorphism */}
+        {/* Card de Login */}
         <div 
           className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8"
           style={{
@@ -165,39 +162,18 @@ const LoginPage = ({ onLogin }) => {
               Iniciar Sesión
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="my-8 flex items-center">
-            <div className="flex-1 border-t border-white/30"></div>
-            <span className="px-4 text-white/60 text-sm">Usuarios de prueba</span>
-            <div className="flex-1 border-t border-white/30"></div>
-          </div>
-
-          {/* Usuarios de Prueba */}
-          <div className="space-y-3">
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <p className="text-white/90 text-sm">
-                <span className="font-semibold">Admin:</span> paula / admin123
-              </p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <p className="text-white/90 text-sm">
-                <span className="font-semibold">Compras:</span> joaquin / compras123
-              </p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-              <p className="text-white/90 text-sm">
-                <span className="font-semibold">Finanzas:</span> carolina / finanzas123
-              </p>
-            </div>
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-white/70 text-sm">
-            Building Me © 2025 - Todos los derechos reservados
+        {/* Footer con logo KODIAK */}
+        <div className="text-center mt-10">
+          <p className="text-white/70 text-sm mb-4">
+            Kodiak Software © 2025 - Todos los derechos reservados
           </p>
+          <img 
+            src="/logo-kodiak.png" 
+            alt="KODIAK" 
+            className="h-20 mx-auto opacity-90"
+          />
         </div>
       </div>
     </div>
@@ -1557,7 +1533,7 @@ const OrdenesCompraModule = ({
     try {
       setLoading(true);
       const data = await getOrdenesCompra();
-      
+
       const transformados = data.map(o => ({
         id: o.id,
         numero: o.numero,
@@ -1567,7 +1543,9 @@ const OrdenesCompraModule = ({
         rutProveedor: o.proveedores?.rut || '',
         tipoCosto: o.tipo_costo,
         formaPago: o.forma_pago,
-        total: parseFloat(o.total),
+        subtotal: parseFloat(o.subtotal) || 0,
+        iva: parseFloat(o.iva) || 0,
+        total: parseFloat(o.total) || 0,
         estado: o.estado,
         numeroFactura: o.numero_factura || '',
         fechaFactura: o.fecha_factura || '',
@@ -1576,11 +1554,12 @@ const OrdenesCompraModule = ({
           id: item.id,
           cantidad: item.cantidad,
           descripcion: item.descripcion,
-          valorUnitario: parseFloat(item.valor_unitario),
+          valorUnitario: parseFloat(item.valor_unitario) || 0,
+          valor_unitario: parseFloat(item.valor_unitario) || 0,
           descuento: parseFloat(item.descuento || 0)
         }))
       }));
-      
+
       setOrdenes(transformados);
     } catch (error) {
       console.error('Error:', error);
@@ -1871,7 +1850,9 @@ const OrdenesCompraModule = ({
                 proveedor_id: null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
-                total: parseFloat(nuevaOC.total),
+                subtotal: parseFloat(nuevaOC.subtotal) || 0,
+                iva: parseFloat(nuevaOC.iva) || 0,
+                total: parseFloat(nuevaOC.total) || 0,
                 estado: 'Emitida',
                 numero_factura: '',
                 fecha_factura: null,
@@ -2454,7 +2435,21 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
               <option value="Pagada">Pagada</option>
               <option value="Anulada">Anulada</option>
             </select>
-            <button className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100">
+            <button
+              onClick={() => {
+                const proveedor = {
+                  razon_social: orden.proveedor,
+                  rut: orden.rutProveedor || '',
+                  direccion: orden.direccionProveedor || '',
+                  contacto: orden.contactoProveedor || ''
+                };
+                const protocolo = {
+                  folio: orden.codigoProtocolo || ''
+                };
+                generarOCPDF(orden, proveedor, protocolo, orden.items || []);
+              }}
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
+            >
               Generar PDF
             </button>
           </div>
@@ -3943,7 +3938,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                             }
                           }
                         }}
-                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                        className="p-3 bg-red-100 hover:bg-red-200 rounded-lg transition-colors ml-5"
                         title="Eliminar Protocolo"
                       >
                         <XCircle className="w-4 h-4 text-red-600" />
@@ -3977,10 +3972,17 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
     }).format(value);
   };
 
-  const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
+const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
+  const costoReal = ocVinculadas.reduce((total, oc) => total + (oc.total || 0), 0);
+
+  const [showCerrarModal, setShowCerrarModal] = useState(false);
 
   const cambiarEstado = (nuevoEstado) => {
-    onActualizar({ ...protocolo, estado: nuevoEstado });
+    if (nuevoEstado === 'Cerrado') {
+      setShowCerrarModal(true);
+    } else {
+      onActualizar({ ...protocolo, estado: nuevoEstado });
+    }
   };
 
   return (
@@ -4001,7 +4003,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Protocolo {protocolo.folio}</h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Cliente:</p>
                   <p className="font-semibold text-gray-800">{protocolo.cliente}</p>
@@ -4017,6 +4019,10 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 <div>
                   <p className="text-gray-500">Monto Total:</p>
                   <p className="font-semibold text-gray-800">{formatCurrency(protocolo.montoTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Costo Real (OC):</p>
+                  <p className="font-semibold text-blue-600">{formatCurrency(costoReal)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">OC Cliente:</p>
@@ -4147,15 +4153,147 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
             <p className="text-gray-500">No hay órdenes de compra vinculadas a este protocolo</p>
             <p className="text-sm text-gray-400 mt-2">Usa el botón "Adjudicar Compra" para crear una OC</p>
           </div>
         )}
       </div>
+
+      {/* Modal Cerrar Protocolo */}
+      {showCerrarModal && (
+        <ModalCerrarProtocolo
+          protocolo={protocolo}
+          costoReal={costoReal}
+          onClose={() => setShowCerrarModal(false)}
+          onConfirmar={async (precioVenta) => {
+            try {
+              // Buscar la cotización por número
+              const cotizaciones = await getCotizaciones();
+              const cotizacion = cotizaciones.find(c => c.numero === protocolo.numeroCotizacion);
+              
+              if (cotizacion) {
+                // Actualizar cotización con el nuevo precio
+                await updateCotizacion(cotizacion.id, { monto: precioVenta });
+              }
+              
+              // Actualizar estado del protocolo
+              await updateProtocolo(protocolo.id, { estado: 'Cerrado' });
+              
+              // Actualizar en la interfaz
+              onActualizar({ ...protocolo, estado: 'Cerrado', montoTotal: precioVenta });
+              
+              setShowCerrarModal(false);
+              alert('Protocolo cerrado y cotización actualizada exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al actualizar: ' + error.message);
+            }
+          }}
+        />
+      )}
+
+</div>
+  );
+};
+
+// Modal para Cerrar Protocolo y Actualizar Cotización
+const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) => {
+  const [precioVenta, setPrecioVenta] = useState('');
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!precioVenta || parseFloat(precioVenta) <= 0) {
+      alert('Ingresa un precio válido');
+      return;
+    }
+    onConfirmar(parseFloat(precioVenta));
+  };
+
+  const margen = precioVenta ? parseFloat(precioVenta) - costoReal : 0;
+  const porcentajeMargen = precioVenta && costoReal > 0 
+    ? ((margen / costoReal) * 100).toFixed(1) 
+    : 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <h3 className="text-2xl font-bold text-gray-800 mb-4">Cerrar Protocolo</h3>
+        
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
+          <p className="text-sm text-gray-600 mb-2">Protocolo #{protocolo.folio}</p>
+          <p className="text-sm text-gray-600 mb-4">Cotización #{protocolo.numeroCotizacion}</p>
+          
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Costo Real (OC):</span>
+              <span className="font-bold text-blue-600">{formatCurrency(costoReal)}</span>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Precio Venta al Cliente
+            </label>
+            <input
+              type="number"
+              value={precioVenta}
+              onChange={(e) => setPrecioVenta(e.target.value)}
+              placeholder="Ingresa el precio final"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              min="1"
+              required
+            />
+          </div>
+
+          {precioVenta && (
+            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Margen:</span>
+                  <span className="font-bold text-green-600">{formatCurrency(margen)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">% Margen:</span>
+                  <span className="font-bold text-green-600">{porcentajeMargen}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            >
+              Cerrar y Actualizar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
+
+   
 
 // ========================================
 // FORMULARIO OC DESDE PROTOCOLO
@@ -5740,7 +5878,13 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
                       <p className="text-sm text-gray-600">{cot.fecha}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-xl text-gray-800">{formatCurrency(cot.monto)}</p>
+                      <p className="font-bold text-xl text-gray-800">
+                     {cot.monto < 1000 ? (
+                       <span className="text-orange-600">Por Definir</span>
+                       ) : (
+                      formatCurrency(cot.monto)
+                       )}
+                      </p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${getEstadoColor(cot.estado)}`}>
                         {cot.estado.charAt(0).toUpperCase() + cot.estado.slice(1)}
                       </span>
@@ -5782,7 +5926,15 @@ const [showNewModal, setShowNewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todas');
 
-  // Cargar cotizaciones desde Supabase
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
+
+// Cargar cotizaciones desde Supabase
   useEffect(() => {
     loadCotizaciones();
   }, []);
@@ -5805,7 +5957,7 @@ const [showNewModal, setShowNewModal] = useState(false);
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
         condicionesPago: cot.condiciones_pago,
-        adjudicada_a_protocolo: cot.adjudicada_a_protocolo  // ← Agregar esta línea
+        adjudicada_a_protocolo: cot.adjudicada_a_protocolo
       }));
       
       setCotizaciones(cotizacionesTransformadas);
@@ -5814,6 +5966,15 @@ const [showNewModal, setShowNewModal] = useState(false);
       alert('Error al cargar cotizaciones desde la base de datos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generarPDFCotizacion = (cotizacion) => {
+    try {
+      generarCotizacionPDF(cotizacion, null, []);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al generar PDF');
     }
   };
 
@@ -6291,20 +6452,30 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     return { subtotal, iva, total };
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
+    // Obtener todas las cotizaciones para calcular el siguiente número
+    const cotizaciones = await getCotizaciones();
+    const ultimoNumero = cotizaciones.length > 0
+      ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 5540))
+      : 5540;
     
     const { total } = calcularTotales();
     const nuevaCotizacion = {
-      id: Date.now().toString(),
-      numero: (Math.floor(Math.random() * 900000) + 100000).toString(),
+      numero: `${ultimoNumero + 1}`,
       ...formData,
       monto: total,
       estado: 'emitida'
     };
     
     onSave(nuevaCotizacion);
-  };
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error al crear cotización');
+  }
+};
 
   const totales = calcularTotales();
 
@@ -7013,16 +7184,15 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeModule === 'ordenes' && hasAccess('ordenes') && (
-            <OrdenesCompraModule 
-              user={user}
-              sharedOrdenesCompra={sharedOrdenesCompra}
-              setSharedOrdenesCompra={setSharedOrdenesCompra}
-              sharedProtocolos={sharedProtocolos}
-              datosPreOC={datosPreOC}
-              onOCCreada={handleOCCreada}
-              onCancelarPreOC={() => setDatosPreOC(null)}
-            />
-          )}
+  <OrdenesCompraModule 
+    user={user}
+    sharedOrdenesCompra={sharedOrdenesCompra}
+    setSharedOrdenesCompra={setSharedOrdenesCompra}
+    sharedProtocolos={sharedProtocolos}
+    datosPreOC={datosPreOC}
+    onCancelarPreOC={() => setDatosPreOC(null)}
+  />
+)}
 
           {activeModule === 'proveedores' && hasAccess('proveedores') && (
             <ProveedoresModule />
