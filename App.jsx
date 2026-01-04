@@ -5884,9 +5884,33 @@ const [showNewModal, setShowNewModal] = useState(false);
       {showNewModal && (
         <NuevaCotizacionModal 
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevaCotizacion) => {
-            setCotizaciones(prev => [...prev, nuevaCotizacion]);
-            setShowNewModal(false);
+          onSave={async (nuevaCotizacion) => {
+            try {
+              // Preparar datos para Supabase
+              const cotizacionData = {
+                numero: nuevaCotizacion.numero,
+                fecha: nuevaCotizacion.fecha,
+                cliente_id: null, // Por ahora null, después conectaremos clientes
+                nombre_proyecto: nuevaCotizacion.nombreProyecto,
+                unidad_negocio: nuevaCotizacion.unidadNegocio,
+                condiciones_pago: nuevaCotizacion.condicionesPago,
+                monto: nuevaCotizacion.monto,
+                estado: 'emitida',
+                cotizado_por: nuevaCotizacion.cotizadoPor
+              };
+
+              // Guardar en Supabase
+              await createCotizacion(cotizacionData);
+              
+              // Recargar cotizaciones
+              await loadCotizaciones();
+              
+              setShowNewModal(false);
+              alert('Cotización guardada exitosamente');
+            } catch (error) {
+              console.error('Error guardando cotización:', error);
+              alert('Error al guardar la cotización');
+            }
           }}
         />
       )}
