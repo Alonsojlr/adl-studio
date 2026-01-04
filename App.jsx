@@ -6988,10 +6988,10 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white shadow-lg min-h-[calc(100vh-80px)]">
-          <nav className="p-4 space-y-2">
+      {/* Navegación horizontal de módulos */}
+      <nav className="bg-white shadow-md border-b border-gray-200">
+        <div className="px-8 py-3">
+          <div className="flex items-center justify-center space-x-2 overflow-x-auto">
             {menuItems.map((item) => {
               if (item.roles.includes('all') || item.roles.includes(user.role)) {
                 const Icon = item.icon;
@@ -6999,9 +6999,9 @@ const Dashboard = ({ user, onLogout }) => {
                   <button
                     key={item.id}
                     onClick={() => setActiveModule(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                    className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg transition-all whitespace-nowrap ${
                       activeModule === item.id
-                        ? 'text-white shadow-lg'
+                        ? 'text-white shadow-md'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                     style={activeModule === item.id ? {
@@ -7015,11 +7015,12 @@ const Dashboard = ({ user, onLogout }) => {
               }
               return null;
             })}
-          </nav>
-        </aside>
+          </div>
+        </div>
+      </nav>
 
-        {/* Main Content */}
-        <main className="flex-1 p-8">
+      {/* Main Content */}
+      <main className="p-8">
           {activeModule === 'dashboard' && (
             <div>
               <div className="mb-8">
@@ -7212,7 +7213,6 @@ const Dashboard = ({ user, onLogout }) => {
           {/* Módulo de Informes */}
           <InformesModule activeModule={activeModule} />
         </main>
-      </div>
     </div>
   );
 };
