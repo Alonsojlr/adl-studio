@@ -6893,20 +6893,71 @@ const Dashboard = ({ user, onLogout }) => {
   };
   // ===== FIN ESTADOS COMPARTIDOS =====
 
-  // Datos de ejemplo para el dashboard
+  // Calcular estadísticas del dashboard desde datos reales
   const [stats, setStats] = useState({
-    cotizacionesEmitidas: 45,
-    cotizacionesGanadas: 28,
-    cotizacionesPerdidas: 10,
-    cotizacionesStandby: 7,
-    montoVentas: 125000000,
-    proyectosEnCurso: 15,
-    proyectosTerminados: 32,
-    protocolosAbiertos: 8,
-    protocolosEnProceso: 12,
-    ocSinFactura: 5,
-    pagosPendientes: 3
+    cotizacionesEmitidas: 0,
+    cotizacionesGanadas: 0,
+    cotizacionesPerdidas: 0,
+    cotizacionesStandby: 0,
+    montoVentas: 0,
+    proyectosEnCurso: 0,
+    proyectosTerminados: 0,
+    protocolosAbiertos: 0,
+    protocolosEnProceso: 0,
+    ocSinFactura: 0,
+    pagosPendientes: 0
   });
+
+  // Actualizar estadísticas cuando cambien los datos
+  useEffect(() => {
+    const calcularStats = () => {
+      // Filtrar cotizaciones por unidad de negocio si está seleccionada
+      const cotizacionesFiltradas = selectedUnit === 'Todas'
+        ? sharedCotizaciones
+        : sharedCotizaciones.filter(c => c.unidadNegocio === selectedUnit);
+
+      const protocolosFiltrados = selectedUnit === 'Todas'
+        ? sharedProtocolos
+        : sharedProtocolos.filter(p => p.unidadNegocio === selectedUnit);
+
+      // Estadísticas de cotizaciones
+      const cotizacionesEmitidas = cotizacionesFiltradas.filter(c => c.estado === 'emitida').length;
+      const cotizacionesGanadas = cotizacionesFiltradas.filter(c => c.estado === 'ganada').length;
+      const cotizacionesPerdidas = cotizacionesFiltradas.filter(c => c.estado === 'perdida').length;
+      const cotizacionesStandby = cotizacionesFiltradas.filter(c => c.estado === 'standby').length;
+
+      // Monto total de ventas (cotizaciones ganadas)
+      const montoVentas = cotizacionesFiltradas
+        .filter(c => c.estado === 'ganada')
+        .reduce((sum, c) => sum + (c.monto || 0), 0);
+
+      // Estadísticas de protocolos
+      const protocolosAbiertos = protocolosFiltrados.filter(p => p.estado === 'Abierto').length;
+      const protocolosEnProceso = protocolosFiltrados.filter(p => p.estado === 'En Proceso').length;
+      const proyectosEnCurso = protocolosAbiertos + protocolosEnProceso;
+      const proyectosTerminados = protocolosFiltrados.filter(p => p.estado === 'Cerrado').length;
+
+      // Estadísticas de órdenes de compra
+      const ocSinFactura = sharedOrdenesCompra.filter(o => !o.numeroFactura && o.estado !== 'Anulada').length;
+      const pagosPendientes = sharedOrdenesCompra.filter(o => o.estadoPago === 'Pendiente' && o.estado !== 'Anulada').length;
+
+      setStats({
+        cotizacionesEmitidas,
+        cotizacionesGanadas,
+        cotizacionesPerdidas,
+        cotizacionesStandby,
+        montoVentas,
+        proyectosEnCurso,
+        proyectosTerminados,
+        protocolosAbiertos,
+        protocolosEnProceso,
+        ocSinFactura,
+        pagosPendientes
+      });
+    };
+
+    calcularStats();
+  }, [sharedCotizaciones, sharedProtocolos, sharedOrdenesCompra, selectedUnit]);
 
   // Permisos por rol
   const hasAccess = (module) => {
@@ -7056,7 +7107,7 @@ const Dashboard = ({ user, onLogout }) => {
                   value={stats.cotizacionesGanadas}
                   icon={CheckCircle}
                   color="#45ad98"
-                  subtitle={`${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito`}
+                  subtitle={stats.cotizacionesEmitidas > 0 ? `${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito` : '0% tasa de éxito'}
                 />
                 <StatCard
                   title="Cotizaciones Perdidas"
