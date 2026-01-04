@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './src/lib/supabaseClient';
-import { getCotizaciones, createCotizacion, updateCotizacion } from './src/api/cotizaciones';
-import { getProtocolos, createProtocolo, updateProtocolo } from './src/api/protocolos';
+import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from './src/api/cotizaciones';
+import { getProtocolos, createProtocolo, updateProtocolo, deleteProtocolo } from './src/api/protocolos';
 import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenes-compra';
-import { getClientes } from './src/api/clientes';
-import { getProveedores } from './src/api/proveedores';
+import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
+import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarPDFCotizacion } from './pdfGenerator.js';
 
@@ -1853,22 +1853,40 @@ const OrdenesCompraModule = ({
       {showNewModal && (
         <NuevaOCModal 
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevaOC) => {
-            const ultimoNumero = ordenes.length > 0 
-              ? Math.max(...ordenes.map(o => parseInt(o.numero.split('-')[1]))) 
-              : 17402;
-            const oc = {
-              ...nuevaOC,
-              id: Date.now().toString(),
-              numero: `OC-${(ultimoNumero + 1)}`,
-              fecha: new Date().toISOString().split('T')[0],
-              estado: 'Emitida',
-              estadoPago: 'Pendiente',
-              numeroFactura: '',
-              fechaFactura: ''
-            };
-            setOrdenes(prev => [...prev, oc]);
-            setShowNewModal(false);
+          onSave={async (nuevaOC) => {
+            try {
+              // Generar número de OC
+              const ordenesExistentes = await getOrdenesCompra();
+              const ultimoNumero = ordenesExistentes.length > 0
+                ? Math.max(...ordenesExistentes.map(o => {
+                    const num = parseInt(o.numero.replace('OC-', ''));
+                    return isNaN(num) ? 17403 : num;
+                  }))
+                : 17402;
+
+              const ocData = {
+                numero: `OC-${ultimoNumero + 1}`,
+                codigo_protocolo: nuevaOC.codigoProtocolo || '',
+                fecha: new Date().toISOString().split('T')[0],
+                proveedor_id: null,
+                tipo_costo: nuevaOC.tipoCosto,
+                forma_pago: nuevaOC.formaPago,
+                total: parseFloat(nuevaOC.total),
+                estado: 'Emitida',
+                numero_factura: '',
+                fecha_factura: null,
+                estado_pago: 'Pendiente'
+              };
+
+              await createOrdenCompra(ocData, nuevaOC.items || []);
+              await loadOrdenes();
+
+              setShowNewModal(false);
+              alert('Orden de Compra creada exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear OC');
+            }
           }}
         />
       )}
@@ -2592,54 +2610,50 @@ const ProveedoresModule = () => {
   const [showHistorialModal, setShowHistorialModal] = useState(false);
   const [showEstadoCuentaModal, setShowEstadoCuentaModal] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
-  const [proveedores, setProveedores] = useState([
-    {
-      id: '1',
-      codigo: '1000',
-      razonSocial: 'ACERBEN SPA',
-      rut: '76.555.123-4',
-      giro: 'Fabricación de Acero',
-      direccion: 'Av. Industrial 5678',
-      ciudad: 'Santiago',
-      comuna: 'Quilicura',
-      pais: 'Chile',
-      email: 'ventas@acerben.cl',
-      contacto: 'Carlos Acero',
-      telefono: '+56 2 2876 5432',
-      condicionesPago: '30 días',
-      banco: 'Banco de Chile',
-      numeroCuenta: '123456789',
-      observaciones: 'Proveedor principal de acero',
-      fechaCreacion: '2024-01-15',
-      totalOC: 15,
-      montoTotal: 45000000,
-      facturasPendientes: 2,
-      montoPendiente: 8500000
-    },
-    {
-      id: '2',
-      codigo: '1001',
-      razonSocial: 'Maderas del Sur Ltda.',
-      rut: '77.234.567-8',
-      giro: 'Comercialización de Maderas',
-      direccion: 'Los Aromos 234',
-      ciudad: 'Santiago',
-      comuna: 'Pudahuel',
-      pais: 'Chile',
-      email: 'contacto@maderassur.cl',
-      contacto: 'Ana Madero',
-      telefono: '+56 9 8765 4321',
-      condicionesPago: '45 días',
-      banco: 'Banco Santander',
-      numeroCuenta: '987654321',
-      observaciones: '',
-      fechaCreacion: '2024-02-20',
-      totalOC: 8,
-      montoTotal: 12000000,
-      facturasPendientes: 0,
-      montoPendiente: 0
+  const [proveedores, setProveedores] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar proveedores desde Supabase
+  useEffect(() => {
+    loadProveedores();
+  }, []);
+
+  const loadProveedores = async () => {
+    try {
+      setLoading(true);
+      const data = await getProveedores();
+      
+      const transformados = data.map(p => ({
+        id: p.id,
+        codigo: p.codigo,
+        razonSocial: p.razon_social,
+        rut: p.rut,
+        giro: p.giro,
+        direccion: p.direccion,
+        ciudad: p.ciudad,
+        comuna: p.comuna,
+        pais: p.pais,
+        email: p.email,
+        contacto: p.contacto,
+        telefono: p.telefono,
+        condicionesPago: p.condiciones_pago,
+        banco: p.banco,
+        numeroCuenta: p.numero_cuenta,
+        observaciones: p.observaciones,
+        fechaCreacion: p.created_at,
+        totalOC: 0,
+        montoTotal: 0,
+        facturasPendientes: 0,
+        montoPendiente: 0
+      }));
+      
+      setProveedores(transformados);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPendientes, setFilterPendientes] = useState('todos');
 
@@ -2653,11 +2667,18 @@ const ProveedoresModule = () => {
     return matchSearch && matchPendientes;
   });
 
-  const eliminarProveedor = (id) => {
-    if (confirm('¿Estás seguro de eliminar este proveedor? Esta acción no se puede deshacer.')) {
-      setProveedores(prev => prev.filter(p => p.id !== id));
+  const eliminarProveedor = async (id) => {
+  if (confirm('¿Estás seguro de eliminar este proveedor? Esta acción no se puede deshacer.')) {
+    try {
+      await deleteProveedor(id);
+      await loadProveedores();
+      alert('Proveedor eliminado exitosamente');
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al eliminar proveedor');
     }
-  };
+  }
+};
 
   const exportarExcel = () => {
     const headers = ['Código', 'Razón Social', 'RUT', 'Giro', 'Contacto', 'Teléfono', 'Email', 'Ciudad', 'Condiciones Pago', 'Banco', 'Cuenta', 'Total OC', 'Monto Total', 'Facturas Pendientes', 'Monto Pendiente'];
@@ -2891,22 +2912,40 @@ const ProveedoresModule = () => {
       {showNewModal && (
         <NuevoProveedorModal 
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevoProveedor) => {
-            const ultimoCodigo = proveedores.length > 0 
-              ? Math.max(...proveedores.map(p => parseInt(p.codigo))) 
-              : 999;
-            const proveedor = {
-              ...nuevoProveedor,
-              id: Date.now().toString(),
-              codigo: (ultimoCodigo + 1).toString(),
-              fechaCreacion: new Date().toISOString().split('T')[0],
-              totalOC: 0,
-              montoTotal: 0,
-              facturasPendientes: 0,
-              montoPendiente: 0
-            };
-            setProveedores(prev => [...prev, proveedor]);
-            setShowNewModal(false);
+          onSave={async (nuevoProveedor) => {
+            try {
+              const proveedoresExistentes = await getProveedores();
+              const ultimoCodigo = proveedoresExistentes.length > 0
+                ? Math.max(...proveedoresExistentes.map(p => parseInt(p.codigo) || 1000))
+                : 999;
+
+              const proveedorData = {
+                codigo: `${ultimoCodigo + 1}`,
+                razon_social: nuevoProveedor.razonSocial,
+                rut: nuevoProveedor.rut,
+                giro: nuevoProveedor.giro,
+                direccion: nuevoProveedor.direccion,
+                ciudad: nuevoProveedor.ciudad,
+                comuna: nuevoProveedor.comuna,
+                pais: nuevoProveedor.pais,
+                email: nuevoProveedor.email,
+                contacto: nuevoProveedor.contacto,
+                telefono: nuevoProveedor.telefono,
+                condiciones_pago: nuevoProveedor.condicionesPago,
+                banco: nuevoProveedor.banco,
+                numero_cuenta: nuevoProveedor.numeroCuenta,
+                observaciones: nuevoProveedor.observaciones || ''
+              };
+
+              await createProveedor(proveedorData);
+              await loadProveedores();
+
+              setShowNewModal(false);
+              alert('Proveedor creado exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear proveedor');
+            }
           }}
         />
       )}
@@ -2918,12 +2957,35 @@ const ProveedoresModule = () => {
             setShowEditModal(false);
             setProveedorSeleccionado(null);
           }}
-          onSave={(proveedorActualizado) => {
-            setProveedores(prev => prev.map(p => 
-              p.id === proveedorActualizado.id ? proveedorActualizado : p
-            ));
-            setShowEditModal(false);
-            setProveedorSeleccionado(null);
+          onSave={async (proveedorActualizado) => {
+            try {
+              const proveedorData = {
+                razon_social: proveedorActualizado.razonSocial,
+                rut: proveedorActualizado.rut,
+                giro: proveedorActualizado.giro,
+                direccion: proveedorActualizado.direccion,
+                ciudad: proveedorActualizado.ciudad,
+                comuna: proveedorActualizado.comuna,
+                pais: proveedorActualizado.pais,
+                email: proveedorActualizado.email,
+                contacto: proveedorActualizado.contacto,
+                telefono: proveedorActualizado.telefono,
+                condiciones_pago: proveedorActualizado.condicionesPago,
+                banco: proveedorActualizado.banco,
+                numero_cuenta: proveedorActualizado.numeroCuenta,
+                observaciones: proveedorActualizado.observaciones || ''
+              };
+
+              await updateProveedor(proveedorActualizado.id, proveedorData);
+              await loadProveedores();
+
+              setShowEditModal(false);
+              setProveedorSeleccionado(null);
+              alert('Proveedor actualizado exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al actualizar proveedor');
+            }
           }}
         />
       )}
@@ -3612,19 +3674,41 @@ const ProtocolosModule = ({
             setMostrarFormularioOC(false);
             setDatosPreOC(null);
           }}
-          onGuardar={(nuevaOC) => {
-            // Agregar la nueva OC
-            const ocConId = {
-              ...nuevaOC,
-              id: Date.now().toString(),
-              numero: `OC-${17403 + ordenesCompra.length}`,
-              fecha: new Date().toISOString().split('T')[0],
-              estado: 'Emitida'
-            };
-            setOrdenesCompra(prev => [...prev, ocConId]);
-            setMostrarFormularioOC(false);
-            setDatosPreOC(null);
-            alert('Orden de Compra creada exitosamente y vinculada al protocolo');
+          onGuardar={async (nuevaOC) => {
+            try {
+              // Generar número de OC
+              const ordenesExistentes = await getOrdenesCompra();
+              const ultimoNumero = ordenesExistentes.length > 0
+                ? Math.max(...ordenesExistentes.map(o => {
+                    const num = parseInt(o.numero.replace('OC-', ''));
+                    return isNaN(num) ? 17403 : num;
+                  }))
+                : 17402;
+
+              const ocData = {
+                numero: `OC-${ultimoNumero + 1}`,
+                codigo_protocolo: datosPreOC.codigoProtocolo,
+                fecha: new Date().toISOString().split('T')[0],
+                proveedor_id: null,
+                tipo_costo: nuevaOC.tipoCosto,
+                forma_pago: nuevaOC.formaPago,
+                total: parseFloat(nuevaOC.total),
+                estado: 'Emitida',
+                numero_factura: '',
+                fecha_factura: null,
+                estado_pago: 'Pendiente'
+              };
+
+              await createOrdenCompra(ocData, nuevaOC.items || []);
+              await loadOrdenes();
+
+              setMostrarFormularioOC(false);
+              setDatosPreOC(null);
+              alert('Orden de Compra creada exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear OC');
+            }
           }}
         />
       )}
@@ -3633,16 +3717,40 @@ const ProtocolosModule = ({
       {showNewModal && (
         <NuevoProtocoloModal
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevoProtocolo) => {
-            const protocolo = {
-              ...nuevoProtocolo,
-              id: Date.now().toString(),
-              folio: `${30650 + protocolos.length}`,
-              fechaCreacion: new Date().toISOString().split('T')[0],
-              estado: 'Abierto'
-            };
-            setProtocolos(prev => [...prev, protocolo]);
-            setShowNewModal(false);
+          sharedCotizaciones={sharedCotizaciones}
+          onSave={async (nuevoProtocolo) => {
+            try {
+              // Obtener folios existentes
+              const protocolosExistentes = await getProtocolos();
+              const ultimoFolio = protocolosExistentes.length > 0
+                ? Math.max(...protocolosExistentes.map(p => {
+                    const num = parseInt(p.folio);
+                    return isNaN(num) ? 30650 : num;
+                  }))
+                : 30649;
+
+              const protocoloData = {
+                folio: `${ultimoFolio + 1}`,
+                numero_cotizacion: nuevoProtocolo.numeroCotizacion || '',
+                cliente_id: null,
+                nombre_proyecto: nuevoProtocolo.nombreProyecto,
+                tipo: nuevoProtocolo.tipo,
+                oc_cliente: '',
+                estado: 'Abierto',
+                unidad_negocio: nuevoProtocolo.unidadNegocio,
+                fecha_creacion: new Date().toISOString().split('T')[0],
+                monto_total: nuevoProtocolo.montoTotal || 0
+              };
+
+              await createProtocolo(protocoloData);
+              await loadProtocolos();
+              
+              setShowNewModal(false);
+              alert('Protocolo creado exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear protocolo');
+            }
           }}
         />
       )}
@@ -3821,6 +3929,25 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                     >
                       Abrir Tablero
                     </button>
+                    {/* Eliminar Protocolo */}
+                      <button
+                        onClick={async () => {
+                          if (window.confirm(`¿Estás seguro de eliminar el protocolo ${protocolo.folio}?`)) {
+                            try {
+                              await deleteProtocolo(protocolo.id);
+                              await loadProtocolos();
+                              alert('Protocolo eliminado exitosamente');
+                            } catch (error) {
+                              console.error('Error:', error);
+                              alert('Error al eliminar protocolo');
+                            }
+                          }
+                        }}
+                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                        title="Eliminar Protocolo"
+                      >
+                        <XCircle className="w-4 h-4 text-red-600" />
+                      </button>
                   </td>
                 </tr>
               ))}
@@ -4408,34 +4535,54 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
 
 // Modal Nuevo Protocolo (mantener el existente o simplificado)
 // Modal Nuevo Protocolo (Adjudicar Venta)
-const NuevoProtocoloModal = ({ onClose, onSave }) => {
-  const [cotizacionesGanadas] = useState([
-    { numero: '000002', cliente: 'Constructora ABC Ltda.', monto: 12000000, numeroCliente: '1001' },
-    { numero: '000005', cliente: 'Empresa Demo S.A.', monto: 5500000, numeroCliente: '1000' }
-  ]);
+const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
+ const [cotizaciones, setCotizaciones] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCotizacion, setSelectedCotizacion] = useState('');
+
+  useEffect(() => {
+    const cargarCotizaciones = async () => {
+      try {
+        setLoading(true);
+        const data = await getCotizaciones();
+        const transformadas = data.map(cot => ({
+          id: cot.id,
+          numero: cot.numero,
+          cliente: cot.clientes?.razon_social || cot.razon_social || 'Sin cliente',
+          monto: parseFloat(cot.monto),
+          estado: cot.estado,
+          adjudicada_a_protocolo: cot.adjudicada_a_protocolo
+        }));
+        setCotizaciones(transformadas);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    cargarCotizaciones();
+  }, []);
+
+  const cotizacionesGanadas = cotizaciones.filter(c => 
+    c.estado === 'ganada' && !c.adjudicada_a_protocolo
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!selectedCotizacion) {
+      alert('Por favor selecciona una cotización');
+      return;
+    }
+    
     const cotizacion = cotizacionesGanadas.find(c => c.numero === selectedCotizacion);
     
-    const nuevoProtocolo = {
-      id: Date.now().toString(),
-      folio: (30650 + Math.floor(Math.random() * 1000)).toString(),
-      numeroCliente: cotizacion.numeroCliente,
-      numeroCotizacion: cotizacion.numero,
-      cliente: cotizacion.cliente,
-      rutCliente: '77.654.321-0',
-      tipo: 'Venta',
-      ocCliente: '',
-      estado: 'Abierto',
-      unidadNegocio: 'General',
-      fechaCreacion: new Date().toISOString().split('T')[0],
-      montoTotal: cotizacion.monto,
-      items: []
-    };
+    if (!cotizacion) {
+      alert('Cotización no encontrada');
+      return;
+    }
     
-    onSave(nuevoProtocolo);
+    // Llamar a onSave que ya está conectado a Supabase
+    onSave(cotizacion);
   };
 
   return (
@@ -4838,40 +4985,43 @@ const ClientesModule = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
-  const [clientes, setClientes] = useState([
-    {
-      id: '1',
-      codigo: '1000',
-      razonSocial: 'Empresa Demo S.A.',
-      rut: '76.123.456-7',
-      giro: 'Servicios Tecnológicos',
-      direccion: 'Av. Providencia 1234',
-      ciudad: 'Santiago',
-      comuna: 'Providencia',
-      pais: 'Chile',
-      email: 'contacto@demo.cl',
-      personaEncargada: 'Juan Pérez',
-      telefono: '+56 9 1234 5678',
-      observaciones: '',
-      fechaCreacion: '2025-01-10'
-    },
-    {
-      id: '2',
-      codigo: '1001',
-      razonSocial: 'Constructora ABC Ltda.',
-      rut: '77.654.321-0',
-      giro: 'Construcción',
-      direccion: 'Los Conquistadores 2500',
-      ciudad: 'Santiago',
-      comuna: 'Las Condes',
-      pais: 'Chile',
-      email: 'admin@abc.cl',
-      personaEncargada: 'María González',
-      telefono: '+56 2 2345 6789',
-      observaciones: 'Cliente VIP',
-      fechaCreacion: '2025-01-15'
+ const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar clientes desde Supabase
+  useEffect(() => {
+    loadClientes();
+  }, []);
+
+  const loadClientes = async () => {
+    try {
+      setLoading(true);
+      const data = await getClientes();
+      
+      const transformados = data.map(c => ({
+        id: c.id,
+        codigo: c.codigo,
+        razonSocial: c.razon_social,
+        rut: c.rut,
+        giro: c.giro,
+        direccion: c.direccion,
+        ciudad: c.ciudad,
+        comuna: c.comuna,
+        pais: c.pais,
+        email: c.email,
+        personaEncargada: c.persona_encargada,
+        telefono: c.telefono,
+        observaciones: c.observaciones,
+        fechaCreacion: c.created_at
+      }));
+      
+      setClientes(transformados);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filtrar clientes
@@ -4885,9 +5035,16 @@ const ClientesModule = () => {
     );
   });
 
-  const eliminarCliente = (id) => {
+  const eliminarCliente = async (id) => {
     if (confirm('¿Estás seguro de eliminar este cliente? Esta acción no se puede deshacer.')) {
-      setClientes(prev => prev.filter(c => c.id !== id));
+      try {
+        await deleteCliente(id);
+        await loadClientes();
+        alert('Cliente eliminado exitosamente');
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al eliminar cliente');
+      }
     }
   };
 
@@ -5066,18 +5223,38 @@ const ClientesModule = () => {
       {showNewModal && (
         <NuevoClienteModal 
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevoCliente) => {
-            const ultimoCodigo = clientes.length > 0 
-              ? Math.max(...clientes.map(c => parseInt(c.codigo))) 
-              : 999;
-            const cliente = {
-              ...nuevoCliente,
-              id: Date.now().toString(),
-              codigo: (ultimoCodigo + 1).toString(),
-              fechaCreacion: new Date().toISOString().split('T')[0]
-            };
-            setClientes(prev => [...prev, cliente]);
-            setShowNewModal(false);
+          onSave={async (nuevoCliente) => {
+            try {
+              // Generar código único
+              const clientesExistentes = await getClientes();
+              const ultimoCodigo = clientesExistentes.length > 0
+                ? Math.max(...clientesExistentes.map(c => parseInt(c.codigo) || 1000))
+                : 999;
+
+              const clienteData = {
+                codigo: `${ultimoCodigo + 1}`,
+                razon_social: nuevoCliente.razonSocial,
+                rut: nuevoCliente.rut,
+                giro: nuevoCliente.giro,
+                direccion: nuevoCliente.direccion,
+                ciudad: nuevoCliente.ciudad,
+                comuna: nuevoCliente.comuna,
+                pais: nuevoCliente.pais,
+                email: nuevoCliente.email,
+                persona_encargada: nuevoCliente.personaEncargada,
+                telefono: nuevoCliente.telefono,
+                observaciones: nuevoCliente.observaciones || ''
+              };
+
+              await createCliente(clienteData);
+              await loadClientes();
+
+              setShowNewModal(false);
+              alert('Cliente creado exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear cliente');
+            }
           }}
         />
       )}
@@ -5089,12 +5266,32 @@ const ClientesModule = () => {
             setShowEditModal(false);
             setClienteSeleccionado(null);
           }}
-          onSave={(clienteActualizado) => {
-            setClientes(prev => prev.map(c => 
-              c.id === clienteActualizado.id ? clienteActualizado : c
-            ));
-            setShowEditModal(false);
-            setClienteSeleccionado(null);
+          onSave={async (clienteActualizado) => {
+            try {
+              const clienteData = {
+                razon_social: clienteActualizado.razonSocial,
+                rut: clienteActualizado.rut,
+                giro: clienteActualizado.giro,
+                direccion: clienteActualizado.direccion,
+                ciudad: clienteActualizado.ciudad,
+                comuna: clienteActualizado.comuna,
+                pais: clienteActualizado.pais,
+                email: clienteActualizado.email,
+                persona_encargada: clienteActualizado.personaEncargada,
+                telefono: clienteActualizado.telefono,
+                observaciones: clienteActualizado.observaciones || ''
+              };
+
+              await updateCliente(clienteActualizado.id, clienteData);
+              await loadClientes();
+
+              setShowEditModal(false);
+              setClienteSeleccionado(null);
+              alert('Cliente actualizado exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al actualizar cliente');
+            }
           }}
         />
       )}
@@ -5575,7 +5772,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 };
 
 // Componente de Módulo de Cotizaciones
-const CotizacionesModule = () => {
+const CotizacionesModule = ({ onAdjudicarVenta }) => {
 const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -5607,7 +5804,8 @@ const [showNewModal, setShowNewModal] = useState(false);
         monto: parseFloat(cot.monto),
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
-        condicionesPago: cot.condiciones_pago
+        condicionesPago: cot.condiciones_pago,
+        adjudicada_a_protocolo: cot.adjudicada_a_protocolo  // ← Agregar esta línea
       }));
       
       setCotizaciones(cotizacionesTransformadas);
@@ -5637,10 +5835,14 @@ const [showNewModal, setShowNewModal] = useState(false);
     return matchSearch && matchEstado;
   });
 
-  const cambiarEstado = (id, nuevoEstado) => {
-    setCotizaciones(prev => prev.map(c => 
-      c.id === id ? { ...c, estado: nuevoEstado } : c
-    ));
+  const cambiarEstado = async (id, nuevoEstado) => {
+    try {
+      await updateCotizacion(id, { estado: nuevoEstado });
+      await loadCotizaciones();
+    } catch (error) {
+      console.error('Error actualizando estado:', error);
+      alert('Error al cambiar estado');
+    }
   };
 
   const getEstadoColor = (estado) => {
@@ -5809,26 +6011,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                       {/* Crear Protocolo (solo si está ganada) */}
                       {cot.estado === 'ganada' && (
                         <button
-                          onClick={() => {
-                            // Crear protocolo directamente desde esta cotización
-                            const nuevoProtocolo = {
-                              id: Date.now().toString(),
-                              folio: `${30650 + Math.floor(Math.random() * 1000)}`,
-                              numeroCotizacion: cot.numero,
-                              numeroCliente: cot.numeroCliente || '1000',
-                              cliente: cot.cliente,
-                              nombreProyecto: cot.nombreProyecto,
-                              rutCliente: cot.rut,
-                              tipo: 'Venta',
-                              ocCliente: '',
-                              estado: 'Abierto',
-                              unidadNegocio: cot.unidadNegocio,
-                              fechaCreacion: new Date().toISOString().split('T')[0],
-                              montoTotal: cot.monto,
-                              items: []
-                            };
-                            alert(`Protocolo creado: ${nuevoProtocolo.folio}\n\nEn producción, esto navegaría al módulo de Protocolos.`);
-                          }}
+                          onClick={() => onAdjudicarVenta(cot)}
                           className="p-2 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
                           title="Crear Protocolo"
                         >
@@ -5864,6 +6047,25 @@ const [showNewModal, setShowNewModal] = useState(false);
                         title="Descargar PDF"
                       >
                         <Download className="w-4 h-4 text-blue-600" />
+                      </button>
+                      {/* Eliminar */}
+                      <button
+                        onClick={async () => {
+                          if (window.confirm('¿Estás seguro de eliminar esta cotización?')) {
+                            try {
+                              await deleteCotizacion(cot.id);
+                              await loadCotizaciones();
+                              alert('Cotización eliminada');
+                            } catch (error) {
+                              console.error('Error:', error);
+                              alert('Error al eliminar');
+                            }
+                          }
+                        }}
+                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                        title="Eliminar Cotización"
+                      >
+                        <XCircle className="w-4 h-4 text-red-600" />
                       </button>
                     </div>
                   </td>
@@ -6464,70 +6666,58 @@ const Dashboard = ({ user, onLogout }) => {
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
-  // Handlers para comunicación entre módulos
-  const handleAdjudicarVentaDesdeCotizacion = (cotizacion) => {
-    const nuevoProtocolo = {
-      id: Date.now().toString(),
-      folio: `${30650 + sharedProtocolos.length}`,
-      numeroCotizacion: cotizacion.numero,
-      numeroCliente: cotizacion.numeroCliente,
-      cliente: cotizacion.cliente,
-      nombreProyecto: cotizacion.nombreProyecto,
-      rutCliente: cotizacion.rutCliente,
-      tipo: 'Venta',
-      ocCliente: '',
-      estado: 'Abierto',
-      unidadNegocio: cotizacion.unidadNegocio,
-      fechaCreacion: new Date().toISOString().split('T')[0],
-      montoTotal: cotizacion.total,
-      items: cotizacion.items.map((item, index) => ({
-        id: index + 1,
-        cantidad: item.cantidad,
-        descripcion: item.descripcion,
-        valorUnitario: item.precioUnitario
-      }))
-    };
-    
-    setSharedProtocolos(prev => [...prev, nuevoProtocolo]);
-    setSharedCotizaciones(prev => prev.map(c => 
-      c.id === cotizacion.id ? { ...c, adjudicadaAProtocolo: nuevoProtocolo.folio } : c
-    ));
-    
-    setProtocoloParaAbrir(nuevoProtocolo);
-    setActiveModule('protocolos');
-  };
-
-  const handleAdjudicarCompraDesdeProtocolo = (protocolo) => {
-    setDatosPreOC({
-      codigoProtocolo: protocolo.folio,
-      fechaProtocolo: protocolo.fechaCreacion,
-      unidadNegocio: protocolo.unidadNegocio,
-      items: protocolo.items
-    });
-    setActiveModule('ordenes');
-  };
-
-  const handleOCCreada = (nuevaOC) => {
-    const ocConId = {
-      ...nuevaOC,
-      id: Date.now().toString(),
-      numero: `OC-${17403 + sharedOrdenesCompra.length}`,
-      fecha: new Date().toISOString().split('T')[0],
-      estado: 'Emitida',
-      numeroFactura: '',
-      fechaFactura: '',
-      estadoPago: 'Pendiente'
-    };
-    
-    setSharedOrdenesCompra(prev => [...prev, ocConId]);
-    setDatosPreOC(null);
-    
-    if (ocConId.codigoProtocolo) {
-      const protocolo = sharedProtocolos.find(p => p.folio === ocConId.codigoProtocolo);
-      if (protocolo) {
-        setProtocoloParaAbrir(protocolo);
-        setActiveModule('protocolos');
+ // Handlers para comunicación entre módulos
+  const handleAdjudicarVentaDesdeCotizacion = async (cotizacion) => {
+    try {
+      // Verificar si la cotización ya tiene protocolo
+      if (cotizacion.adjudicada_a_protocolo) {
+        alert(`Esta cotización ya tiene un protocolo asignado: ${cotizacion.adjudicada_a_protocolo}`);
+        return;
       }
+
+      // Obtener todos los protocolos para calcular el siguiente folio
+      const protocolosExistentes = await getProtocolos();
+      const ultimoFolio = protocolosExistentes.length > 0
+        ? Math.max(...protocolosExistentes.map(p => {
+            const num = parseInt(p.folio);
+            return isNaN(num) ? 30650 : num;
+          }))
+        : 30649;
+
+      const nuevoProtocolo = {
+        folio: `${ultimoFolio + 1}`,
+        numero_cotizacion: cotizacion.numero,
+        cliente_id: null,
+        nombre_proyecto: cotizacion.nombreProyecto,
+        tipo: 'Venta',
+        oc_cliente: '',
+        estado: 'Abierto',
+        unidad_negocio: cotizacion.unidadNegocio,
+        fecha_creacion: new Date().toISOString().split('T')[0],
+        monto_total: cotizacion.monto
+      };
+
+      const protocoloCreado = await createProtocolo(nuevoProtocolo);
+
+      await updateCotizacion(cotizacion.id, {
+        adjudicada_a_protocolo: protocoloCreado.folio
+      });
+
+      const [cotizacionesActualizadas, protocolosActualizados] = await Promise.all([
+        getCotizaciones(),
+        getProtocolos()
+      ]);
+
+      setSharedCotizaciones(cotizacionesActualizadas);
+      setSharedProtocolos(protocolosActualizados);
+
+      setProtocoloParaAbrir(protocoloCreado);
+      setActiveModule('protocolos');
+      
+      alert('Protocolo creado exitosamente');
+    } catch (error) {
+      console.error('Error creando protocolo:', error);
+      alert('Error al crear protocolo: ' + error.message);
     }
   };
   // ===== FIN ESTADOS COMPARTIDOS =====
@@ -6817,7 +7007,6 @@ const Dashboard = ({ user, onLogout }) => {
               sharedOrdenesCompra={sharedOrdenesCompra}
               sharedCotizaciones={sharedCotizaciones.filter(c => c.estado === 'Ganada' && !c.adjudicadaAProtocolo)}
               protocoloParaAbrir={protocoloParaAbrir}
-              onAdjudicarCompra={handleAdjudicarCompraDesdeProtocolo}
               onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}
               onLimpiarProtocoloParaAbrir={() => setProtocoloParaAbrir(null)}
             />

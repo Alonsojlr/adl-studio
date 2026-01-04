@@ -33,3 +33,12 @@ export const updateCotizacion = async (id, updates) => {
   if (error) throw error
   return data[0]
 }
+// Eliminar cotización
+export const deleteCotizacion = async (id) => {
+  const { error } = await supabase
+    .from('cotizaciones')
+    .delete()
+    .eq('id', id)
+  
+  if (error) throw error
+}
