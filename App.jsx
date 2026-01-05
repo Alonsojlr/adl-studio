@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './src/lib/supabaseClient';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from './src/api/cotizaciones';
 import { getProtocolos, createProtocolo, updateProtocolo, deleteProtocolo } from './src/api/protocolos';
-import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/api/ordenes-compra';
+import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
@@ -30,7 +30,8 @@ const BUSINESS_UNITS = [
   'TradeMarketing',
   'Inmobiliarias',
   'Imprenta',
-  'Varios'
+  'Varios',
+  'Financiamiento'
 ];
 
 // Componente de Login
@@ -1584,6 +1585,7 @@ const OrdenesCompraModule = ({
 }) => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
+  const [detalleEditMode, setDetalleEditMode] = useState(false);
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
   const [showBuscarProtocolo, setShowBuscarProtocolo] = useState(false);
   const [datosOCDesdeProtocolo, setDatosOCDesdeProtocolo] = useState(null);
@@ -1613,6 +1615,7 @@ const OrdenesCompraModule = ({
         numero: o.numero,
         codigoProtocolo: o.codigo_protocolo,
         fecha: o.fecha,
+        proveedorId: o.proveedor_id || null,
         proveedor: o.proveedores?.razon_social || 'Sin proveedor',
         rutProveedor: o.proveedores?.rut || '',
         tipoCosto: o.tipo_costo,
@@ -1626,6 +1629,7 @@ const OrdenesCompraModule = ({
         estadoPago: o.estado_pago || 'Pendiente',
         items: (o.ordenes_compra_items || []).map(item => ({
           id: item.id,
+          item: item.item || '',
           cantidad: item.cantidad,
           descripcion: item.descripcion,
           valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -1881,11 +1885,22 @@ const OrdenesCompraModule = ({
                       <button
                         onClick={() => {
                           setOrdenSeleccionada(orden);
+                          setDetalleEditMode(false);
                           setShowDetalleModal(true);
                         }}
                         className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold text-sm"
                       >
                         Ver Detalle
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOrdenSeleccionada(orden);
+                          setDetalleEditMode(true);
+                          setShowDetalleModal(true);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm"
+                      >
+                        Editar
                       </button>
                     </div>
                   </td>
@@ -1949,6 +1964,7 @@ const OrdenesCompraModule = ({
       {showDetalleModal && ordenSeleccionada && (
         <DetalleOCModal 
           orden={ordenSeleccionada}
+          startInEdit={detalleEditMode}
           onClose={() => {
             setShowDetalleModal(false);
             setOrdenSeleccionada(null);
@@ -1957,6 +1973,41 @@ const OrdenesCompraModule = ({
             setOrdenes(prev => prev.map(o => 
               o.id === ordenActualizada.id ? ordenActualizada : o
             ));
+          }}
+          onSave={async (ordenActualizada) => {
+            try {
+              const subtotal = ordenActualizada.items.reduce((sum, item) => {
+                const itemSubtotal = item.cantidad * item.valorUnitario;
+                const itemDescuento = itemSubtotal * (item.descuento / 100);
+                return sum + (itemSubtotal - itemDescuento);
+              }, 0);
+              const iva = subtotal * 0.19;
+              const total = subtotal + iva;
+
+              await updateOrdenCompra(ordenActualizada.id, {
+                proveedor_id: ordenActualizada.proveedorId || null,
+                codigo_protocolo: ordenActualizada.codigoProtocolo || '',
+                tipo_costo: ordenActualizada.tipoCosto || '',
+                forma_pago: ordenActualizada.formaPago || '',
+                subtotal,
+                iva,
+                total,
+                estado: ordenActualizada.estado,
+                numero_factura: ordenActualizada.numeroFactura || '',
+                fecha_factura: ordenActualizada.fechaFactura || null,
+                estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+              });
+
+              await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
+              await loadOrdenes();
+
+              setShowDetalleModal(false);
+              setOrdenSeleccionada(null);
+              alert('OC actualizada exitosamente');
+            } catch (error) {
+              console.error('Error actualizando OC:', error);
+              alert('Error al actualizar OC');
+            }
           }}
         />
       )}
@@ -2038,6 +2089,7 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     '🚚 Transporte',
     '🚁 Drone',
     '💰 Rendiciones',
+    '💳 Financiamiento',
     '📦 Varios',
     '---', // Separador visual
     // Específicos por UN
@@ -2056,7 +2108,8 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     'Materiales POP',
     'Distribución/Logística',
     'Promotoras/RRHH',
-    'Despacho'
+    'Despacho',
+    'Financiamiento'
   ];
 
   const [formData, setFormData] = useState({
@@ -2342,92 +2395,90 @@ const NuevaOCModal = ({ onClose, onSave }) => {
             </div>
           </div>
 
-          {/* Items - Similar a Cotizaciones */}
+          {/* Items */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800">Items</h4>
               <button
                 type="button"
                 onClick={agregarItem}
-                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
               >
                 + Agregar Item
               </button>
             </div>
 
             <div className="space-y-4">
-              {formData.items.map((item, index) => (
-                <div key={item.id} className="bg-gray-50 p-4 rounded-xl">
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-sm font-semibold text-gray-700">Item #{index + 1}</span>
-                    {formData.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => eliminarItem(item.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <XCircle className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Item</label>
+              {formData.items.map((item) => (
+                <div key={item.id} className="bg-gray-50 rounded-xl p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Item</label>
                       <input
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
-                      <input
-                        type="text"
-                        value={item.descripcion}
-                        onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">V. Unitario</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">V. Unitario</label>
                       <input
                         type="number"
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descuento %</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descuento %</label>
                       <input
                         type="number"
                         min="0"
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => eliminarItem(item.id)}
+                        className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                    <div className="md:col-span-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                   </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-sm font-semibold text-gray-700">
-                      Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(calcularSubtotalItem(item))}
-                    </span>
-                  </div>
                 </div>
               ))}
+
+              {formData.items.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  No hay items. Agrega uno para continuar.
+                </div>
+              )}
             </div>
           </div>
 
@@ -2493,20 +2544,45 @@ const NuevaOCModal = ({ onClose, onSave }) => {
 };
 
 // Modal Detalle OC
-const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
+const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, startInEdit = false }) => {
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(startInEdit);
+  const [proveedores, setProveedores] = useState([]);
+
+  useEffect(() => {
+    setOrden(ordenInicial);
+    setIsEditing(startInEdit);
+  }, [ordenInicial, startInEdit]);
+
+  useEffect(() => {
+    const loadProveedores = async () => {
+      try {
+        const data = await getProveedores();
+        const transformados = data.map(p => ({
+          id: p.id,
+          razonSocial: p.razon_social,
+          rut: p.rut
+        }));
+        setProveedores(transformados);
+      } catch (error) {
+        console.error('Error cargando proveedores:', error);
+      }
+    };
+    loadProveedores();
+  }, []);
 
   const cambiarEstado = (nuevoEstado) => {
-    const actualizada = { ...orden, estado: nuevoEstado };
+    const estadoPago = nuevoEstado === 'Pagada' ? 'Pagada' : orden.estadoPago;
+    const actualizada = { ...orden, estado: nuevoEstado, estadoPago };
     setOrden(actualizada);
     onUpdate(actualizada);
   };
 
   const agregarFactura = (numeroFactura, fechaFactura) => {
-    const actualizada = { 
-      ...orden, 
-      numeroFactura, 
+    const actualizada = {
+      ...orden,
+      numeroFactura,
       fechaFactura,
       estado: 'Facturada'
     };
@@ -2528,6 +2604,52 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
     }).format(value);
   };
 
+  const calcularSubtotalItem = (item) => {
+    const subtotal = item.cantidad * item.valorUnitario;
+    const descuento = subtotal * (item.descuento / 100);
+    return subtotal - descuento;
+  };
+
+  const totales = orden.items.reduce((acc, item) => {
+    const subtotalItem = calcularSubtotalItem(item);
+    return {
+      subtotal: acc.subtotal + subtotalItem,
+      iva: acc.iva + subtotalItem * 0.19
+    };
+  }, { subtotal: 0, iva: 0 });
+  const total = totales.subtotal + totales.iva;
+
+  const agregarItem = () => {
+    const nuevo = {
+      id: Date.now(),
+      item: '',
+      cantidad: 1,
+      descripcion: '',
+      valorUnitario: 0,
+      descuento: 0
+    };
+    const actualizada = { ...orden, items: [...orden.items, nuevo] };
+    setOrden(actualizada);
+    onUpdate(actualizada);
+  };
+
+  const eliminarItem = (id) => {
+    const actualizada = { ...orden, items: orden.items.filter(i => i.id !== id) };
+    setOrden(actualizada);
+    onUpdate(actualizada);
+  };
+
+  const actualizarItem = (id, campo, valor) => {
+    const actualizada = {
+      ...orden,
+      items: orden.items.map(item =>
+        item.id === id ? { ...item, [campo]: valor } : item
+      )
+    };
+    setOrden(actualizada);
+    onUpdate(actualizada);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
@@ -2538,15 +2660,64 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-white text-sm">
                 <div>
                   <p className="text-white/70">Proveedor:</p>
-                  <p className="font-semibold">{orden.proveedor}</p>
+                  {isEditing ? (
+                    <select
+                      value={orden.proveedorId || ''}
+                      onChange={(e) => {
+                        const proveedorId = e.target.value || null;
+                        const proveedor = proveedores.find(p => String(p.id) === String(proveedorId));
+                        const actualizada = {
+                          ...orden,
+                          proveedorId,
+                          proveedor: proveedor ? proveedor.razonSocial : orden.proveedor
+                        };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    >
+                      <option value="">Sin proveedor</option>
+                      {proveedores.map(p => (
+                        <option key={p.id} value={p.id}>{p.razonSocial}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="font-semibold">{orden.proveedor}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-white/70">Protocolo:</p>
-                  <p className="font-semibold">{orden.codigoProtocolo || 'Sin protocolo'}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={orden.codigoProtocolo || ''}
+                      onChange={(e) => {
+                        const actualizada = { ...orden, codigoProtocolo: e.target.value };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    />
+                  ) : (
+                    <p className="font-semibold">{orden.codigoProtocolo || 'Sin protocolo'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-white/70">Tipo de Costo:</p>
-                  <p className="font-semibold">{orden.tipoCosto || 'Sin asignar'}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={orden.tipoCosto || ''}
+                      onChange={(e) => {
+                        const actualizada = { ...orden, tipoCosto: e.target.value };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    />
+                  ) : (
+                    <p className="font-semibold">{orden.tipoCosto || 'Sin asignar'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-white/70">Fecha:</p>
@@ -2554,7 +2725,20 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
                 </div>
                 <div>
                   <p className="text-white/70">Responsable:</p>
-                  <p className="font-semibold">{orden.responsableCompra}</p>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={orden.responsableCompra || ''}
+                      onChange={(e) => {
+                        const actualizada = { ...orden, responsableCompra: e.target.value };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    />
+                  ) : (
+                    <p className="font-semibold">{orden.responsableCompra}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2564,6 +2748,12 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setIsEditing(prev => !prev)}
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+            >
+              {isEditing ? 'Cancelar Edición' : 'Editar'}
+            </button>
             <button
               onClick={() => setShowFacturaModal(true)}
               className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
@@ -2583,6 +2773,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
               value={orden.estado}
               onChange={(e) => cambiarEstado(e.target.value)}
               className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
+              disabled={!isEditing}
             >
               <option value="Emitida">Emitida</option>
               <option value="Recibida">Recibida</option>
@@ -2613,38 +2804,102 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
         <div className="p-6">
           {/* Items */}
           <h4 className="text-lg font-bold text-gray-800 mb-4">Detalle de Items</h4>
-          <div className="overflow-x-auto mb-6">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">N°</th>
-                  <th className="px-3 py-2 text-left font-semibold">Item</th>
-                  <th className="px-3 py-2 text-left font-semibold">Cantidad</th>
-                  <th className="px-3 py-2 text-left font-semibold">Descripción</th>
-                  <th className="px-3 py-2 text-left font-semibold">V. Unitario</th>
-                  <th className="px-3 py-2 text-left font-semibold">Descuento</th>
-                  <th className="px-3 py-2 text-left font-semibold">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {orden.items.map((item, index) => {
-                  const subtotal = item.cantidad * item.valorUnitario;
-                  const descuento = subtotal * (item.descuento / 100);
-                  const subtotalFinal = subtotal - descuento;
-                  return (
-                    <tr key={item.id}>
-                      <td className="px-3 py-3">{index + 1}</td>
-                      <td className="px-3 py-3 font-medium">{item.item}</td>
-                      <td className="px-3 py-3">{item.cantidad}</td>
-                      <td className="px-3 py-3">{item.descripcion}</td>
-                      <td className="px-3 py-3">{formatCurrency(item.valorUnitario)}</td>
-                      <td className="px-3 py-3">{item.descuento}%</td>
-                      <td className="px-3 py-3 font-semibold">{formatCurrency(subtotalFinal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="mb-6">
+            {isEditing && (
+              <div className="flex justify-end mb-3">
+                <button
+                  type="button"
+                  onClick={agregarItem}
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                >
+                  + Agregar Item
+                </button>
+              </div>
+            )}
+            <div className="space-y-4">
+              {orden.items.map((item, index) => (
+                <div key={item.id} className="bg-gray-50 rounded-xl p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Item</label>
+                      <input
+                        type="text"
+                        value={item.item || ''}
+                        onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">V. Unitario</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.valorUnitario}
+                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descuento %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.descuento}
+                        onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                      />
+                    </div>
+                    {isEditing && (
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => eliminarItem(item.id)}
+                          className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
+                    <div className="md:col-span-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Subtotal: {formatCurrency(calcularSubtotalItem(item))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {orden.items.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  No hay items. Agrega uno para continuar.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Totales y Facturar a */}
@@ -2654,15 +2909,15 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span className="font-bold">{formatCurrency(orden.subtotal)}</span>
+                  <span className="font-bold">{formatCurrency(totales.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>IVA 19%:</span>
-                  <span className="font-bold">{formatCurrency(orden.iva)}</span>
+                  <span className="font-bold">{formatCurrency(totales.iva)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold">TOTAL:</span>
-                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(orden.total)}</span>
+                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
@@ -2677,7 +2932,16 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate }) => {
           </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end">
+        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+          {isEditing && (
+            <button
+              onClick={() => onSave && onSave({ ...orden, subtotal: totales.subtotal, iva: totales.iva, total })}
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            >
+              Guardar Cambios
+            </button>
+          )}
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
@@ -3726,6 +3990,7 @@ const ProtocolosModule = ({
   sharedProtocolos = [],
   setSharedProtocolos = () => {},
   sharedOrdenesCompra = [],
+  setSharedOrdenesCompra = () => {},
   sharedCotizaciones = [],
   protocoloParaAbrir,
   onAdjudicarCompra,
@@ -3737,6 +4002,9 @@ const ProtocolosModule = ({
   const [showNewModal, setShowNewModal] = useState(false);
   const [mostrarFormularioOC, setMostrarFormularioOC] = useState(false);
   const [datosPreOC, setDatosPreOC] = useState(null);
+  const [showDetalleOC, setShowDetalleOC] = useState(false);
+  const [ordenDetalle, setOrdenDetalle] = useState(null);
+  const [detalleEditMode, setDetalleEditMode] = useState(false);
   
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
@@ -3777,6 +4045,37 @@ const ProtocolosModule = ({
   };
 
   const ordenesCompra = sharedOrdenesCompra;
+  const mapOrdenCompra = (o) => ({
+    id: o.id,
+    numero: o.numero,
+    codigoProtocolo: o.codigo_protocolo,
+    fecha: o.fecha,
+    proveedorId: o.proveedor_id || null,
+    proveedor: o.proveedores?.razon_social || 'Sin proveedor',
+    rutProveedor: o.proveedores?.rut || '',
+    tipoCosto: o.tipo_costo,
+    formaPago: o.forma_pago,
+    subtotal: parseFloat(o.subtotal) || 0,
+    iva: parseFloat(o.iva) || 0,
+    total: parseFloat(o.total) || 0,
+    estado: o.estado,
+    numeroFactura: o.numero_factura || '',
+    fechaFactura: o.fecha_factura || '',
+    estadoPago: o.estado_pago || 'Pendiente',
+    items: (o.ordenes_compra_items || []).map(item => ({
+      id: item.id,
+      item: item.item || '',
+      cantidad: item.cantidad,
+      descripcion: item.descripcion,
+      valorUnitario: parseFloat(item.valor_unitario) || 0,
+      valor_unitario: parseFloat(item.valor_unitario) || 0,
+      descuento: parseFloat(item.descuento || 0)
+    }))
+  });
+  const refrescarOrdenesCompra = async () => {
+    const ordenesActualizadas = await getOrdenesCompra();
+    setSharedOrdenesCompra(ordenesActualizadas.map(mapOrdenCompra));
+  };
   const handleAdjudicarCompraLocal = (protocolo) => {
     if (onAdjudicarCompra) {
       onAdjudicarCompra(protocolo);
@@ -3800,6 +4099,11 @@ const ProtocolosModule = ({
         <VistaDetalleProtocolo
           protocolo={protocoloSeleccionado}
           ordenesCompra={ordenesCompra}
+          onVerDetalleOC={(orden, editar = false) => {
+            setOrdenDetalle(orden);
+            setDetalleEditMode(editar);
+            setShowDetalleOC(true);
+          }}
           onVolver={() => {
             setVistaActual('listado');
             setProtocoloSeleccionado(null);
@@ -3814,6 +4118,57 @@ const ProtocolosModule = ({
             setProtocoloSeleccionado(protocoloActualizado);
           }}
         />
+        {showDetalleOC && ordenDetalle && (
+          <DetalleOCModal
+            orden={ordenDetalle}
+            startInEdit={detalleEditMode}
+            onClose={() => {
+              setShowDetalleOC(false);
+              setOrdenDetalle(null);
+            }}
+            onUpdate={(ordenActualizada) => {
+              setSharedOrdenesCompra(prev =>
+                prev.map(o => (o.id === ordenActualizada.id ? ordenActualizada : o))
+              );
+              setOrdenDetalle(ordenActualizada);
+            }}
+            onSave={async (ordenActualizada) => {
+              try {
+                const subtotal = ordenActualizada.items.reduce((sum, item) => {
+                  const itemSubtotal = item.cantidad * item.valorUnitario;
+                  const itemDescuento = itemSubtotal * (item.descuento / 100);
+                  return sum + (itemSubtotal - itemDescuento);
+                }, 0);
+                const iva = subtotal * 0.19;
+                const total = subtotal + iva;
+
+                await updateOrdenCompra(ordenActualizada.id, {
+                  proveedor_id: ordenActualizada.proveedorId || null,
+                  codigo_protocolo: ordenActualizada.codigoProtocolo || '',
+                  tipo_costo: ordenActualizada.tipoCosto || '',
+                  forma_pago: ordenActualizada.formaPago || '',
+                  subtotal,
+                  iva,
+                  total,
+                  estado: ordenActualizada.estado,
+                  numero_factura: ordenActualizada.numeroFactura || '',
+                  fecha_factura: ordenActualizada.fechaFactura || null,
+                  estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                });
+
+                await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
+                await refrescarOrdenesCompra();
+
+                setShowDetalleOC(false);
+                setOrdenDetalle(null);
+                alert('OC actualizada exitosamente');
+              } catch (error) {
+                console.error('Error actualizando OC:', error);
+                alert('Error al actualizar OC');
+              }
+            }}
+          />
+        )}
         {mostrarFormularioOC && datosPreOC && (
           <FormularioOCDesdeProtocolo
             datosProtocolo={datosPreOC}
@@ -3846,7 +4201,8 @@ const ProtocolosModule = ({
                 };
 
                 await createOrdenCompra(ocData, nuevaOC.items || []);
-                await loadOrdenes();
+                const ordenesActualizadas = await getOrdenesCompra();
+                setSharedOrdenesCompra(ordenesActualizadas.map(mapOrdenCompra));
 
                 setMostrarFormularioOC(false);
                 setDatosPreOC(null);
@@ -4176,7 +4532,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
 // ========================================
 // VISTA DETALLE DEL PROTOCOLO (PÁGINA COMPLETA)
 // ========================================
-const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar }) => {
+const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar, onVerDetalleOC }) => {
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -4341,6 +4697,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Monto</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -4359,6 +4716,22 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
                         {oc.estado}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => onVerDetalleOC && onVerDetalleOC(oc, false)}
+                          className="px-3 py-1 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-xs font-semibold"
+                        >
+                          Ver
+                        </button>
+                        <button
+                          onClick={() => onVerDetalleOC && onVerDetalleOC(oc, true)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-semibold"
+                        >
+                          Editar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -4516,6 +4889,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     '🚚 Transporte',
     '🚁 Drone',
     '💰 Rendiciones',
+    '💳 Financiamiento',
     '📦 Varios',
     '---',
     'Taller/Fabricación',
@@ -4533,7 +4907,8 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     'Materiales POP',
     'Distribución/Logística',
     'Promotoras/RRHH',
-    'Despacho'
+    'Despacho',
+    'Financiamiento'
   ];
 
   const [formData, setFormData] = useState({
@@ -4602,6 +4977,36 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
         telefonoProveedor: prov.telefono
       }));
     }
+  };
+
+  const agregarItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 1,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
+      }]
+    }));
+  };
+
+  const eliminarItem = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== id)
+    }));
+  };
+
+  const actualizarItem = (id, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.map(item =>
+        item.id === id ? { ...item, [campo]: valor } : item
+      )
+    }));
   };
 
   const calcularSubtotalItem = (item) => {
@@ -4785,79 +5190,90 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
             </div>
           </div>
 
-          {/* Items (pre-cargados del protocolo, editables) */}
+          {/* Items de la OC */}
           <div className="mb-8">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">
-              Items (Pre-cargados del Protocolo - Edita valores)
-            </h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-800">Items (Pre-cargados del Protocolo - Edita valores)</h4>
+              <button
+                type="button"
+                onClick={agregarItem}
+                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+              >
+                + Agregar Item
+              </button>
+            </div>
+
             <div className="space-y-4">
-              {formData.items.map((item, index) => (
-                <div key={item.id} className="bg-gray-50 p-4 rounded-xl">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {formData.items.map((item) => (
+                <div key={item.id} className="bg-gray-50 rounded-xl p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Item</label>
+                      <input
+                        type="text"
+                        value={item.item}
+                        onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                      />
+                    </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
                         min="1"
                         value={item.cantidad}
-                        onChange={(e) => {
-                          const newItems = [...formData.items];
-                          newItems[index].cantidad = parseInt(e.target.value) || 1;
-                          setFormData({...formData, items: newItems});
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
-                      <input
-                        type="text"
-                        value={item.descripcion}
-                        onChange={(e) => {
-                          const newItems = [...formData.items];
-                          newItems[index].descripcion = e.target.value;
-                          setFormData({...formData, items: newItems});
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">V. Unitario</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">V. Unitario</label>
                       <input
                         type="number"
                         min="0"
                         value={item.valorUnitario}
-                        onChange={(e) => {
-                          const newItems = [...formData.items];
-                          newItems[index].valorUnitario = parseFloat(e.target.value) || 0;
-                          setFormData({...formData, items: newItems});
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descuento %</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descuento %</label>
                       <input
                         type="number"
                         min="0"
                         max="100"
                         value={item.descuento}
-                        onChange={(e) => {
-                          const newItems = [...formData.items];
-                          newItems[index].descuento = parseFloat(e.target.value) || 0;
-                          setFormData({...formData, items: newItems});
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => eliminarItem(item.id)}
+                        className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                    <div className="md:col-span-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                   </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-sm font-semibold text-gray-700">
-                      Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(calcularSubtotalItem(item))}
-                    </span>
-                  </div>
                 </div>
               ))}
+
+              {formData.items.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  No hay items pre-cargados. Agrega uno para continuar.
+                </div>
+              )}
             </div>
           </div>
 
@@ -7584,6 +8000,7 @@ const Dashboard = ({ user, onLogout }) => {
               sharedProtocolos={sharedProtocolos}
               setSharedProtocolos={setSharedProtocolos}
               sharedOrdenesCompra={sharedOrdenesCompra}
+              setSharedOrdenesCompra={setSharedOrdenesCompra}
               sharedCotizaciones={sharedCotizaciones.filter(c => c.estado === 'Ganada' && !c.adjudicadaAProtocolo)}
               protocoloParaAbrir={protocoloParaAbrir}
               onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}

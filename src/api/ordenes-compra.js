@@ -54,6 +54,32 @@ export const createOrdenCompra = async (orden, items) => {
   return ordenData[0]
 }
 
+// Reemplazar items de una orden de compra
+export const replaceOrdenCompraItems = async (ordenId, items) => {
+  const { error: deleteError } = await supabase
+    .from('ordenes_compra_items')
+    .delete()
+    .eq('orden_id', ordenId)
+
+  if (deleteError) throw deleteError
+
+  if (items && items.length > 0) {
+    const itemsConOrdenId = items.map(item => ({
+      orden_id: ordenId,
+      cantidad: item.cantidad,
+      descripcion: item.descripcion,
+      valor_unitario: item.valorUnitario || item.valor_unitario,
+      descuento: item.descuento || 0
+    }))
+
+    const { error: insertError } = await supabase
+      .from('ordenes_compra_items')
+      .insert(itemsConOrdenId)
+
+    if (insertError) throw insertError
+  }
+};
+
 // Actualizar orden de compra
 export const updateOrdenCompra = async (id, updates) => {
   const { data, error } = await supabase
