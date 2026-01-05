@@ -1858,7 +1858,7 @@ const OrdenesCompraModule = ({
         estadoPago: o.estado_pago || 'Pendiente',
         items: (o.ordenes_compra_items || []).map(item => ({
           id: item.id,
-          item: item.item || '',
+          item: item.item || item.descripcion || '',
           cantidad: item.cantidad,
           descripcion: item.descripcion,
           valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -4343,6 +4343,18 @@ const ProtocolosModule = ({
     loadProtocolos();
   }, []);
 
+  useEffect(() => {
+    if (sharedCotizaciones.length === 0) return;
+    setProtocolos(prev =>
+      prev.map(p => ({
+        ...p,
+        items: p.items && p.items.length
+          ? p.items
+          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numeroCotizacion))?.items || [])
+      }))
+    );
+  }, [sharedCotizaciones]);
+
   const loadProtocolos = async () => {
     try {
       setLoading(true);
@@ -4361,7 +4373,9 @@ const ProtocolosModule = ({
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total),
-        items: []
+        items: p.items && p.items.length
+          ? p.items
+          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numero_cotizacion))?.items || [])
       }));
       
       setProtocolos(transformados);
@@ -4371,6 +4385,12 @@ const ProtocolosModule = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const obtenerItemsProtocolo = (protocolo) => {
+    if (protocolo.items && protocolo.items.length) return protocolo.items;
+    const cotizacion = sharedCotizaciones.find(c => String(c.numero) === String(protocolo.numeroCotizacion));
+    return cotizacion?.items || [];
   };
 
   const ordenesCompra = sharedOrdenesCompra;
@@ -4393,7 +4413,7 @@ const ProtocolosModule = ({
     estadoPago: o.estado_pago || 'Pendiente',
     items: (o.ordenes_compra_items || []).map(item => ({
       id: item.id,
-      item: item.item || '',
+      item: item.item || item.descripcion || '',
       cantidad: item.cantidad,
       descripcion: item.descripcion,
       valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -4553,7 +4573,7 @@ const ProtocolosModule = ({
       <VistaListadoProtocolos
         protocolos={protocolos}
         onVerDetalle={(protocolo) => {
-          setProtocoloSeleccionado(protocolo);
+          setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
           setVistaActual('detalle');
         }}
         onNuevoProtocolo={() => setShowNewModal(true)}
@@ -5778,6 +5798,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
           id: cot.id,
           numero: cot.numero,
           clienteId: cot.cliente_id || null,
+          items: cot.items || [],
           cliente: cot.clientes?.razon_social || cot.razon_social || 'Sin cliente',
           monto: parseFloat(cot.monto),
           estado: cot.estado,
@@ -7050,6 +7071,7 @@ const [showNewModal, setShowNewModal] = useState(false);
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
         condicionesPago: cot.condiciones_pago,
+        items: cot.items || [],
         adjudicada_a_protocolo: cot.adjudicada_a_protocolo
       }));
       
@@ -7352,7 +7374,8 @@ const [showNewModal, setShowNewModal] = useState(false);
                 condiciones_pago: nuevaCotizacion.condicionesPago,
                 monto: nuevaCotizacion.monto,
                 estado: 'emitida',
-                cotizado_por: nuevaCotizacion.cotizadoPor
+                cotizado_por: nuevaCotizacion.cotizadoPor,
+                items: nuevaCotizacion.items || []
               };
 
               // Guardar en Supabase
@@ -7410,6 +7433,48 @@ const [showNewModal, setShowNewModal] = useState(false);
                   <p className="font-bold text-2xl" style={{color: '#235250'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
                 </div>
               </div>
+
+              <div className="mt-8">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4">Items</h4>
+                {cotizacionSeleccionada.items && cotizacionSeleccionada.items.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold">Item</th>
+                          <th className="px-3 py-2 text-left font-semibold">Cantidad</th>
+                          <th className="px-3 py-2 text-left font-semibold">Descripción</th>
+                          <th className="px-3 py-2 text-left font-semibold">V. Unitario</th>
+                          <th className="px-3 py-2 text-left font-semibold">Descuento %</th>
+                          <th className="px-3 py-2 text-left font-semibold">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cotizacionSeleccionada.items.map((item, index) => {
+                          const cantidad = item.cantidad || 0;
+                          const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+                          const descuento = item.descuento || 0;
+                          const subtotal = (cantidad * valorUnitario) * (1 - descuento / 100);
+                          return (
+                            <tr key={item.id || index} className="hover:bg-gray-50">
+                              <td className="px-3 py-2">{item.item || `Item ${index + 1}`}</td>
+                              <td className="px-3 py-2">{cantidad}</td>
+                              <td className="px-3 py-2">{item.descripcion || '-'}</td>
+                              <td className="px-3 py-2">{formatCurrency(valorUnitario)}</td>
+                              <td className="px-3 py-2">{descuento}%</td>
+                              <td className="px-3 py-2 font-semibold">{formatCurrency(subtotal)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500">
+                    No hay items registrados en esta cotización.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -7449,7 +7514,15 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
     condicionesPago: cotizacion.condicionesPago || '',
     cotizadoPor: cotizacion.cotizadoPor || '',
     monto: cotizacion.monto || 0,
-    estado: cotizacion.estado || 'emitida'
+    estado: cotizacion.estado || 'emitida',
+    items: (cotizacion.items || []).map((item, index) => ({
+      id: item.id || index + 1,
+      item: item.item || '',
+      cantidad: item.cantidad || 1,
+      descripcion: item.descripcion || '',
+      valorUnitario: item.valorUnitario ?? item.valor_unitario ?? 0,
+      descuento: item.descuento || 0
+    }))
   });
 
   useEffect(() => {
@@ -7460,22 +7533,77 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
       condicionesPago: cotizacion.condicionesPago || '',
       cotizadoPor: cotizacion.cotizadoPor || '',
       monto: cotizacion.monto || 0,
-      estado: cotizacion.estado || 'emitida'
+      estado: cotizacion.estado || 'emitida',
+      items: (cotizacion.items || []).map((item, index) => ({
+        id: item.id || index + 1,
+        item: item.item || '',
+        cantidad: item.cantidad || 1,
+        descripcion: item.descripcion || '',
+        valorUnitario: item.valorUnitario ?? item.valor_unitario ?? 0,
+        descuento: item.descuento || 0
+      }))
     });
   }, [cotizacion]);
 
+  const agregarItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 1,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
+      }]
+    }));
+  };
+
+  const eliminarItem = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== id)
+    }));
+  };
+
+  const actualizarItem = (id, campo, valor) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.map(item =>
+        item.id === id ? { ...item, [campo]: valor } : item
+      )
+    }));
+  };
+
+  const calcularSubtotalItem = (item) => {
+    const subtotal = item.cantidad * item.valorUnitario;
+    const descuento = subtotal * (item.descuento / 100);
+    return subtotal - descuento;
+  };
+
+  const calcularTotales = () => {
+    const subtotal = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
+    const iva = subtotal * 0.19;
+    const total = subtotal + iva;
+    return { subtotal, iva, total };
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const { total } = calcularTotales();
     onSave({
       fecha: formData.fecha,
       nombre_proyecto: formData.nombreProyecto,
       unidad_negocio: formData.unidadNegocio,
       condiciones_pago: formData.condicionesPago,
       cotizado_por: formData.cotizadoPor,
-      monto: formData.monto,
-      estado: formData.estado
+      monto: total,
+      estado: formData.estado,
+      items: formData.items || []
     });
   };
+
+  const totales = calcularTotales();
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -7540,12 +7668,12 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Monto</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Total</label>
               <input
                 type="number"
                 min="0"
-                value={formData.monto}
-                onChange={(e) => setFormData({ ...formData, monto: parseFloat(e.target.value) || 0 })}
+                value={totales.total}
+                readOnly
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
@@ -7569,6 +7697,120 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 onChange={(e) => setFormData({ ...formData, cotizadoPor: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-800 flex items-center">
+                <Package className="w-5 h-5 mr-2 text-[#45ad98]" />
+                Items
+              </h4>
+              <button
+                type="button"
+                onClick={agregarItem}
+                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
+              >
+                + Agregar Item
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {formData.items.map((item, index) => (
+                <div key={item.id} className="bg-gray-50 p-4 rounded-xl">
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-700">Item #{index + 1}</span>
+                    {formData.items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => eliminarItem(item.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Item</label>
+                      <input
+                        type="text"
+                        value={item.item}
+                        onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
+                      <input
+                        type="text"
+                        value={item.descripcion}
+                        onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">V. Unitario</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.valorUnitario}
+                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Descuento %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.descuento}
+                        onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-right">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(calcularSubtotalItem(item))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Totales */}
+          <div className="bg-gray-50 rounded-xl p-6 mb-4">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-gray-700 font-semibold">Subtotal:</span>
+              <span className="text-xl font-bold text-gray-800">
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.subtotal)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-gray-700 font-semibold">IVA 19%:</span>
+              <span className="text-xl font-bold text-gray-800">
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.iva)}
+              </span>
+            </div>
+            <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
+              <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+                {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
+              </span>
             </div>
           </div>
 
@@ -8172,6 +8414,7 @@ const Dashboard = ({ user, onLogout }) => {
       estado: cot.estado,
       cotizadoPor: cot.cotizado_por,
       condicionesPago: cot.condiciones_pago,
+      items: cot.items || [],
       adjudicada_a_protocolo: cot.adjudicada_a_protocolo
     });
 
@@ -8188,7 +8431,7 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
-      items: []
+      items: p.items || []
     });
 
     const mapOrdenCompra = (o) => ({
@@ -8209,6 +8452,7 @@ const Dashboard = ({ user, onLogout }) => {
       estadoPago: o.estado_pago || 'Pendiente',
       items: (o.ordenes_compra_items || []).map(item => ({
         id: item.id,
+        item: item.item || item.descripcion || '',
         cantidad: item.cantidad,
         descripcion: item.descripcion,
         valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -8291,6 +8535,7 @@ const Dashboard = ({ user, onLogout }) => {
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
         condicionesPago: cot.condiciones_pago,
+        items: cot.items || [],
         adjudicada_a_protocolo: cot.adjudicada_a_protocolo
       })));
       setSharedProtocolos(protocolosActualizados.map(p => ({
@@ -8306,7 +8551,7 @@ const Dashboard = ({ user, onLogout }) => {
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total) || 0,
-        items: []
+        items: p.items || []
       })));
 
       setProtocoloParaAbrir(protocoloCreado);
@@ -8656,7 +8901,7 @@ const Dashboard = ({ user, onLogout }) => {
               setSharedProtocolos={setSharedProtocolos}
               sharedOrdenesCompra={sharedOrdenesCompra}
               setSharedOrdenesCompra={setSharedOrdenesCompra}
-              sharedCotizaciones={sharedCotizaciones.filter(c => c.estado === 'Ganada' && !c.adjudicadaAProtocolo)}
+              sharedCotizaciones={sharedCotizaciones}
               protocoloParaAbrir={protocoloParaAbrir}
               onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}
               onLimpiarProtocoloParaAbrir={() => setProtocoloParaAbrir(null)}
