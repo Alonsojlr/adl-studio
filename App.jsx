@@ -4644,6 +4644,8 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
       case 'Cerrado': return 'bg-blue-100 text-blue-800';
       case 'Anulado': return 'bg-red-100 text-red-800';
       case 'Despachado Parcial': return 'bg-purple-100 text-purple-800';
+      case 'Facturado': return 'bg-emerald-100 text-emerald-800';
+      case 'No Facturado': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -4729,6 +4731,8 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
             <option value="Cerrado">Cerrado</option>
             <option value="Anulado">Anulado</option>
             <option value="Despachado Parcial">Despachado Parcial</option>
+            <option value="Facturado">Facturado</option>
+            <option value="No Facturado">No Facturado</option>
           </select>
         </div>
       </div>
@@ -4910,6 +4914,8 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                 <option value="Abierto">🟢 Abierto</option>
                 <option value="En Proceso">🟡 En Proceso</option>
                 <option value="Cerrado">✅ Cerrado</option>
+                <option value="Facturado">🧾 Facturado</option>
+                <option value="No Facturado">⏳ No Facturado</option>
                 <option value="Anulado">❌ Anulado</option>
                 <option value="Despachado Parcial">📦 Despachado Parcial</option>
               </select>
