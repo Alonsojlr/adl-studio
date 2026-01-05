@@ -4625,7 +4625,7 @@ const ProtocolosModule = ({
               const protocoloData = {
                 folio: `${ultimoFolio + 1}`,
                 numero_cotizacion: nuevoProtocolo.numeroCotizacion || '',
-                cliente_id: null,
+                cliente_id: nuevoProtocolo.clienteId || null,
                 nombre_proyecto: nuevoProtocolo.nombreProyecto,
                 tipo: nuevoProtocolo.tipo,
                 oc_cliente: '',
@@ -5777,6 +5777,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
         const transformadas = data.map(cot => ({
           id: cot.id,
           numero: cot.numero,
+          clienteId: cot.cliente_id || null,
           cliente: cot.clientes?.razon_social || cot.razon_social || 'Sin cliente',
           monto: parseFloat(cot.monto),
           estado: cot.estado,
@@ -7040,6 +7041,7 @@ const [showNewModal, setShowNewModal] = useState(false);
         id: cot.id,
         numero: cot.numero,
         fecha: cot.fecha,
+        clienteId: cot.cliente_id || null,
         cliente: cot.clientes?.razon_social || 'Sin cliente',
         nombreProyecto: cot.nombre_proyecto,
         rut: cot.clientes?.rut || '',
@@ -7344,7 +7346,7 @@ const [showNewModal, setShowNewModal] = useState(false);
               const cotizacionData = {
                 numero: nuevaCotizacion.numero,
                 fecha: nuevaCotizacion.fecha,
-                cliente_id: null, // Por ahora null, después conectaremos clientes
+                cliente_id: nuevaCotizacion.clienteId || null,
                 nombre_proyecto: nuevaCotizacion.nombreProyecto,
                 unidad_negocio: nuevaCotizacion.unidadNegocio,
                 condiciones_pago: nuevaCotizacion.condicionesPago,
@@ -7596,6 +7598,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
 const NuevaCotizacionModal = ({ onClose, onSave }) => {
   const [formData, setFormData] = useState({
     codigoCliente: '',
+    clienteId: null,
     cliente: '',
     nombreProyecto: '',
     razonSocial: '',
@@ -7649,6 +7652,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
       setFormData(prev => ({
         ...prev,
         codigoCliente: codigo,
+        clienteId: cliente.id,
         cliente: cliente.razonSocial,
         razonSocial: cliente.razonSocial,
         rut: cliente.rut,
@@ -7663,6 +7667,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     setFormData(prev => ({
       ...prev,
       codigoCliente: cliente.codigo,
+      clienteId: cliente.id,
       cliente: cliente.razonSocial,
       razonSocial: cliente.razonSocial,
       rut: cliente.rut,
@@ -7716,10 +7721,31 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     return { subtotal, iva, total };
   };
 
+  const resolverClienteId = () => {
+    if (formData.clienteId) return formData.clienteId;
+    const codigo = String(formData.codigoCliente || '').trim();
+    if (codigo) {
+      const byCodigo = clientes.find(c => String(c.codigo) === codigo);
+      if (byCodigo) return byCodigo.id;
+    }
+    const nombre = String(formData.razonSocial || formData.cliente || '').trim().toLowerCase();
+    if (!nombre) return null;
+    const exact = clientes.find(c => c.razonSocial.toLowerCase() === nombre);
+    if (exact) return exact.id;
+    const starts = clientes.filter(c => c.razonSocial.toLowerCase().startsWith(nombre));
+    if (starts.length === 1) return starts[0].id;
+    return null;
+  };
+
  const handleSubmit = async (e) => {
   e.preventDefault();
   
   try {
+    const clienteId = resolverClienteId();
+    if (!clienteId) {
+      alert('Selecciona un cliente de la lista o búscalo por código.');
+      return;
+    }
     // Obtener todas las cotizaciones para calcular el siguiente número
     const cotizaciones = await getCotizaciones();
     const ultimoNumero = cotizaciones.length > 0
@@ -7730,6 +7756,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     const nuevaCotizacion = {
       numero: `${ultimoNumero + 1}`,
       ...formData,
+      clienteId,
       monto: total,
       estado: 'emitida'
     };
@@ -7772,7 +7799,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
                 <input
                   type="text"
                   value={formData.codigoCliente}
-                  onChange={(e) => setFormData({...formData, codigoCliente: e.target.value})}
+                  onChange={(e) => setFormData({...formData, codigoCliente: e.target.value, clienteId: null})}
                   onBlur={(e) => buscarCliente(e.target.value)}
                   className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-xl focus:outline-none focus:border-blue-500 font-mono text-lg font-bold"
                   placeholder="Ej: 1000"
@@ -7802,7 +7829,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
                     required
                     value={formData.razonSocial}
                     onChange={(e) => {
-                      setFormData({...formData, razonSocial: e.target.value, cliente: e.target.value});
+                      setFormData({...formData, razonSocial: e.target.value, cliente: e.target.value, clienteId: null});
                       setShowClienteAutocomplete(true);
                     }}
                     onFocus={() => setShowClienteAutocomplete(true)}
@@ -8136,6 +8163,7 @@ const Dashboard = ({ user, onLogout }) => {
       id: cot.id,
       numero: cot.numero,
       fecha: cot.fecha,
+      clienteId: cot.cliente_id || null,
       cliente: cot.clientes?.razon_social || 'Sin cliente',
       nombreProyecto: cot.nombre_proyecto,
       rut: cot.clientes?.rut || '',
@@ -8229,7 +8257,7 @@ const Dashboard = ({ user, onLogout }) => {
       const nuevoProtocolo = {
         folio: `${ultimoFolio + 1}`,
         numero_cotizacion: cotizacion.numero,
-        cliente_id: null,
+        cliente_id: cotizacion.clienteId || null,
         nombre_proyecto: cotizacion.nombreProyecto,
         tipo: 'Venta',
         oc_cliente: '',
@@ -8254,6 +8282,7 @@ const Dashboard = ({ user, onLogout }) => {
         id: cot.id,
         numero: cot.numero,
         fecha: cot.fecha,
+        clienteId: cot.cliente_id || null,
         cliente: cot.clientes?.razon_social || 'Sin cliente',
         nombreProyecto: cot.nombre_proyecto,
         rut: cot.clientes?.rut || '',

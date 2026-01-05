@@ -4,7 +4,13 @@ import { supabase } from '../lib/supabaseClient'
 export const getCotizaciones = async () => {
   const { data, error } = await supabase
     .from('cotizaciones')
-    .select('*')
+    .select(`
+      *,
+      clientes (
+        razon_social,
+        rut
+      )
+    `)
     .order('created_at', { ascending: false })
   
   if (error) throw error
