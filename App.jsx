@@ -280,6 +280,10 @@ const InventarioModule = ({ activeModule }) => {
     }).format(value);
   };
 
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const isReservaVencida = (reserva) =>
+    !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
+
   const getNextCodigo = () => {
     const numeros = items
       .map(i => parseInt(String(i.codigo || '').replace(/\D/g, ''), 10))
@@ -290,10 +294,10 @@ const InventarioModule = ({ activeModule }) => {
 
   const stats = {
     totalItems: items.length,
-    stockBajo: items.filter(i => calcularStockDisponible(i) <= i.stockMinimo).length,
     totalmenteReservados: items.filter(i => calcularStockDisponible(i) === 0).length,
     valorTotal: items.reduce((sum, i) => sum + (i.stockTotal * i.precioCosto), 0),
-    reservasActivas: items.reduce((sum, i) => sum + i.reservas.filter(r => !r.devuelto).length, 0)
+    reservasActivas: items.reduce((sum, i) => sum + i.reservas.filter(r => !r.devuelto).length, 0),
+    reservasVencidas: items.reduce((sum, i) => sum + i.reservas.filter(isReservaVencida).length, 0)
   };
 
   return (
@@ -327,14 +331,10 @@ const InventarioModule = ({ activeModule }) => {
       )}
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl p-4 shadow">
           <p className="text-sm text-gray-500 mb-1">Total Items</p>
           <p className="text-2xl font-bold text-gray-800">{stats.totalItems}</p>
-        </div>
-        <div className="bg-yellow-50 rounded-xl p-4 shadow">
-          <p className="text-sm text-yellow-600 mb-1">Stock Bajo</p>
-          <p className="text-2xl font-bold text-yellow-800">{stats.stockBajo}</p>
         </div>
         <div className="bg-red-50 rounded-xl p-4 shadow">
           <p className="text-sm text-red-600 mb-1">Sin Disponibilidad</p>
@@ -351,8 +351,21 @@ const InventarioModule = ({ activeModule }) => {
       </div>
 
       {/* Alertas */}
-      {(stats.stockBajo > 0 || stats.totalmenteReservados > 0) && (
+      {(stats.totalmenteReservados > 0 || stats.reservasVencidas > 0) && (
         <div className="mb-6 space-y-3">
+          {stats.reservasVencidas > 0 && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+              <div className="flex items-center">
+                <Clock className="w-5 h-5 text-red-600 mr-3" />
+                <div>
+                  <p className="font-semibold text-red-800">
+                    {stats.reservasVencidas} reservas vencidas sin devolución
+                  </p>
+                  <p className="text-sm text-red-600">Revisa y marca devolución si corresponde</p>
+                </div>
+              </div>
+            </div>
+          )}
           {stats.totalmenteReservados > 0 && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
               <div className="flex items-center">
@@ -362,19 +375,6 @@ const InventarioModule = ({ activeModule }) => {
                     {stats.totalmenteReservados} items sin stock disponible
                   </p>
                   <p className="text-sm text-red-600">Todos los items están reservados para proyectos</p>
-                </div>
-              </div>
-            </div>
-          )}
-          {stats.stockBajo > 0 && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
-              <div className="flex items-center">
-                <TrendingUp className="w-5 h-5 text-yellow-600 mr-3" />
-                <div>
-                  <p className="font-semibold text-yellow-800">
-                    {stats.stockBajo} items con stock disponible bajo
-                  </p>
-                  <p className="text-sm text-yellow-600">Considera adquirir más unidades</p>
                 </div>
               </div>
             </div>
@@ -446,11 +446,7 @@ const InventarioModule = ({ activeModule }) => {
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-semibold text-gray-700">Disponible:</span>
-                    <span className={`text-lg font-bold ${
-                      disponible === 0 ? 'text-red-600' : 
-                      disponible <= item.stockMinimo ? 'text-yellow-600' : 
-                      'text-green-600'
-                    }`}>
+                    <span className={`text-lg font-bold ${disponible === 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {disponible} {item.unidadMedida}
                     </span>
                   </div>
@@ -459,9 +455,7 @@ const InventarioModule = ({ activeModule }) => {
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div 
                       className={`h-2 rounded-full transition-all ${
-                        porcentajeDisponible === 0 ? 'bg-red-500' :
-                        porcentajeDisponible <= 40 ? 'bg-yellow-500' :
-                        'bg-green-500'
+                        porcentajeDisponible === 0 ? 'bg-red-500' : 'bg-green-500'
                       }`}
                       style={{ width: `${porcentajeDisponible}%` }}
                     ></div>
@@ -525,11 +519,11 @@ const InventarioModule = ({ activeModule }) => {
                 especificaciones: nuevoItem.especificaciones,
                 unidad_medida: nuevoItem.unidadMedida,
                 stock_total: nuevoItem.stockTotal,
-                stock_minimo: nuevoItem.stockMinimo,
+                stock_minimo: 0,
                 ubicacion: nuevoItem.ubicacion,
                 proveedor_principal: nuevoItem.proveedorPrincipal,
                 precio_costo: nuevoItem.precioCosto,
-                precio_venta: nuevoItem.precioVenta,
+                precio_venta: 0,
                 foto_url: nuevoItem.foto || null
               };
 
@@ -592,11 +586,9 @@ const NuevoItemModal = ({ onClose, onSave }) => {
     especificaciones: '',
     unidadMedida: 'Unidad',
     stockTotal: 1,
-    stockMinimo: 1,
     ubicacion: '',
     proveedorPrincipal: '',
     precioCosto: 0,
-    precioVenta: 0,
     foto: null
   });
 
@@ -695,17 +687,6 @@ const NuevoItemModal = ({ onClose, onSave }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Stock Mínimo *</label>
-              <input
-                type="number"
-                required
-                min="0"
-                value={formData.stockMinimo}
-                onChange={(e) => setFormData({...formData, stockMinimo: parseInt(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-              />
-            </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Ubicación en Bodega *</label>
@@ -740,16 +721,6 @@ const NuevoItemModal = ({ onClose, onSave }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Precio Venta</label>
-              <input
-                type="number"
-                min="0"
-                value={formData.precioVenta}
-                onChange={(e) => setFormData({...formData, precioVenta: parseFloat(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-              />
-            </div>
 
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Foto del Producto</label>
@@ -829,6 +800,9 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
 
   const disponible = calcularStockDisponible();
   const reservas = item.reservas || [];
+  const hoyISO = new Date().toISOString().split('T')[0];
+  const isReservaVencida = (reserva) =>
+    !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -893,21 +867,12 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                     <p className="text-xs text-gray-500">{item.unidadMedida}</p>
                   </div>
                   <div className={`bg-white p-4 rounded-lg border-2 ${
-                    disponible === 0 ? 'border-red-500' :
-                    disponible <= item.stockMinimo ? 'border-yellow-500' :
-                    'border-green-500'
+                    disponible === 0 ? 'border-red-500' : 'border-green-500'
                   }`}>
                     <p className="text-xs text-gray-500 mb-1">Disponible</p>
                     <p className={`text-2xl font-bold ${
-                      disponible === 0 ? 'text-red-600' :
-                      disponible <= item.stockMinimo ? 'text-yellow-600' :
-                      'text-green-600'
+                      disponible === 0 ? 'text-red-600' : 'text-green-600'
                     }`}>{disponible}</p>
-                    <p className="text-xs text-gray-500">{item.unidadMedida}</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Stock Mínimo</p>
-                    <p className="text-2xl font-bold text-gray-800">{item.stockMinimo}</p>
                     <p className="text-xs text-gray-500">{item.unidadMedida}</p>
                   </div>
                 </div>
@@ -949,6 +914,10 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                               {reserva.devuelto ? (
                                 <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
                                   Devuelto
+                                </span>
+                              ) : isReservaVencida(reserva) ? (
+                                <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">
+                                  Vencida
                                 </span>
                               ) : (
                                 <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
@@ -1091,6 +1060,262 @@ const ReservaModal = ({ item, onClose, onSave }) => {
             disabled={!formData.protocolo || !formData.fechaDesde || !formData.fechaHasta || formData.cantidad > disponible}
           >
             Crear Reserva
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
+  const [items, setItems] = useState([]);
+  const [reservas, setReservas] = useState([]);
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reservar, setReservar] = useState(false);
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+
+  useEffect(() => {
+    const loadInventario = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const [itemsData, reservasData] = await Promise.all([
+          getInventarioItems(),
+          getInventarioReservas()
+        ]);
+        setItems(itemsData);
+        setReservas(reservasData);
+      } catch (error) {
+        console.error('Error cargando bodega:', error);
+        setError('No se pudo cargar la bodega');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadInventario();
+  }, []);
+
+  const disponiblePorItem = (itemId, stockTotal) => {
+    const reservadas = reservas
+      .filter(r => r.item_id === itemId && !r.devuelto)
+      .reduce((sum, r) => sum + (r.cantidad || 0), 0);
+    return Math.max(0, (stockTotal || 0) - reservadas);
+  };
+
+  const toggleSeleccion = (item) => {
+    setSeleccionados(prev => {
+      const existe = prev.find(s => s.item_id === item.id);
+      if (existe) {
+        return prev.filter(s => s.item_id !== item.id);
+      }
+      return [
+        ...prev,
+        {
+          item_id: item.id,
+          item: item.nombre,
+          descripcion: item.descripcion,
+          cantidad: 1,
+          valorUnitario: parseFloat(item.precio_costo) || 0,
+          descuento: 0
+        }
+      ];
+    });
+  };
+
+  const actualizarSeleccion = (itemId, campo, valor) => {
+    setSeleccionados(prev =>
+      prev.map(s => (s.item_id === itemId ? { ...s, [campo]: valor } : s))
+    );
+  };
+
+  const agregarYReservar = async () => {
+    if (seleccionados.length === 0) return;
+
+    if (reservar) {
+      if (!codigoProtocolo) {
+        alert('Ingresa un código de protocolo para reservar en bodega.');
+        return;
+      }
+      if (!fechaDesde || !fechaHasta) {
+        alert('Selecciona fechas de reserva.');
+        return;
+      }
+
+      try {
+        await Promise.all(
+          seleccionados.map(s =>
+            createInventarioReserva({
+              item_id: s.item_id,
+              protocolo: codigoProtocolo,
+              cantidad: s.cantidad,
+              fecha_desde: fechaDesde,
+              fecha_hasta: fechaHasta,
+              devuelto: false
+            })
+          )
+        );
+      } catch (error) {
+        console.error('Error reservando inventario:', error);
+        alert('Error al reservar en bodega');
+        return;
+      }
+    }
+
+    onAgregarItems(
+      seleccionados.map(s => ({
+        item: s.item,
+        descripcion: s.descripcion,
+        cantidad: s.cantidad,
+        valorUnitario: s.valorUnitario,
+        descuento: s.descuento
+      }))
+    );
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl">
+        <div className="p-6 border-b">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xl font-bold text-gray-800">Bodega - Seleccionar Items</h4>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {loading ? (
+            <p className="text-gray-600">Cargando bodega...</p>
+          ) : error ? (
+            <p className="text-red-600">{error}</p>
+          ) : items.length === 0 ? (
+            <p className="text-gray-600">No hay items en bodega</p>
+          ) : (
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+              {items.map(item => {
+                const disponible = disponiblePorItem(item.id, parseInt(item.stock_total, 10) || 0);
+                const seleccionado = seleccionados.find(s => s.item_id === item.id);
+                return (
+                  <div key={item.id} className="border rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-800">{item.nombre}</p>
+                        <p className="text-sm text-gray-500">{item.descripcion}</p>
+                        <p className="text-xs text-gray-400">Disponible: {disponible}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleSeleccion(item)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                          seleccionado ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {seleccionado ? 'Quitar' : 'Agregar'}
+                      </button>
+                    </div>
+
+                    {seleccionado && (
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={disponible}
+                            value={seleccionado.cantidad}
+                            onChange={(e) => actualizarSeleccion(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">V. Unitario</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={seleccionado.valorUnitario}
+                            onChange={(e) => actualizarSeleccion(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Descuento %</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={seleccionado.descuento}
+                            onChange={(e) => actualizarSeleccion(item.id, 'descuento', parseFloat(e.target.value) || 0)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Descripción</label>
+                          <input
+                            type="text"
+                            value={seleccionado.descripcion}
+                            onChange={(e) => actualizarSeleccion(item.id, 'descripcion', e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              checked={reservar}
+              onChange={(e) => setReservar(e.target.checked)}
+            />
+            <span className="text-sm text-gray-700">Reservar en bodega al agregar</span>
+          </div>
+
+          {reservar && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Desde</label>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Hasta</label>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-6 border-t flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={agregarYReservar}
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            disabled={seleccionados.length === 0}
+          >
+            Agregar a OC
           </button>
         </div>
       </div>
@@ -2130,9 +2355,11 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     ],
     observaciones: ''
   });
+  const [showBodegaModal, setShowBodegaModal] = useState(false);
 
   const [proveedores, setProveedores] = useState([]);
   const [proveedoresError, setProveedoresError] = useState('');
+  const [showProveedorAutocomplete, setShowProveedorAutocomplete] = useState(false);
 
   useEffect(() => {
     const loadProveedores = async () => {
@@ -2175,6 +2402,19 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     }
   };
 
+  const seleccionarProveedor = (prov) => {
+    setFormData(prev => ({
+      ...prev,
+      codigoProveedor: prov.codigo,
+      proveedor: prov.nombre,
+      rutProveedor: prov.rut,
+      direccionProveedor: prov.direccion,
+      contactoProveedor: prov.contacto,
+      telefonoProveedor: prov.telefono
+    }));
+    setShowProveedorAutocomplete(false);
+  };
+
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
@@ -2186,6 +2426,23 @@ const NuevaOCModal = ({ onClose, onSave }) => {
         valorUnitario: 0, 
         descuento: 0 
       }]
+    }));
+  };
+
+  const agregarItemsDesdeBodega = (itemsBodega) => {
+    setFormData(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        ...itemsBodega.map((item, index) => ({
+          id: prev.items.length + index + 1,
+          item: item.item,
+          cantidad: item.cantidad,
+          descripcion: item.descripcion,
+          valorUnitario: item.valorUnitario,
+          descuento: item.descuento || 0
+        }))
+      ]
     }));
   };
 
@@ -2272,13 +2529,40 @@ const NuevaOCModal = ({ onClose, onSave }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.proveedor}
-                  onChange={(e) => setFormData({...formData, proveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formData.proveedor}
+                    onChange={(e) => {
+                      setFormData({...formData, proveedor: e.target.value});
+                      setShowProveedorAutocomplete(true);
+                    }}
+                    onFocus={() => setShowProveedorAutocomplete(true)}
+                    onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                  {showProveedorAutocomplete && formData.proveedor && (
+                    <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {proveedores
+                        .filter(p =>
+                          p.nombre.toLowerCase().includes(formData.proveedor.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={() => seleccionarProveedor(p)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                          >
+                            <span className="font-semibold">{p.nombre}</span>
+                            <span className="text-xs text-gray-500 ml-2">Cód: {p.codigo}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">RUT *</label>
@@ -2399,13 +2683,22 @@ const NuevaOCModal = ({ onClose, onSave }) => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800">Items</h4>
-              <button
-                type="button"
-                onClick={agregarItem}
-                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
-              >
-                + Agregar Item
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBodegaModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Bodega
+                </button>
+                <button
+                  type="button"
+                  onClick={agregarItem}
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                >
+                  + Agregar Item
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -2539,6 +2832,13 @@ const NuevaOCModal = ({ onClose, onSave }) => {
           </div>
         </form>
       </div>
+      {showBodegaModal && (
+        <BodegaItemsModal
+          codigoProtocolo={formData.codigoProtocolo}
+          onClose={() => setShowBodegaModal(false)}
+          onAgregarItems={agregarItemsDesdeBodega}
+        />
+      )}
     </div>
   );
 };
@@ -4934,9 +5234,11 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     })),
     observaciones: ''
   });
+  const [showBodegaModal, setShowBodegaModal] = useState(false);
 
   const [proveedores, setProveedores] = useState([]);
   const [proveedoresError, setProveedoresError] = useState('');
+  const [showProveedorAutocomplete, setShowProveedorAutocomplete] = useState(false);
 
   useEffect(() => {
     const loadProveedores = async () => {
@@ -4979,6 +5281,19 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     }
   };
 
+  const seleccionarProveedor = (prov) => {
+    setFormData(prev => ({
+      ...prev,
+      codigoProveedor: prov.codigo,
+      proveedor: prov.nombre,
+      rutProveedor: prov.rut,
+      direccionProveedor: prov.direccion,
+      contactoProveedor: prov.contacto,
+      telefonoProveedor: prov.telefono
+    }));
+    setShowProveedorAutocomplete(false);
+  };
+
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
@@ -4990,6 +5305,23 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
         valorUnitario: 0,
         descuento: 0
       }]
+    }));
+  };
+
+  const agregarItemsDesdeBodega = (itemsBodega) => {
+    setFormData(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        ...itemsBodega.map((item, index) => ({
+          id: prev.items.length + index + 1,
+          item: item.item,
+          cantidad: item.cantidad,
+          descripcion: item.descripcion,
+          valorUnitario: item.valorUnitario,
+          descuento: item.descuento || 0
+        }))
+      ]
     }));
   };
 
@@ -5104,13 +5436,40 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.proveedor}
-                  onChange={(e) => setFormData({...formData, proveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formData.proveedor}
+                    onChange={(e) => {
+                      setFormData({...formData, proveedor: e.target.value});
+                      setShowProveedorAutocomplete(true);
+                    }}
+                    onFocus={() => setShowProveedorAutocomplete(true)}
+                    onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                  {showProveedorAutocomplete && formData.proveedor && (
+                    <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {proveedores
+                        .filter(p =>
+                          p.nombre.toLowerCase().includes(formData.proveedor.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={() => seleccionarProveedor(p)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                          >
+                            <span className="font-semibold">{p.nombre}</span>
+                            <span className="text-xs text-gray-500 ml-2">Cód: {p.codigo}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">RUT *</label>
@@ -5194,13 +5553,22 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800">Items (Pre-cargados del Protocolo - Edita valores)</h4>
-              <button
-                type="button"
-                onClick={agregarItem}
-                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
-              >
-                + Agregar Item
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBodegaModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Bodega
+                </button>
+                <button
+                  type="button"
+                  onClick={agregarItem}
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                >
+                  + Agregar Item
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -5323,6 +5691,13 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
           </div>
         </form>
       </div>
+      {showBodegaModal && (
+        <BodegaItemsModal
+          codigoProtocolo={formData.codigoProtocolo}
+          onClose={() => setShowBodegaModal(false)}
+          onAgregarItems={agregarItemsDesdeBodega}
+        />
+      )}
     </div>
   );
 };
@@ -7180,6 +7555,7 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
 
   const [clientes, setClientes] = useState([]);
   const [clientesError, setClientesError] = useState('');
+  const [showClienteAutocomplete, setShowClienteAutocomplete] = useState(false);
 
   useEffect(() => {
     const loadClientes = async () => {
@@ -7221,6 +7597,20 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
         telefono: cliente.telefono
       }));
     }
+  };
+
+  const seleccionarCliente = (cliente) => {
+    setFormData(prev => ({
+      ...prev,
+      codigoCliente: cliente.codigo,
+      cliente: cliente.razonSocial,
+      razonSocial: cliente.razonSocial,
+      rut: cliente.rut,
+      direccion: cliente.direccion,
+      contacto: cliente.contacto,
+      telefono: cliente.telefono
+    }));
+    setShowClienteAutocomplete(false);
   };
 
   const agregarItem = () => {
@@ -7346,13 +7736,40 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Razón Social *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.razonSocial}
-                  onChange={(e) => setFormData({...formData, razonSocial: e.target.value, cliente: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={formData.razonSocial}
+                    onChange={(e) => {
+                      setFormData({...formData, razonSocial: e.target.value, cliente: e.target.value});
+                      setShowClienteAutocomplete(true);
+                    }}
+                    onFocus={() => setShowClienteAutocomplete(true)}
+                    onBlur={() => setTimeout(() => setShowClienteAutocomplete(false), 150)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                  {showClienteAutocomplete && formData.razonSocial && (
+                    <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {clientes
+                        .filter(c =>
+                          c.razonSocial.toLowerCase().includes(formData.razonSocial.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onMouseDown={() => seleccionarCliente(c)}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50"
+                          >
+                            <span className="font-semibold">{c.razonSocial}</span>
+                            <span className="text-xs text-gray-500 ml-2">Cód: {c.codigo}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">RUT *</label>
