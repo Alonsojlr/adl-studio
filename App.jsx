@@ -6,6 +6,7 @@ import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra } from './src/ap
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
+import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarOCDesdeTemplate, generarCotizacionPDF, generarOCPDF } from './src/utils/documentGenerator';
 
@@ -185,85 +186,90 @@ const InventarioModule = ({ activeModule }) => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showFichaModal, setShowFichaModal] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
-  const [items, setItems] = useState([
-    {
-      id: '1',
-      codigo: 'INV-001',
-      nombre: 'TV Samsung 50"',
-      descripcion: 'Televisor Samsung 50 pulgadas 4K UHD',
-      categoria: 'Electrónica',
-      especificaciones: '50", 4K, Smart TV, HDR',
-      unidadMedida: 'Unidad',
-      stockTotal: 5,
-      stockMinimo: 2,
-      ubicacion: 'Bodega A - Estante 3',
-      proveedorPrincipal: 'ACERBEN SPA',
-      precioCosto: 350000,
-      precioVenta: 0,
-      foto: null,
-      reservas: [
-        { id: 1, protocolo: '30650', cantidad: 2, fechaDesde: '2025-05-03', fechaHasta: '2025-05-15', devuelto: false },
-        { id: 2, protocolo: '30651', cantidad: 1, fechaDesde: '2025-05-10', fechaHasta: '2025-05-20', devuelto: false }
-      ]
-    },
-    {
-      id: '2',
-      codigo: 'INV-002',
-      nombre: 'TV LG 32"',
-      descripcion: 'Televisor LG 32 pulgadas HD',
-      categoria: 'Electrónica',
-      especificaciones: '32", HD, Smart TV',
-      unidadMedida: 'Unidad',
-      stockTotal: 3,
-      stockMinimo: 1,
-      ubicacion: 'Bodega A - Estante 3',
-      proveedorPrincipal: 'ACERBEN SPA',
-      precioCosto: 200000,
-      precioVenta: 0,
-      foto: null,
-      reservas: []
-    },
-    {
-      id: '3',
-      codigo: 'INV-003',
-      nombre: 'Mesa Ejecutiva 1.8m',
-      descripcion: 'Mesa ejecutiva color nogal 1.8m x 0.8m',
-      categoria: 'Mobiliario',
-      especificaciones: '1.8m x 0.8m, Nogal, MDF',
-      unidadMedida: 'Unidad',
-      stockTotal: 10,
-      stockMinimo: 3,
-      ubicacion: 'Bodega B - Zona 1',
-      proveedorPrincipal: 'Maderas del Sur Ltda.',
-      precioCosto: 150000,
-      precioVenta: 0,
-      foto: null,
-      reservas: [
-        { id: 1, protocolo: '30650', cantidad: 5, fechaDesde: '2025-05-01', fechaHasta: '2025-05-30', devuelto: false }
-      ]
-    }
-  ]);
+  const [items, setItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [itemsError, setItemsError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
+
+  const loadItems = async (selectedId = null) => {
+    try {
+      setLoadingItems(true);
+      setItemsError('');
+      const [itemsData, reservasData] = await Promise.all([
+        getInventarioItems(),
+        getInventarioReservas()
+      ]);
+
+      const reservasPorItem = reservasData.reduce((acc, reserva) => {
+        const key = reserva.item_id;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(reserva);
+        return acc;
+      }, {});
+
+      const transformados = itemsData.map(item => ({
+        id: item.id,
+        codigo: item.codigo,
+        nombre: item.nombre,
+        descripcion: item.descripcion,
+        categoria: item.categoria,
+        especificaciones: item.especificaciones,
+        unidadMedida: item.unidad_medida,
+        stockTotal: parseInt(item.stock_total, 10) || 0,
+        stockMinimo: parseInt(item.stock_minimo, 10) || 0,
+        ubicacion: item.ubicacion,
+        proveedorPrincipal: item.proveedor_principal,
+        precioCosto: parseFloat(item.precio_costo) || 0,
+        precioVenta: parseFloat(item.precio_venta) || 0,
+        foto: item.foto_url || null,
+        reservas: (reservasPorItem[item.id] || []).map(reserva => ({
+          id: reserva.id,
+          protocolo: reserva.protocolo,
+          cantidad: reserva.cantidad,
+          fechaDesde: reserva.fecha_desde,
+          fechaHasta: reserva.fecha_hasta,
+          devuelto: reserva.devuelto
+        }))
+      }));
+
+      setItems(transformados);
+      if (selectedId) {
+        const actualizado = transformados.find(i => i.id === selectedId) || null;
+        setItemSeleccionado(actualizado);
+      }
+    } catch (error) {
+      console.error('Error cargando inventario:', error);
+      setItemsError('No se pudo cargar el inventario');
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeModule === 'inventario') {
+      loadItems();
+    }
+  }, [activeModule]);
 
   if (activeModule !== 'inventario') return null;
 
   const calcularStockDisponible = (item, fecha = null) => {
-    const reservasActivas = item.reservas.filter(r => !r.devuelto);
+    const reservasActivas = (item.reservas || []).filter(r => !r.devuelto);
     const stockReservado = reservasActivas.reduce((sum, r) => sum + r.cantidad, 0);
     return item.stockTotal - stockReservado;
   };
 
   const itemsFiltrados = items.filter(item => {
     const searchLower = searchTerm.toLowerCase();
-    const matchSearch = item.codigo.toLowerCase().includes(searchLower) ||
-                       item.nombre.toLowerCase().includes(searchLower) ||
-                       item.descripcion.toLowerCase().includes(searchLower);
+    const matchSearch = (item.codigo || '').toLowerCase().includes(searchLower) ||
+                       (item.nombre || '').toLowerCase().includes(searchLower) ||
+                       (item.descripcion || '').toLowerCase().includes(searchLower);
     const matchCategoria = filterCategoria === 'todas' || item.categoria === filterCategoria;
     return matchSearch && matchCategoria;
   });
 
-  const categorias = [...new Set(items.map(i => i.categoria))];
+  const categorias = [...new Set(items.map(i => i.categoria).filter(Boolean))];
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
@@ -271,6 +277,14 @@ const InventarioModule = ({ activeModule }) => {
       currency: 'CLP',
       minimumFractionDigits: 0
     }).format(value);
+  };
+
+  const getNextCodigo = () => {
+    const numeros = items
+      .map(i => parseInt(String(i.codigo || '').replace(/\D/g, ''), 10))
+      .filter(n => !isNaN(n));
+    const maxNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
+    return `INV-${String(maxNumero + 1).padStart(3, '0')}`;
   };
 
   const stats = {
@@ -298,6 +312,18 @@ const InventarioModule = ({ activeModule }) => {
           <span>Nuevo Item</span>
         </button>
       </div>
+
+      {itemsError && (
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-red-700">
+          {itemsError}
+        </div>
+      )}
+
+      {loadingItems && (
+        <div className="mb-6 p-4 bg-white rounded-lg shadow text-gray-600">
+          Cargando inventario...
+        </div>
+      )}
 
       {/* Estadísticas */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -488,15 +514,31 @@ const InventarioModule = ({ activeModule }) => {
       {showNewModal && (
         <NuevoItemModal 
           onClose={() => setShowNewModal(false)}
-          onSave={(nuevoItem) => {
-            const item = {
-              ...nuevoItem,
-              id: Date.now().toString(),
-              codigo: `INV-${String(items.length + 1).padStart(3, '0')}`,
-              reservas: []
-            };
-            setItems(prev => [...prev, item]);
-            setShowNewModal(false);
+          onSave={async (nuevoItem) => {
+            try {
+              const itemData = {
+                codigo: getNextCodigo(),
+                nombre: nuevoItem.nombre,
+                descripcion: nuevoItem.descripcion,
+                categoria: nuevoItem.categoria,
+                especificaciones: nuevoItem.especificaciones,
+                unidad_medida: nuevoItem.unidadMedida,
+                stock_total: nuevoItem.stockTotal,
+                stock_minimo: nuevoItem.stockMinimo,
+                ubicacion: nuevoItem.ubicacion,
+                proveedor_principal: nuevoItem.proveedorPrincipal,
+                precio_costo: nuevoItem.precioCosto,
+                precio_venta: nuevoItem.precioVenta,
+                foto_url: nuevoItem.foto || null
+              };
+
+              await createInventarioItem(itemData);
+              await loadItems();
+              setShowNewModal(false);
+            } catch (error) {
+              console.error('Error creando item:', error);
+              alert('Error al crear item en inventario');
+            }
           }}
         />
       )}
@@ -508,10 +550,31 @@ const InventarioModule = ({ activeModule }) => {
             setShowFichaModal(false);
             setItemSeleccionado(null);
           }}
-          onUpdate={(itemActualizado) => {
-            setItems(prev => prev.map(i => 
-              i.id === itemActualizado.id ? itemActualizado : i
-            ));
+          onCrearReserva={async (reserva) => {
+            try {
+              const reservaData = {
+                item_id: itemSeleccionado.id,
+                protocolo: reserva.protocolo,
+                cantidad: reserva.cantidad,
+                fecha_desde: reserva.fechaDesde,
+                fecha_hasta: reserva.fechaHasta,
+                devuelto: false
+              };
+              await createInventarioReserva(reservaData);
+              await loadItems(itemSeleccionado.id);
+            } catch (error) {
+              console.error('Error creando reserva:', error);
+              alert('Error al crear reserva');
+            }
+          }}
+          onMarcarDevuelto={async (reservaId) => {
+            try {
+              await updateInventarioReserva(reservaId, { devuelto: true });
+              await loadItems(itemSeleccionado.id);
+            } catch (error) {
+              console.error('Error actualizando reserva:', error);
+              alert('Error al actualizar reserva');
+            }
           }}
         />
       )}
@@ -730,12 +793,16 @@ const NuevoItemModal = ({ onClose, onSave }) => {
 };
 
 // Modal Ficha Completa del Item
-const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
-  const [item, setItem] = useState(itemInicial);
+const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDevuelto }) => {
+  const [item, setItem] = useState({ ...itemInicial, reservas: itemInicial.reservas || [] });
   const [showReservaModal, setShowReservaModal] = useState(false);
 
+  useEffect(() => {
+    setItem({ ...itemInicial, reservas: itemInicial.reservas || [] });
+  }, [itemInicial]);
+
   const calcularStockDisponible = () => {
-    const reservasActivas = item.reservas.filter(r => !r.devuelto);
+    const reservasActivas = (item.reservas || []).filter(r => !r.devuelto);
     const stockReservado = reservasActivas.reduce((sum, r) => sum + r.cantidad, 0);
     return item.stockTotal - stockReservado;
   };
@@ -746,7 +813,9 @@ const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
       reservas: item.reservas.map(r => r.id === reservaId ? {...r, devuelto: true} : r)
     };
     setItem(actualizado);
-    onUpdate(actualizado);
+    if (onMarcarDevuelto) {
+      onMarcarDevuelto(reservaId);
+    }
   };
 
   const formatCurrency = (value) => {
@@ -758,6 +827,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
   };
 
   const disponible = calcularStockDisponible();
+  const reservas = item.reservas || [];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -854,7 +924,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
                   </button>
                 </div>
 
-                {item.reservas.length > 0 ? (
+                {reservas.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-100">
@@ -868,7 +938,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {item.reservas.map((reserva) => (
+                        {reservas.map((reserva) => (
                           <tr key={reserva.id} className={reserva.devuelto ? 'opacity-50' : ''}>
                             <td className="px-3 py-3 font-mono">{reserva.protocolo}</td>
                             <td className="px-3 py-3 font-semibold">{reserva.cantidad}</td>
@@ -930,7 +1000,9 @@ const FichaItemModal = ({ item: itemInicial, onClose, onUpdate }) => {
                 reservas: [...item.reservas, {...reserva, id: item.reservas.length + 1, devuelto: false}]
               };
               setItem(actualizado);
-              onUpdate(actualizado);
+              if (onCrearReserva) {
+                onCrearReserva(reserva);
+              }
               setShowReservaModal(false);
             }}
           />
@@ -950,7 +1022,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
   });
 
   const calcularDisponible = () => {
-    const reservasActivas = item.reservas.filter(r => !r.devuelto);
+    const reservasActivas = (item.reservas || []).filter(r => !r.devuelto);
     const stockReservado = reservasActivas.reduce((sum, r) => sum + r.cantidad, 0);
     return item.stockTotal - stockReservado;
   };
@@ -1479,7 +1551,8 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
             </button>
             <button
               onClick={() => {
-                const protocolo = sharedProtocolos.find(p => p.folio === codigoProtocolo);
+                const codigoNormalizado = codigoProtocolo.trim();
+                const protocolo = sharedProtocolos.find(p => String(p.folio) === codigoNormalizado);
                 if (protocolo) {
                   onSeleccionar(protocolo);
                 } else {
@@ -1513,11 +1586,12 @@ const OrdenesCompraModule = ({
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
   const [showBuscarProtocolo, setShowBuscarProtocolo] = useState(false);
+  const [datosOCDesdeProtocolo, setDatosOCDesdeProtocolo] = useState(null);
   
   // Abrir modal automáticamente si hay datosPreOC
   useEffect(() => {
     if (datosPreOC) {
-      setShowNewModal(true);
+      setDatosOCDesdeProtocolo(datosPreOC);
     }
   }, [datosPreOC]);
   
@@ -1893,8 +1967,62 @@ const OrdenesCompraModule = ({
           sharedProtocolos={sharedProtocolos}
           onClose={() => setShowBuscarProtocolo(false)}
           onSeleccionar={(protocolo) => {
-            setShowNewModal(true);
+            setDatosOCDesdeProtocolo({
+              codigoProtocolo: protocolo.folio,
+              fechaProtocolo: protocolo.fechaCreacion || new Date().toISOString().split('T')[0],
+              unidadNegocio: protocolo.unidadNegocio,
+              items: protocolo.items || []
+            });
             setShowBuscarProtocolo(false);
+          }}
+        />
+      )}
+
+      {datosOCDesdeProtocolo && (
+        <FormularioOCDesdeProtocolo
+          datosProtocolo={datosOCDesdeProtocolo}
+          onClose={() => {
+            setDatosOCDesdeProtocolo(null);
+            if (onCancelarPreOC) {
+              onCancelarPreOC();
+            }
+          }}
+          onGuardar={async (nuevaOC) => {
+            try {
+              const ordenesExistentes = await getOrdenesCompra();
+              const ultimoNumero = ordenesExistentes.length > 0
+                ? Math.max(...ordenesExistentes.map(o => {
+                    const num = parseInt(o.numero.replace('OC-', ''));
+                    return isNaN(num) ? 17403 : num;
+                  }))
+                : 17402;
+
+              const ocData = {
+                numero: `OC-${ultimoNumero + 1}`,
+                codigo_protocolo: datosOCDesdeProtocolo.codigoProtocolo,
+                fecha: new Date().toISOString().split('T')[0],
+                proveedor_id: null,
+                tipo_costo: nuevaOC.tipoCosto,
+                forma_pago: nuevaOC.formaPago,
+                total: parseFloat(nuevaOC.total),
+                estado: 'Emitida',
+                numero_factura: '',
+                fecha_factura: null,
+                estado_pago: 'Pendiente'
+              };
+
+              await createOrdenCompra(ocData, nuevaOC.items || []);
+              await loadOrdenes();
+
+              setDatosOCDesdeProtocolo(null);
+              if (onCancelarPreOC) {
+                onCancelarPreOC();
+              }
+              alert('Orden de Compra creada exitosamente');
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Error al crear OC');
+            }
           }}
         />
       )}
@@ -1950,13 +2078,37 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     observaciones: ''
   });
 
-  const proveedores = [
-    { codigo: '1000', nombre: 'ACERBEN SPA', rut: '76.555.123-4', direccion: 'Av. Industrial 5678', contacto: 'Carlos Acero', telefono: '+56 2 2876 5432' },
-    { codigo: '1001', nombre: 'Maderas del Sur Ltda.', rut: '77.234.567-8', direccion: 'Los Aromos 234', contacto: 'Ana Madero', telefono: '+56 9 8765 4321' }
-  ];
+  const [proveedores, setProveedores] = useState([]);
+  const [proveedoresError, setProveedoresError] = useState('');
+
+  useEffect(() => {
+    const loadProveedores = async () => {
+      try {
+        setProveedoresError('');
+        const data = await getProveedores();
+        const transformados = data.map(p => ({
+          id: p.id,
+          codigo: p.codigo,
+          nombre: p.razon_social,
+          rut: p.rut,
+          direccion: p.direccion,
+          contacto: p.contacto,
+          telefono: p.telefono
+        }));
+        setProveedores(transformados);
+      } catch (error) {
+        console.error('Error cargando proveedores:', error);
+        setProveedoresError('No se pudieron cargar los proveedores');
+      }
+    };
+
+    loadProveedores();
+  }, []);
 
   const buscarProveedor = (codigo) => {
-    const prov = proveedores.find(p => p.codigo === codigo);
+    const codigoNormalizado = codigo.trim();
+    if (!codigoNormalizado) return;
+    const prov = proveedores.find(p => String(p.codigo) === codigoNormalizado);
     if (prov) {
       setFormData(prev => ({
         ...prev,
@@ -2059,6 +2211,9 @@ const NuevaOCModal = ({ onClose, onSave }) => {
                   Buscar
                 </button>
               </div>
+              {proveedoresError && (
+                <p className="text-xs text-red-600 mt-2">{proveedoresError}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3622,30 +3777,88 @@ const ProtocolosModule = ({
   };
 
   const ordenesCompra = sharedOrdenesCompra;
+  const handleAdjudicarCompraLocal = (protocolo) => {
+    if (onAdjudicarCompra) {
+      onAdjudicarCompra(protocolo);
+      return;
+    }
+
+    setDatosPreOC({
+      codigoProtocolo: protocolo.folio,
+      fechaProtocolo: protocolo.fechaCreacion || new Date().toISOString().split('T')[0],
+      unidadNegocio: protocolo.unidadNegocio,
+      items: protocolo.items || []
+    });
+    setMostrarFormularioOC(true);
+  };
 
 
   // Si está en vista detalle, mostrar protocolo completo
   if (vistaActual === 'detalle' && protocoloSeleccionado) {
     return (
-      <VistaDetalleProtocolo
-        protocolo={protocoloSeleccionado}
-        ordenesCompra={ordenesCompra}
-        onVolver={() => {
-          setVistaActual('listado');
-          setProtocoloSeleccionado(null);
-        }}
-        onAdjudicarCompra={() => {
-          if (onAdjudicarCompra) {
-            onAdjudicarCompra(protocoloSeleccionado);
-          }
-        }}
-        onActualizar={(protocoloActualizado) => {
-          setProtocolos(prev => prev.map(p => 
-            p.id === protocoloActualizado.id ? protocoloActualizado : p
-          ));
-          setProtocoloSeleccionado(protocoloActualizado);
-        }}
-      />
+      <>
+        <VistaDetalleProtocolo
+          protocolo={protocoloSeleccionado}
+          ordenesCompra={ordenesCompra}
+          onVolver={() => {
+            setVistaActual('listado');
+            setProtocoloSeleccionado(null);
+          }}
+          onAdjudicarCompra={() => {
+            handleAdjudicarCompraLocal(protocoloSeleccionado);
+          }}
+          onActualizar={(protocoloActualizado) => {
+            setProtocolos(prev => prev.map(p => 
+              p.id === protocoloActualizado.id ? protocoloActualizado : p
+            ));
+            setProtocoloSeleccionado(protocoloActualizado);
+          }}
+        />
+        {mostrarFormularioOC && datosPreOC && (
+          <FormularioOCDesdeProtocolo
+            datosProtocolo={datosPreOC}
+            onClose={() => {
+              setMostrarFormularioOC(false);
+              setDatosPreOC(null);
+            }}
+            onGuardar={async (nuevaOC) => {
+              try {
+                const ordenesExistentes = await getOrdenesCompra();
+                const ultimoNumero = ordenesExistentes.length > 0
+                  ? Math.max(...ordenesExistentes.map(o => {
+                      const num = parseInt(o.numero.replace('OC-', ''));
+                      return isNaN(num) ? 17403 : num;
+                    }))
+                  : 17402;
+
+                const ocData = {
+                  numero: `OC-${ultimoNumero + 1}`,
+                  codigo_protocolo: datosPreOC.codigoProtocolo,
+                  fecha: new Date().toISOString().split('T')[0],
+                  proveedor_id: null,
+                  tipo_costo: nuevaOC.tipoCosto,
+                  forma_pago: nuevaOC.formaPago,
+                  total: parseFloat(nuevaOC.total),
+                  estado: 'Emitida',
+                  numero_factura: '',
+                  fecha_factura: null,
+                  estado_pago: 'Pendiente'
+                };
+
+                await createOrdenCompra(ocData, nuevaOC.items || []);
+                await loadOrdenes();
+
+                setMostrarFormularioOC(false);
+                setDatosPreOC(null);
+                alert('Orden de Compra creada exitosamente');
+              } catch (error) {
+                console.error('Error:', error);
+                alert('Error al crear OC');
+              }
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -4347,13 +4560,37 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     observaciones: ''
   });
 
-  const proveedores = [
-    { codigo: '1000', nombre: 'ACERBEN SPA', rut: '76.555.123-4', direccion: 'Av. Industrial 5678', contacto: 'Carlos Acero', telefono: '+56 2 2876 5432' },
-    { codigo: '1001', nombre: 'Maderas del Sur Ltda.', rut: '77.234.567-8', direccion: 'Los Aromos 234', contacto: 'Ana Madero', telefono: '+56 9 8765 4321' }
-  ];
+  const [proveedores, setProveedores] = useState([]);
+  const [proveedoresError, setProveedoresError] = useState('');
+
+  useEffect(() => {
+    const loadProveedores = async () => {
+      try {
+        setProveedoresError('');
+        const data = await getProveedores();
+        const transformados = data.map(p => ({
+          id: p.id,
+          codigo: p.codigo,
+          nombre: p.razon_social,
+          rut: p.rut,
+          direccion: p.direccion,
+          contacto: p.contacto,
+          telefono: p.telefono
+        }));
+        setProveedores(transformados);
+      } catch (error) {
+        console.error('Error cargando proveedores:', error);
+        setProveedoresError('No se pudieron cargar los proveedores');
+      }
+    };
+
+    loadProveedores();
+  }, []);
 
   const buscarProveedor = (codigo) => {
-    const prov = proveedores.find(p => p.codigo === codigo);
+    const codigoNormalizado = codigo.trim();
+    if (!codigoNormalizado) return;
+    const prov = proveedores.find(p => String(p.codigo) === codigoNormalizado);
     if (prov) {
       setFormData(prev => ({
         ...prev,
@@ -4454,6 +4691,9 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
                   Buscar
                 </button>
               </div>
+              {proveedoresError && (
+                <p className="text-xs text-red-600 mt-2">{proveedoresError}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -6373,28 +6613,37 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     ]
   });
 
-  // Datos de clientes (en producción vendrían del módulo de Clientes)
-  const clientesDB = [
-    {
-      codigo: '1000',
-      razonSocial: 'Empresa Demo S.A.',
-      rut: '76.123.456-7',
-      direccion: 'Av. Providencia 1234',
-      contacto: 'Juan Pérez',
-      telefono: '+56 9 1234 5678'
-    },
-    {
-      codigo: '1001',
-      razonSocial: 'Constructora ABC Ltda.',
-      rut: '77.654.321-0',
-      direccion: 'Los Conquistadores 2500',
-      contacto: 'María González',
-      telefono: '+56 2 2345 6789'
-    }
-  ];
+  const [clientes, setClientes] = useState([]);
+  const [clientesError, setClientesError] = useState('');
+
+  useEffect(() => {
+    const loadClientes = async () => {
+      try {
+        setClientesError('');
+        const data = await getClientes();
+        const transformados = data.map(c => ({
+          id: c.id,
+          codigo: c.codigo,
+          razonSocial: c.razon_social,
+          rut: c.rut,
+          direccion: c.direccion,
+          contacto: c.persona_encargada,
+          telefono: c.telefono
+        }));
+        setClientes(transformados);
+      } catch (error) {
+        console.error('Error cargando clientes:', error);
+        setClientesError('No se pudieron cargar los clientes');
+      }
+    };
+
+    loadClientes();
+  }, []);
 
   const buscarCliente = (codigo) => {
-    const cliente = clientesDB.find(c => c.codigo === codigo);
+    const codigoNormalizado = codigo.trim();
+    if (!codigoNormalizado) return;
+    const cliente = clientes.find(c => String(c.codigo) === codigoNormalizado);
     if (cliente) {
       setFormData(prev => ({
         ...prev,
@@ -6521,6 +6770,9 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
                   Buscar
                 </button>
               </div>
+              {clientesError && (
+                <p className="text-xs text-red-600 mt-2">{clientesError}</p>
+              )}
               <p className="text-xs text-blue-600 mt-2">
                 💡 Tip: Ingresa el código de 4 dígitos del cliente para llenar automáticamente sus datos
               </p>
@@ -6837,6 +7089,83 @@ const Dashboard = ({ user, onLogout }) => {
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
+  useEffect(() => {
+    const mapCotizacion = (cot) => ({
+      id: cot.id,
+      numero: cot.numero,
+      fecha: cot.fecha,
+      cliente: cot.clientes?.razon_social || 'Sin cliente',
+      nombreProyecto: cot.nombre_proyecto,
+      rut: cot.clientes?.rut || '',
+      unidadNegocio: cot.unidad_negocio,
+      monto: parseFloat(cot.monto) || 0,
+      estado: cot.estado,
+      cotizadoPor: cot.cotizado_por,
+      condicionesPago: cot.condiciones_pago,
+      adjudicada_a_protocolo: cot.adjudicada_a_protocolo
+    });
+
+    const mapProtocolo = (p) => ({
+      id: p.id,
+      folio: p.folio,
+      numeroCotizacion: p.numero_cotizacion || '',
+      cliente: p.clientes?.razon_social || 'Sin cliente',
+      nombreProyecto: p.nombre_proyecto,
+      rutCliente: p.clientes?.rut || '',
+      tipo: p.tipo,
+      ocCliente: p.oc_cliente,
+      estado: p.estado,
+      unidadNegocio: p.unidad_negocio,
+      fechaCreacion: p.fecha_creacion,
+      montoTotal: parseFloat(p.monto_total) || 0,
+      items: []
+    });
+
+    const mapOrdenCompra = (o) => ({
+      id: o.id,
+      numero: o.numero,
+      codigoProtocolo: o.codigo_protocolo,
+      fecha: o.fecha,
+      proveedor: o.proveedores?.razon_social || 'Sin proveedor',
+      rutProveedor: o.proveedores?.rut || '',
+      tipoCosto: o.tipo_costo,
+      formaPago: o.forma_pago,
+      subtotal: parseFloat(o.subtotal) || 0,
+      iva: parseFloat(o.iva) || 0,
+      total: parseFloat(o.total) || 0,
+      estado: o.estado,
+      numeroFactura: o.numero_factura || '',
+      fechaFactura: o.fecha_factura || '',
+      estadoPago: o.estado_pago || 'Pendiente',
+      items: (o.ordenes_compra_items || []).map(item => ({
+        id: item.id,
+        cantidad: item.cantidad,
+        descripcion: item.descripcion,
+        valorUnitario: parseFloat(item.valor_unitario) || 0,
+        valor_unitario: parseFloat(item.valor_unitario) || 0,
+        descuento: parseFloat(item.descuento || 0)
+      }))
+    });
+
+    const loadSharedData = async () => {
+      try {
+        const [cotData, protData, ocData] = await Promise.all([
+          getCotizaciones(),
+          getProtocolos(),
+          getOrdenesCompra()
+        ]);
+
+        setSharedCotizaciones(cotData.map(mapCotizacion));
+        setSharedProtocolos(protData.map(mapProtocolo));
+        setSharedOrdenesCompra(ocData.map(mapOrdenCompra));
+      } catch (error) {
+        console.error('Error cargando datos del dashboard:', error);
+      }
+    };
+
+    loadSharedData();
+  }, []);
+
  // Handlers para comunicación entre módulos
   const handleAdjudicarVentaDesdeCotizacion = async (cotizacion) => {
     try {
@@ -6879,8 +7208,35 @@ const Dashboard = ({ user, onLogout }) => {
         getProtocolos()
       ]);
 
-      setSharedCotizaciones(cotizacionesActualizadas);
-      setSharedProtocolos(protocolosActualizados);
+      setSharedCotizaciones(cotizacionesActualizadas.map(cot => ({
+        id: cot.id,
+        numero: cot.numero,
+        fecha: cot.fecha,
+        cliente: cot.clientes?.razon_social || 'Sin cliente',
+        nombreProyecto: cot.nombre_proyecto,
+        rut: cot.clientes?.rut || '',
+        unidadNegocio: cot.unidad_negocio,
+        monto: parseFloat(cot.monto) || 0,
+        estado: cot.estado,
+        cotizadoPor: cot.cotizado_por,
+        condicionesPago: cot.condiciones_pago,
+        adjudicada_a_protocolo: cot.adjudicada_a_protocolo
+      })));
+      setSharedProtocolos(protocolosActualizados.map(p => ({
+        id: p.id,
+        folio: p.folio,
+        numeroCotizacion: p.numero_cotizacion || '',
+        cliente: p.clientes?.razon_social || 'Sin cliente',
+        nombreProyecto: p.nombre_proyecto,
+        rutCliente: p.clientes?.rut || '',
+        tipo: p.tipo,
+        ocCliente: p.oc_cliente,
+        estado: p.estado,
+        unidadNegocio: p.unidad_negocio,
+        fechaCreacion: p.fecha_creacion,
+        montoTotal: parseFloat(p.monto_total) || 0,
+        items: []
+      })));
 
       setProtocoloParaAbrir(protocoloCreado);
       setActiveModule('protocolos');
@@ -6962,14 +7318,14 @@ const Dashboard = ({ user, onLogout }) => {
   // Permisos por rol
   const hasAccess = (module) => {
     if (user.role === 'admin') return true;
-    if (user.role === 'compras' && ['cotizaciones', 'protocolos', 'ordenes', 'proveedores'].includes(module)) return true;
+    if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
     if (user.role === 'finanzas' && ['cotizaciones', 'clientes', 'facturacion'].includes(module)) return true;
     return false;
   };
 
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['all'] },
-    { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'compras', 'finanzas'] },
+    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'finanzas'] },
+    { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'finanzas'] },
     { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'compras'] },
     { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'compras'] },
     { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'compras'] },
