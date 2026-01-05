@@ -1830,6 +1830,10 @@ const OrdenesCompraModule = ({
     loadOrdenes();
   }, []);
 
+  useEffect(() => {
+    setOrdenes(sharedOrdenesCompra);
+  }, [sharedOrdenesCompra]);
+
   const loadOrdenes = async () => {
     try {
       setLoading(true);
@@ -1864,6 +1868,7 @@ const OrdenesCompraModule = ({
       }));
 
       setOrdenes(transformados);
+      setSharedOrdenesCompra(transformados);
     } catch (error) {
       console.error('Error:', error);
       setOrdenes([]);
