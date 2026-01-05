@@ -2161,7 +2161,7 @@ const OrdenesCompraModule = ({
                 numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: nuevaOC.codigoProtocolo || '',
                 fecha: new Date().toISOString().split('T')[0],
-                proveedor_id: null,
+                proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
                 subtotal: parseFloat(nuevaOC.subtotal) || 0,
@@ -2277,7 +2277,7 @@ const OrdenesCompraModule = ({
                 numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: datosOCDesdeProtocolo.codigoProtocolo,
                 fecha: new Date().toISOString().split('T')[0],
-                proveedor_id: null,
+                proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
                 total: parseFloat(nuevaOC.total),
@@ -2341,6 +2341,7 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     codigoProtocolo: '',
     fechaProtocolo: '',
     codigoProveedor: '',
+    proveedorId: null,
     proveedor: '',
     rutProveedor: '',
     direccionProveedor: '',
@@ -2393,6 +2394,7 @@ const NuevaOCModal = ({ onClose, onSave }) => {
       setFormData(prev => ({
         ...prev,
         codigoProveedor: codigo,
+        proveedorId: prov.id,
         proveedor: prov.nombre,
         rutProveedor: prov.rut,
         direccionProveedor: prov.direccion,
@@ -2406,6 +2408,7 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     setFormData(prev => ({
       ...prev,
       codigoProveedor: prov.codigo,
+      proveedorId: prov.id,
       proveedor: prov.nombre,
       rutProveedor: prov.rut,
       direccionProveedor: prov.direccion,
@@ -2475,10 +2478,31 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     return { subtotal, iva, total };
   };
 
+  const resolverProveedorId = () => {
+    if (formData.proveedorId) return formData.proveedorId;
+    const codigo = String(formData.codigoProveedor || '').trim();
+    if (codigo) {
+      const byCodigo = proveedores.find(p => String(p.codigo) === codigo);
+      if (byCodigo) return byCodigo.id;
+    }
+    const nombre = String(formData.proveedor || '').trim().toLowerCase();
+    if (!nombre) return null;
+    const exact = proveedores.find(p => p.nombre.toLowerCase() === nombre);
+    if (exact) return exact.id;
+    const starts = proveedores.filter(p => p.nombre.toLowerCase().startsWith(nombre));
+    if (starts.length === 1) return starts[0].id;
+    return null;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const proveedorId = resolverProveedorId();
+    if (!proveedorId) {
+      alert('Selecciona un proveedor de la lista o búscalo por código.');
+      return;
+    }
     const { subtotal, iva, total } = calcularTotales();
-    onSave({ ...formData, subtotal, iva, total });
+    onSave({ ...formData, proveedorId, subtotal, iva, total });
   };
 
   const totales = calcularTotales();
@@ -4490,7 +4514,7 @@ const ProtocolosModule = ({
                   numero: `OC-${ultimoNumero + 1}`,
                   codigo_protocolo: datosPreOC.codigoProtocolo,
                   fecha: new Date().toISOString().split('T')[0],
-                  proveedor_id: null,
+                  proveedor_id: nuevaOC.proveedorId || null,
                   tipo_costo: nuevaOC.tipoCosto,
                   forma_pago: nuevaOC.formaPago,
                   total: parseFloat(nuevaOC.total),
@@ -4553,7 +4577,7 @@ const ProtocolosModule = ({
                 numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: datosPreOC.codigoProtocolo,
                 fecha: new Date().toISOString().split('T')[0],
-                proveedor_id: null,
+                proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
                 total: parseFloat(nuevaOC.total),
@@ -5221,6 +5245,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     codigoProtocolo: datosProtocolo.codigoProtocolo,
     fechaProtocolo: datosProtocolo.fechaProtocolo,
     codigoProveedor: '',
+    proveedorId: null,
     proveedor: '',
     rutProveedor: '',
     direccionProveedor: '',
@@ -5278,6 +5303,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
       setFormData(prev => ({
         ...prev,
         codigoProveedor: codigo,
+        proveedorId: prov.id,
         proveedor: prov.nombre,
         rutProveedor: prov.rut,
         direccionProveedor: prov.direccion,
@@ -5291,6 +5317,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     setFormData(prev => ({
       ...prev,
       codigoProveedor: prov.codigo,
+      proveedorId: prov.id,
       proveedor: prov.nombre,
       rutProveedor: prov.rut,
       direccionProveedor: prov.direccion,
@@ -5360,11 +5387,33 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     return { subtotal, iva, total };
   };
 
+  const resolverProveedorId = () => {
+    if (formData.proveedorId) return formData.proveedorId;
+    const codigo = String(formData.codigoProveedor || '').trim();
+    if (codigo) {
+      const byCodigo = proveedores.find(p => String(p.codigo) === codigo);
+      if (byCodigo) return byCodigo.id;
+    }
+    const nombre = String(formData.proveedor || '').trim().toLowerCase();
+    if (!nombre) return null;
+    const exact = proveedores.find(p => p.nombre.toLowerCase() === nombre);
+    if (exact) return exact.id;
+    const starts = proveedores.filter(p => p.nombre.toLowerCase().startsWith(nombre));
+    if (starts.length === 1) return starts[0].id;
+    return null;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const proveedorId = resolverProveedorId();
+    if (!proveedorId) {
+      alert('Selecciona un proveedor de la lista o búscalo por código.');
+      return;
+    }
     const { subtotal, iva, total } = calcularTotales();
     onGuardar({ 
-      ...formData, 
+      ...formData,
+      proveedorId,
       subtotal, 
       iva, 
       total,
