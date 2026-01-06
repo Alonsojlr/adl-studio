@@ -280,6 +280,22 @@ const InventarioModule = ({ activeModule }) => {
     }).format(value);
   };
 
+  const calcularSubtotalItems = (items = []) => {
+    return items.reduce((sum, item) => {
+      const cantidad = item.cantidad || 0;
+      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+      const descuento = item.descuento || 0;
+      const subtotal = cantidad * valorUnitario;
+      return sum + (subtotal - (subtotal * (descuento / 100)));
+    }, 0);
+  };
+
+  const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
+    if (!protocolo.montoTotal) return 0;
+    return protocolo.montoTotal / 1.19;
+  };
+
   const hoyISO = new Date().toISOString().split('T')[0];
   const isReservaVencida = (reserva) =>
     !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
@@ -2062,7 +2078,7 @@ const OrdenesCompraModule = ({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Producto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -2094,7 +2110,7 @@ const OrdenesCompraModule = ({
                       {orden.tipoCosto || 'Sin asignar'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.total)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.subtotal || 0)}</td>
                   <td className="px-6 py-4">
                     {orden.numeroFactura ? (
                       <div>
@@ -4072,10 +4088,35 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
 
 // Modal Historial Proveedor
 const HistorialProveedorModal = ({ proveedor, onClose }) => {
-  const ordenesCompra = [
-    { numero: '61324', protocolo: '30650', fecha: '2025-01-20', monto: 2500000, factura: '', estado: 'Pendiente' },
-    { numero: '61325', protocolo: '30651', fecha: '2025-01-25', monto: 1800000, factura: 'F-12345', estado: 'Pagada' }
-  ];
+  const [ordenesCompra, setOrdenesCompra] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHistorial = async () => {
+      try {
+        setLoading(true);
+        const data = await getOrdenesCompra();
+        const filtradas = data
+          .filter(oc => String(oc.proveedor_id) === String(proveedor.id))
+          .map(oc => ({
+            numero: oc.numero,
+            protocolo: oc.codigo_protocolo || '',
+            fecha: oc.fecha,
+            monto: parseFloat(oc.total) || 0,
+            factura: oc.numero_factura || '',
+            estado: oc.estado || 'Pendiente'
+          }));
+        setOrdenesCompra(filtradas);
+      } catch (error) {
+        console.error('Error cargando historial de OC:', error);
+        setOrdenesCompra([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistorial();
+  }, [proveedor.id]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
@@ -4101,7 +4142,11 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
         </div>
 
         <div className="p-6">
-          {ordenesCompra.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Cargando historial...</p>
+            </div>
+          ) : ordenesCompra.length > 0 ? (
             <div className="space-y-4">
               {ordenesCompra.map((oc) => (
                 <div key={oc.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
@@ -4819,7 +4864,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -4854,7 +4899,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                       <span className="text-gray-400 text-sm">Sin OC</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(protocolo.montoTotal)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(obtenerNetoProtocolo(protocolo))}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(protocolo.estado)}`}>
                       {protocolo.estado}
@@ -4921,6 +4966,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
   const margenPct = protocolo.montoTotal ? (margenMonto / protocolo.montoTotal) * 100 : 0;
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
+  const [itemsComprados, setItemsComprados] = useState({});
 
   const cambiarEstado = (nuevoEstado) => {
     if (nuevoEstado === 'Cerrado') {
@@ -5047,16 +5093,30 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                 <th className="px-4 py-3 text-left text-sm font-semibold">Descripción</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">V. Unitario</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Subtotal</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Comprado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {protocolo.items.map((item, index) => (
-                <tr key={item.id}>
+                <tr key={item.id ?? index}>
                   <td className="px-4 py-3">{index + 1}</td>
                   <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
                   <td className="px-4 py-3">{item.descripcion}</td>
                   <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
                   <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={!!itemsComprados[item.id ?? index]}
+                      onChange={() =>
+                        setItemsComprados(prev => ({
+                          ...prev,
+                          [item.id ?? index]: !prev[item.id ?? index]
+                        }))
+                      }
+                      className="h-4 w-4"
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -6958,21 +7018,33 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
 
 // Modal Historial Cliente
 const HistorialClienteModal = ({ cliente, onClose }) => {
-  // Datos de ejemplo - en producción vendrían de la base de datos
-  const cotizaciones = [
-    {
-      numero: '000001',
-      fecha: '2025-01-15',
-      monto: 5500000,
-      estado: 'ganada'
-    },
-    {
-      numero: '000003',
-      fecha: '2025-01-20',
-      monto: 3200000,
-      estado: 'emitida'
-    }
-  ];
+  const [cotizaciones, setCotizaciones] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHistorial = async () => {
+      try {
+        setLoading(true);
+        const data = await getCotizaciones();
+        const filtradas = data
+          .filter(cot => String(cot.cliente_id) === String(cliente.id))
+          .map(cot => ({
+            numero: cot.numero,
+            fecha: cot.fecha,
+            monto: parseFloat(cot.monto) || 0,
+            estado: cot.estado
+          }));
+        setCotizaciones(filtradas);
+      } catch (error) {
+        console.error('Error cargando historial de cotizaciones:', error);
+        setCotizaciones([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHistorial();
+  }, [cliente.id]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
@@ -7008,7 +7080,11 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
         </div>
 
         <div className="p-6">
-          {cotizaciones.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Cargando historial...</p>
+            </div>
+          ) : cotizaciones.length > 0 ? (
             <div className="space-y-4">
               {cotizaciones.map((cot) => (
                 <div key={cot.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
@@ -7058,11 +7134,14 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 };
 
 // Componente de Módulo de Cotizaciones
-const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {} }) => {
+const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {}, currentUserName }) => {
 const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showGanadaModal, setShowGanadaModal] = useState(false);
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
+  const [cotizacionGanada, setCotizacionGanada] = useState(null);
+  const [ganadaSeleccion, setGanadaSeleccion] = useState({});
   const [cotizaciones, setCotizaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -7166,6 +7245,67 @@ const [showNewModal, setShowNewModal] = useState(false);
       style: 'currency',
       currency: 'CLP'
     }).format(monto);
+  };
+
+  const calcularSubtotalItems = (items = []) => {
+    return items.reduce((sum, item) => {
+      const cantidad = item.cantidad || 0;
+      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+      const descuento = item.descuento || 0;
+      const subtotal = cantidad * valorUnitario;
+      return sum + (subtotal - (subtotal * (descuento / 100)));
+    }, 0);
+  };
+
+  const obtenerNetoCotizacion = (cot) => {
+    if (cot.items && cot.items.length) return calcularSubtotalItems(cot.items);
+    if (!cot.monto) return 0;
+    return cot.monto / 1.19;
+  };
+
+  const calcularTotalesItems = (items = []) => {
+    const subtotal = calcularSubtotalItems(items);
+    const iva = subtotal * 0.19;
+    const total = subtotal + iva;
+    return { subtotal, iva, total };
+  };
+
+  const abrirModalGanada = (cotizacion) => {
+    const seleccionInicial = {};
+    (cotizacion.items || []).forEach((_, index) => {
+      seleccionInicial[index] = true;
+    });
+    setGanadaSeleccion(seleccionInicial);
+    setCotizacionGanada(cotizacion);
+    setShowGanadaModal(true);
+  };
+
+  const confirmarGanada = async () => {
+    if (!cotizacionGanada) return;
+    const itemsOriginales = cotizacionGanada.items || [];
+    const itemsSeleccionados = itemsOriginales.filter((_, index) => ganadaSeleccion[index]);
+    if (itemsSeleccionados.length === 0) {
+      alert('Selecciona al menos un item ganado.');
+      return;
+    }
+    try {
+      const { total } = calcularTotalesItems(itemsSeleccionados);
+      await updateCotizacion(cotizacionGanada.id, {
+        estado: 'ganada',
+        items: itemsSeleccionados,
+        monto: total
+      });
+      await loadCotizaciones();
+      setShowGanadaModal(false);
+      setCotizacionGanada(null);
+    } catch (error) {
+      console.error('Error actualizando cotización:', error);
+      alert('Error al marcar como ganada');
+    }
+  };
+
+  const toggleItemGanado = (index) => {
+    setGanadaSeleccion(prev => ({ ...prev, [index]: !prev[index] }));
   };
   
 // Loading state
@@ -7281,7 +7421,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                     <p className="font-semibold text-gray-800">{cot.nombreProyecto || 'Sin nombre'}</p>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{cot.unidadNegocio}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(cot.monto)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(obtenerNetoCotizacion(cot))}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(cot.estado)}`}>
                       {cot.estado.charAt(0).toUpperCase() + cot.estado.slice(1)}
@@ -7292,7 +7432,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                       {cot.estado === 'emitida' && (
                         <>
                           <button
-                            onClick={() => cambiarEstado(cot.id, 'ganada')}
+                            onClick={() => abrirModalGanada(cot)}
                             className="p-2 bg-green-100 hover:bg-green-200 rounded-lg transition-colors"
                             title="Marcar como Ganada"
                           >
@@ -7392,6 +7532,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       {showNewModal && (
         <NuevaCotizacionModal 
           onClose={() => setShowNewModal(false)}
+          currentUserName={currentUserName}
           onSave={async (nuevaCotizacion) => {
             try {
               // Preparar datos para Supabase
@@ -7545,6 +7686,88 @@ const [showNewModal, setShowNewModal] = useState(false);
             }
           }}
         />
+      )}
+
+      {showGanadaModal && cotizacionGanada && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-white">
+                  Items ganados - Cotización #{cotizacionGanada.numero}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowGanadaModal(false);
+                    setCotizacionGanada(null);
+                  }}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {cotizacionGanada.items && cotizacionGanada.items.length > 0 ? (
+                <div className="space-y-3">
+                  {cotizacionGanada.items.map((item, index) => {
+                    const cantidad = item.cantidad || 0;
+                    const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+                    const descuento = item.descuento || 0;
+                    const subtotal = (cantidad * valorUnitario) * (1 - descuento / 100);
+                    return (
+                      <label
+                        key={item.id || index}
+                        className="flex items-start justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={!!ganadaSeleccion[index]}
+                            onChange={() => toggleItemGanado(index)}
+                          />
+                          <div>
+                            <p className="font-semibold text-gray-800">{item.item || `Item ${index + 1}`}</p>
+                            <p className="text-sm text-gray-600">{item.descripcion || '-'}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Cantidad: {cantidad} · V. Unitario: {formatMonto(valorUnitario)} · Desc: {descuento}%
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-sm font-semibold text-gray-700">
+                          {formatMonto(subtotal)}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+                  Esta cotización no tiene items registrados.
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowGanadaModal(false);
+                  setCotizacionGanada(null);
+                }}
+                className="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarGanada}
+                className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              >
+                Confirmar Ganada
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -7881,7 +8104,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
 };
 
 // Componente Modal para Nueva Cotización
-const NuevaCotizacionModal = ({ onClose, onSave }) => {
+const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   const [formData, setFormData] = useState({
     codigoCliente: '',
     clienteId: null,
@@ -7894,13 +8117,18 @@ const NuevaCotizacionModal = ({ onClose, onSave }) => {
     telefono: '',
     fecha: new Date().toISOString().split('T')[0],
     condicionesPago: '',
-    cotizadoPor: '',
+    cotizadoPor: currentUserName || '',
     unidadNegocio: '',
     observaciones: '',
     items: [
       { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
     ]
   });
+
+  useEffect(() => {
+    if (!currentUserName) return;
+    setFormData(prev => (prev.cotizadoPor ? prev : { ...prev, cotizadoPor: currentUserName }));
+  }, [currentUserName]);
 
   const [clientes, setClientes] = useState([]);
   const [clientesError, setClientesError] = useState('');
@@ -8936,6 +9164,7 @@ const Dashboard = ({ user, onLogout }) => {
               sharedCotizaciones={sharedCotizaciones}
               setSharedCotizaciones={setSharedCotizaciones}
               onAdjudicarVenta={handleAdjudicarVentaDesdeCotizacion}
+              currentUserName={user?.name}
             />
           )}
 
