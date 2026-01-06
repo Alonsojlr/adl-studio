@@ -4896,6 +4896,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
 
 const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const costoReal = ocVinculadas.reduce((total, oc) => total + (oc.total || 0), 0);
+  const margenMonto = (protocolo.montoTotal || 0) - costoReal;
+  const margenPct = protocolo.montoTotal ? (margenMonto / protocolo.montoTotal) * 100 : 0;
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
 
@@ -4925,7 +4927,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-3xl font-bold text-gray-800 mb-2">Protocolo {protocolo.folio}</h2>
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Cliente:</p>
                   <p className="font-semibold text-gray-800">{protocolo.cliente}</p>
@@ -4945,6 +4947,12 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                 <div>
                   <p className="text-gray-500">Costo Real (OC):</p>
                   <p className="font-semibold text-blue-600">{formatCurrency(costoReal)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Margen:</p>
+                  <p className="font-semibold text-emerald-700">
+                    {formatCurrency(margenMonto)} ({margenPct.toFixed(1)}%)
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500">OC Cliente:</p>
