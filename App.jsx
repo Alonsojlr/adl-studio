@@ -4355,6 +4355,27 @@ const ProtocolosModule = ({
     );
   }, [sharedCotizaciones]);
 
+  useEffect(() => {
+    if (vistaActual !== 'detalle') return;
+    setProtocoloSeleccionado(prev => {
+      if (!prev) return prev;
+      const nextItems = obtenerItemsProtocolo(prev);
+      const prevItems = prev.items || [];
+      const sameItems = prevItems.length === nextItems.length && prevItems.every((item, index) => {
+        const next = nextItems[index] || {};
+        const prevValor = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const nextValor = next.valorUnitario ?? next.valor_unitario ?? 0;
+        return (item.item || '') === (next.item || '') &&
+          (item.descripcion || '') === (next.descripcion || '') &&
+          (item.cantidad || 0) === (next.cantidad || 0) &&
+          (item.descuento || 0) === (next.descuento || 0) &&
+          prevValor === nextValor;
+      });
+      if (sameItems) return prev;
+      return { ...prev, items: nextItems };
+    });
+  }, [sharedCotizaciones, vistaActual]);
+
   const loadProtocolos = async () => {
     try {
       setLoading(true);
@@ -7037,7 +7058,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 };
 
 // Componente de Módulo de Cotizaciones
-const CotizacionesModule = ({ onAdjudicarVenta }) => {
+const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {} }) => {
 const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -7084,6 +7105,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       }));
       
       setCotizaciones(cotizacionesTransformadas);
+      setSharedCotizaciones(cotizacionesTransformadas);
     } catch (error) {
       console.error('Error cargando cotizaciones:', error);
       alert('Error al cargar cotizaciones desde la base de datos');
