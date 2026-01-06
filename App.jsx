@@ -280,22 +280,6 @@ const InventarioModule = ({ activeModule }) => {
     }).format(value);
   };
 
-  const calcularSubtotalItems = (items = []) => {
-    return items.reduce((sum, item) => {
-      const cantidad = item.cantidad || 0;
-      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-      const descuento = item.descuento || 0;
-      const subtotal = cantidad * valorUnitario;
-      return sum + (subtotal - (subtotal * (descuento / 100)));
-    }, 0);
-  };
-
-  const obtenerNetoProtocolo = (protocolo) => {
-    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
-    if (!protocolo.montoTotal) return 0;
-    return protocolo.montoTotal / 1.19;
-  };
-
   const hoyISO = new Date().toISOString().split('T')[0];
   const isReservaVencida = (reserva) =>
     !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
@@ -4771,6 +4755,22 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
       currency: 'CLP',
       minimumFractionDigits: 0
     }).format(value);
+  };
+
+  const calcularSubtotalItems = (items = []) => {
+    return items.reduce((sum, item) => {
+      const cantidad = item.cantidad || 0;
+      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+      const descuento = item.descuento || 0;
+      const subtotal = cantidad * valorUnitario;
+      return sum + (subtotal - (subtotal * (descuento / 100)));
+    }, 0);
+  };
+
+  const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
+    if (!protocolo.montoTotal) return 0;
+    return protocolo.montoTotal / 1.19;
   };
 
   const stats = {
