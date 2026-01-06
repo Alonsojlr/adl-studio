@@ -7491,6 +7491,20 @@ const [showNewModal, setShowNewModal] = useState(false);
           onSave={async (updates) => {
             try {
               await updateCotizacion(cotizacionSeleccionada.id, updates);
+              if (cotizacionSeleccionada.adjudicada_a_protocolo) {
+                const protocolosActuales = await getProtocolos();
+                const protocoloRelacionado = protocolosActuales.find(p =>
+                  String(p.folio) === String(cotizacionSeleccionada.adjudicada_a_protocolo) ||
+                  String(p.numero_cotizacion) === String(cotizacionSeleccionada.numero)
+                );
+                if (protocoloRelacionado) {
+                  await updateProtocolo(protocoloRelacionado.id, {
+                    nombre_proyecto: updates.nombre_proyecto,
+                    unidad_negocio: updates.unidad_negocio,
+                    monto_total: updates.monto
+                  });
+                }
+              }
               await loadCotizaciones();
               setShowEditModal(false);
               setCotizacionSeleccionada(null);
