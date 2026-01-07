@@ -280,22 +280,6 @@ const InventarioModule = ({ activeModule }) => {
     }).format(value);
   };
 
-  const calcularSubtotalItems = (items = []) => {
-    return items.reduce((sum, item) => {
-      const cantidad = item.cantidad || 0;
-      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-      const descuento = item.descuento || 0;
-      const subtotal = cantidad * valorUnitario;
-      return sum + (subtotal - (subtotal * (descuento / 100)));
-    }, 0);
-  };
-
-  const obtenerNetoProtocolo = (protocolo) => {
-    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
-    if (!protocolo.montoTotal) return 0;
-    return protocolo.montoTotal / 1.19;
-  };
-
   const hoyISO = new Date().toISOString().split('T')[0];
   const isReservaVencida = (reserva) =>
     !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
@@ -1872,6 +1856,7 @@ const OrdenesCompraModule = ({
         numeroFactura: o.numero_factura || '',
         fechaFactura: o.fecha_factura || '',
         estadoPago: o.estado_pago || 'Pendiente',
+        responsableCompra: o.responsable_compra || '',
         items: (o.ordenes_compra_items || []).map(item => ({
           id: item.id,
           item: item.item || '',
@@ -2079,6 +2064,8 @@ const OrdenesCompraModule = ({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -2111,6 +2098,8 @@ const OrdenesCompraModule = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.subtotal || 0)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.iva || 0)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.total || 0)}</td>
                   <td className="px-6 py-4">
                     {orden.numeroFactura ? (
                       <div>
@@ -2166,6 +2155,7 @@ const OrdenesCompraModule = ({
       {/* Modales */}
       {showNewModal && (
         <NuevaOCModal 
+          currentUserName={user?.name}
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevaOC) => {
             try {
@@ -2185,6 +2175,7 @@ const OrdenesCompraModule = ({
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
+                responsable_compra: nuevaOC.responsableCompra || '',
                 subtotal: parseFloat(nuevaOC.subtotal) || 0,
                 iva: parseFloat(nuevaOC.iva) || 0,
                 total: parseFloat(nuevaOC.total) || 0,
@@ -2235,6 +2226,7 @@ const OrdenesCompraModule = ({
                 codigo_protocolo: ordenActualizada.codigoProtocolo || '',
                 tipo_costo: ordenActualizada.tipoCosto || '',
                 forma_pago: ordenActualizada.formaPago || '',
+                responsable_compra: ordenActualizada.responsableCompra || '',
                 subtotal,
                 iva,
                 total,
@@ -2278,6 +2270,7 @@ const OrdenesCompraModule = ({
       {datosOCDesdeProtocolo && (
         <FormularioOCDesdeProtocolo
           datosProtocolo={datosOCDesdeProtocolo}
+          currentUserName={user?.name}
           onClose={() => {
             setDatosOCDesdeProtocolo(null);
             if (onCancelarPreOC) {
@@ -2301,6 +2294,7 @@ const OrdenesCompraModule = ({
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
+                responsable_compra: nuevaOC.responsableCompra || '',
                 total: parseFloat(nuevaOC.total),
                 estado: 'Emitida',
                 numero_factura: '',
@@ -2328,7 +2322,7 @@ const OrdenesCompraModule = ({
 };
 
 // Modal Nueva OC Manual
-const NuevaOCModal = ({ onClose, onSave }) => {
+const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   // Tipos de Costo - Lista completa Building Me
   const TIPOS_COSTO = [
     // Comunes (todas las UN)
@@ -2370,7 +2364,7 @@ const NuevaOCModal = ({ onClose, onSave }) => {
     telefonoProveedor: '',
     cotizacionProveedor: '',
     formaPago: '',
-    responsableCompra: '',
+    responsableCompra: currentUserName || '',
     tipoCosto: '',
     items: [
       { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
@@ -2406,6 +2400,13 @@ const NuevaOCModal = ({ onClose, onSave }) => {
 
     loadProveedores();
   }, []);
+
+  useEffect(() => {
+    if (!currentUserName) return;
+    setFormData(prev => (
+      prev.responsableCompra ? prev : { ...prev, responsableCompra: currentUserName }
+    ));
+  }, [currentUserName]);
 
   const buscarProveedor = (codigo) => {
     const codigoNormalizado = codigo.trim();
@@ -4369,7 +4370,8 @@ const ProtocolosModule = ({
   protocoloParaAbrir,
   onAdjudicarCompra,
   onAdjudicarVentaDesdeCotizacion,
-  onLimpiarProtocoloParaAbrir
+  onLimpiarProtocoloParaAbrir,
+  currentUserName
 }) => {
   const [vistaActual, setVistaActual] = useState('listado'); // 'listado' o 'detalle'
   const [protocoloSeleccionado, setProtocoloSeleccionado] = useState(null);
@@ -4477,6 +4479,7 @@ const ProtocolosModule = ({
     numeroFactura: o.numero_factura || '',
     fechaFactura: o.fecha_factura || '',
     estadoPago: o.estado_pago || 'Pendiente',
+    responsableCompra: o.responsable_compra || '',
     items: (o.ordenes_compra_items || []).map(item => ({
       id: item.id,
       item: item.item || '',
@@ -4562,6 +4565,7 @@ const ProtocolosModule = ({
                   codigo_protocolo: ordenActualizada.codigoProtocolo || '',
                   tipo_costo: ordenActualizada.tipoCosto || '',
                   forma_pago: ordenActualizada.formaPago || '',
+                  responsable_compra: ordenActualizada.responsableCompra || '',
                   subtotal,
                   iva,
                   total,
@@ -4587,6 +4591,7 @@ const ProtocolosModule = ({
         {mostrarFormularioOC && datosPreOC && (
           <FormularioOCDesdeProtocolo
             datosProtocolo={datosPreOC}
+            currentUserName={currentUserName}
             onClose={() => {
               setMostrarFormularioOC(false);
               setDatosPreOC(null);
@@ -4608,6 +4613,7 @@ const ProtocolosModule = ({
                   proveedor_id: nuevaOC.proveedorId || null,
                   tipo_costo: nuevaOC.tipoCosto,
                   forma_pago: nuevaOC.formaPago,
+                  responsable_compra: nuevaOC.responsableCompra || '',
                   total: parseFloat(nuevaOC.total),
                   estado: 'Emitida',
                   numero_factura: '',
@@ -4649,6 +4655,7 @@ const ProtocolosModule = ({
       {mostrarFormularioOC && datosPreOC && (
         <FormularioOCDesdeProtocolo
           datosProtocolo={datosPreOC}
+          currentUserName={currentUserName}
           onClose={() => {
             setMostrarFormularioOC(false);
             setDatosPreOC(null);
@@ -4671,6 +4678,7 @@ const ProtocolosModule = ({
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
                 forma_pago: nuevaOC.formaPago,
+                responsable_compra: nuevaOC.responsableCompra || '',
                 total: parseFloat(nuevaOC.total),
                 estado: 'Emitida',
                 numero_factura: '',
@@ -4880,12 +4888,19 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {protocolosFiltrados.map((protocolo) => (
+              {protocolosFiltrados.map((protocolo) => {
+                const neto = obtenerNetoProtocolo(protocolo);
+                const total = protocolo.montoTotal || 0;
+                const iva = total ? total - neto : neto * 0.19;
+
+                return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono font-bold text-xl" style={{ color: '#235250' }}>{protocolo.folio}</span>
@@ -4914,7 +4929,9 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                       <span className="text-gray-400 text-sm">Sin OC</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(obtenerNetoProtocolo(protocolo))}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(neto)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(iva)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total || neto + iva)}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(protocolo.estado)}`}>
                       {protocolo.estado}
@@ -4948,7 +4965,8 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                       </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -4976,9 +4994,13 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   };
 
 const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
-  const costoReal = ocVinculadas.reduce((total, oc) => total + (oc.total || 0), 0);
-  const margenMonto = (protocolo.montoTotal || 0) - costoReal;
-  const margenPct = protocolo.montoTotal ? (margenMonto / protocolo.montoTotal) * 100 : 0;
+  const montoNeto = protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
+  const costoRealNeto = ocVinculadas.reduce(
+    (total, oc) => total + (oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0)),
+    0
+  );
+  const margenMontoNeto = montoNeto - costoRealNeto;
+  const margenPctNeto = montoNeto ? (margenMontoNeto / montoNeto) * 100 : 0;
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [itemsComprados, setItemsComprados] = useState({});
@@ -5023,17 +5045,17 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <p className="font-semibold text-gray-800">{protocolo.unidadNegocio}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Monto Total:</p>
-                  <p className="font-semibold text-gray-800">{formatCurrency(protocolo.montoTotal)}</p>
+                  <p className="text-gray-500">Monto Neto:</p>
+                  <p className="font-semibold text-gray-800">{formatCurrency(montoNeto)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Costo Real (OC):</p>
-                  <p className="font-semibold text-blue-600">{formatCurrency(costoReal)}</p>
+                  <p className="text-gray-500">Costo Neto (OC):</p>
+                  <p className="font-semibold text-blue-600">{formatCurrency(costoRealNeto)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Margen:</p>
+                  <p className="text-gray-500">Margen Neto:</p>
                   <p className="font-semibold text-emerald-700">
-                    {formatCurrency(margenMonto)} ({margenPct.toFixed(1)}%)
+                    {formatCurrency(margenMontoNeto)} ({margenPctNeto.toFixed(1)}%)
                   </p>
                 </div>
                 <div>
@@ -5154,13 +5176,20 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Proveedor</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Monto</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {ocVinculadas.map((oc) => (
+                {ocVinculadas.map((oc) => {
+                  const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
+                  const total = oc.total ?? 0;
+                  const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
+
+                  return (
                   <tr key={oc.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-bold">{oc.numero}</td>
                     <td className="px-4 py-3">{oc.fecha}</td>
@@ -5170,7 +5199,9 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                         {oc.tipoCosto}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-semibold">{formatCurrency(oc.total)}</td>
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(neto)}</td>
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(total || neto + iva)}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
                         {oc.estado}
@@ -5193,7 +5224,8 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -5343,7 +5375,7 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
 // ========================================
 // FORMULARIO OC DESDE PROTOCOLO
 // ========================================
-const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
+const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, currentUserName }) => {
   const TIPOS_COSTO = [
     '🚚 Transporte',
     '🚁 Drone',
@@ -5382,7 +5414,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
     telefonoProveedor: '',
     cotizacionProveedor: '',
     formaPago: '',
-    responsableCompra: '',
+    responsableCompra: currentUserName || '',
     tipoCosto: '',
     items: datosProtocolo.items.map(item => ({
       id: item.id,
@@ -5423,6 +5455,13 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar }) => {
 
     loadProveedores();
   }, []);
+
+  useEffect(() => {
+    if (!currentUserName) return;
+    setFormData(prev => (
+      prev.responsableCompra ? prev : { ...prev, responsableCompra: currentUserName }
+    ));
+  }, [currentUserName]);
 
   const buscarProveedor = (codigo) => {
     const codigoNormalizado = codigo.trim();
@@ -7414,7 +7453,9 @@ const [showNewModal, setShowNewModal] = useState(false);
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Unidad Negocio</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -7436,7 +7477,18 @@ const [showNewModal, setShowNewModal] = useState(false);
                     <p className="font-semibold text-gray-800">{cot.nombreProyecto || 'Sin nombre'}</p>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{cot.unidadNegocio}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(obtenerNetoCotizacion(cot))}</td>
+                  {(() => {
+                    const neto = obtenerNetoCotizacion(cot);
+                    const total = cot.monto || 0;
+                    const iva = total ? total - neto : neto * 0.19;
+                    return (
+                      <>
+                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(neto)}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(iva)}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(total || neto + iva)}</td>
+                      </>
+                    );
+                  })()}
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(cot.estado)}`}>
                       {cot.estado.charAt(0).toUpperCase() + cot.estado.slice(1)}
@@ -8737,6 +8789,7 @@ const Dashboard = ({ user, onLogout }) => {
       numeroFactura: o.numero_factura || '',
       fechaFactura: o.fecha_factura || '',
       estadoPago: o.estado_pago || 'Pendiente',
+      responsableCompra: o.responsable_compra || '',
       items: (o.ordenes_compra_items || []).map(item => ({
         id: item.id,
         item: item.item || '',
@@ -9193,6 +9246,7 @@ const Dashboard = ({ user, onLogout }) => {
               protocoloParaAbrir={protocoloParaAbrir}
               onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}
               onLimpiarProtocoloParaAbrir={() => setProtocoloParaAbrir(null)}
+              currentUserName={user?.name}
             />
           )}
 
