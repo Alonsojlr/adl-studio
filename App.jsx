@@ -280,6 +280,22 @@ const InventarioModule = ({ activeModule }) => {
     }).format(value);
   };
 
+  const calcularSubtotalItems = (items = []) => {
+    return items.reduce((sum, item) => {
+      const cantidad = item.cantidad || 0;
+      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+      const descuento = item.descuento || 0;
+      const subtotal = cantidad * valorUnitario;
+      return sum + (subtotal - (subtotal * (descuento / 100)));
+    }, 0);
+  };
+
+  const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
+    if (!protocolo.montoTotal) return 0;
+    return protocolo.montoTotal / 1.19;
+  };
+
   const hoyISO = new Date().toISOString().split('T')[0];
   const isReservaVencida = (reserva) =>
     !reserva.devuelto && reserva.fechaHasta && reserva.fechaHasta < hoyISO;
@@ -1858,7 +1874,7 @@ const OrdenesCompraModule = ({
         estadoPago: o.estado_pago || 'Pendiente',
         items: (o.ordenes_compra_items || []).map(item => ({
           id: item.id,
-          item: item.item || item.descripcion || '',
+          item: item.item || '',
           cantidad: item.cantidad,
           descripcion: item.descripcion,
           valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -2059,12 +2075,10 @@ const OrdenesCompraModule = ({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° OC</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Protocolo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Producto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Item</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -2081,8 +2095,8 @@ const OrdenesCompraModule = ({
                   </td>
                   <td className="px-6 py-4 text-gray-600">{orden.fecha}</td>
                   <td className="px-6 py-4">
-                    <p className="font-semibold text-gray-700 truncate max-w-xs" title={orden.items && orden.items.length > 0 ? orden.items[0].descripcion : 'Sin items'}>
-                      {orden.items && orden.items.length > 0 ? orden.items[0].descripcion : 'Sin items'}
+                    <p className="font-semibold text-gray-700 truncate max-w-xs" title={orden.items && orden.items.length > 0 ? (orden.items[0].item || orden.items[0].descripcion) : 'Sin items'}>
+                      {orden.items && orden.items.length > 0 ? (orden.items[0].item || orden.items[0].descripcion) : 'Sin items'}
                     </p>
                   </td>
                   <td className="px-6 py-4">
@@ -2097,8 +2111,6 @@ const OrdenesCompraModule = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.subtotal || 0)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.iva || 0)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.total || 0)}</td>
                   <td className="px-6 py-4">
                     {orden.numeroFactura ? (
                       <div>
@@ -4467,7 +4479,7 @@ const ProtocolosModule = ({
     estadoPago: o.estado_pago || 'Pendiente',
     items: (o.ordenes_compra_items || []).map(item => ({
       id: item.id,
-      item: item.item || item.descripcion || '',
+      item: item.item || '',
       cantidad: item.cantidad,
       descripcion: item.descripcion,
       valorUnitario: parseFloat(item.valor_unitario) || 0,
@@ -4761,18 +4773,17 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
     }).format(value);
   };
 
-  const calcularSubtotalItems = (items = []) => {
-    return items.reduce((sum, item) => {
-      const cantidad = item.cantidad || 0;
-      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-      const descuento = item.descuento || 0;
-      const subtotal = cantidad * valorUnitario;
-      return sum + (subtotal - (subtotal * (descuento / 100)));
-    }, 0);
-  };
-
   const obtenerNetoProtocolo = (protocolo) => {
-    if (protocolo.items && protocolo.items.length) return calcularSubtotalItems(protocolo.items);
+    const items = protocolo.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
     if (!protocolo.montoTotal) return 0;
     return protocolo.montoTotal / 1.19;
   };
@@ -4965,10 +4976,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   };
 
 const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
-  const montoNeto = protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
-  const costoRealNeto = ocVinculadas.reduce((total, oc) => total + (oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0)), 0);
-  const margenMontoNeto = montoNeto - costoRealNeto;
-  const margenPctNeto = montoNeto ? (margenMontoNeto / montoNeto) * 100 : 0;
+  const costoReal = ocVinculadas.reduce((total, oc) => total + (oc.total || 0), 0);
+  const margenMonto = (protocolo.montoTotal || 0) - costoReal;
+  const margenPct = protocolo.montoTotal ? (margenMonto / protocolo.montoTotal) * 100 : 0;
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [itemsComprados, setItemsComprados] = useState({});
@@ -5013,17 +5023,17 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <p className="font-semibold text-gray-800">{protocolo.unidadNegocio}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Monto Neto:</p>
-                  <p className="font-semibold text-gray-800">{formatCurrency(montoNeto)}</p>
+                  <p className="text-gray-500">Monto Total:</p>
+                  <p className="font-semibold text-gray-800">{formatCurrency(protocolo.montoTotal)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Costo Neto (OC):</p>
-                  <p className="font-semibold text-blue-600">{formatCurrency(costoRealNeto)}</p>
+                  <p className="text-gray-500">Costo Real (OC):</p>
+                  <p className="font-semibold text-blue-600">{formatCurrency(costoReal)}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Margen Neto:</p>
+                  <p className="text-gray-500">Margen:</p>
                   <p className="font-semibold text-emerald-700">
-                    {formatCurrency(margenMontoNeto)} ({margenPctNeto.toFixed(1)}%)
+                    {formatCurrency(margenMonto)} ({margenPct.toFixed(1)}%)
                   </p>
                 </div>
                 <div>
@@ -5144,9 +5154,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Proveedor</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Monto</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
                 </tr>
@@ -5162,17 +5170,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                         {oc.tipoCosto}
                       </span>
                     </td>
-                    {(() => {
-                      const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
-                      const iva = oc.iva ?? (oc.total ? oc.total - neto : neto * 0.19);
-                      return (
-                        <>
-                          <td className="px-4 py-3 font-semibold">{formatCurrency(neto)}</td>
-                          <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
-                          <td className="px-4 py-3 font-semibold">{formatCurrency(oc.total || neto + iva)}</td>
-                        </>
-                      );
-                    })()}
+                    <td className="px-4 py-3 font-semibold">{formatCurrency(oc.total)}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
                         {oc.estado}
@@ -7416,9 +7414,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Unidad Negocio</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Monto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -7440,18 +7436,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                     <p className="font-semibold text-gray-800">{cot.nombreProyecto || 'Sin nombre'}</p>
                   </td>
                   <td className="px-6 py-4 text-gray-600">{cot.unidadNegocio}</td>
-                  {(() => {
-                    const neto = obtenerNetoCotizacion(cot);
-                    const total = cot.monto || 0;
-                    const iva = total ? total - neto : neto * 0.19;
-                    return (
-                      <>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(neto)}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(iva)}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(total || neto + iva)}</td>
-                      </>
-                    );
-                  })()}
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(obtenerNetoCotizacion(cot))}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(cot.estado)}`}>
                       {cot.estado.charAt(0).toUpperCase() + cot.estado.slice(1)}
@@ -8754,7 +8739,7 @@ const Dashboard = ({ user, onLogout }) => {
       estadoPago: o.estado_pago || 'Pendiente',
       items: (o.ordenes_compra_items || []).map(item => ({
         id: item.id,
-        item: item.item || item.descripcion || '',
+        item: item.item || '',
         cantidad: item.cantidad,
         descripcion: item.descripcion,
         valorUnitario: parseFloat(item.valor_unitario) || 0,

@@ -12,6 +12,7 @@ export const getOrdenesCompra = async () => {
       ),
       ordenes_compra_items (
         id,
+        item,
         cantidad,
         descripcion,
         valor_unitario,
@@ -38,6 +39,7 @@ export const createOrdenCompra = async (orden, items) => {
   if (items && items.length > 0) {
     const itemsConOrdenId = items.map(item => ({
       orden_id: ordenData[0].id,
+      item: item.item || '',
       cantidad: item.cantidad,
       descripcion: item.descripcion,
       valor_unitario: item.valorUnitario || item.valor_unitario,
@@ -66,6 +68,7 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
   if (items && items.length > 0) {
     const itemsConOrdenId = items.map(item => ({
       orden_id: ordenId,
+      item: item.item || '',
       cantidad: item.cantidad,
       descripcion: item.descripcion,
       valor_unitario: item.valorUnitario || item.valor_unitario,
