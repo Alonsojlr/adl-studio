@@ -8,7 +8,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
-import { generarOCDesdeTemplate, generarCotizacionPDF, generarOCPDF } from './src/utils/documentGenerator';
+import { generarOCDesdeTemplate, generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 // Sistema de autenticación y roles
 const USERS = {
@@ -5064,6 +5064,12 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                     {protocolo.ocCliente || <span className="text-gray-400">Sin OC</span>}
                   </p>
                 </div>
+                <div>
+                  <p className="text-gray-500">Proyecto:</p>
+                  <p className="font-semibold text-gray-800">
+                    {protocolo.nombreProyecto || <span className="text-gray-400">Sin nombre</span>}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="flex flex-col space-y-2">
@@ -5106,8 +5112,13 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
               📄 Ingresar OC Cliente
             </button>
             <button
-              onClick={() => {
-                alert(`Generando PDF del Protocolo ${protocolo.folio}...\n\nFuncionalidad en desarrollo.`);
+              onClick={async () => {
+                try {
+                  await generarProtocoloPDF(protocolo, protocolo.items || [], ocVinculadas);
+                } catch (error) {
+                  console.error('Error al generar PDF de protocolo:', error);
+                  alert('Error al generar PDF del protocolo');
+                }
               }}
               className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg"
             >
