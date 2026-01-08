@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './src/lib/supabaseClient';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from './src/api/cotizaciones';
 import { getProtocolos, createProtocolo, updateProtocolo, deleteProtocolo } from './src/api/protocolos';
@@ -5046,6 +5046,34 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [itemsComprados, setItemsComprados] = useState({});
+  const itemsCompradosKey = `protocolos.itemsComprados.${protocolo.id ?? protocolo.folio ?? 'default'}`;
+  const itemsCompradosHydratingRef = useRef(true);
+
+  useEffect(() => {
+    try {
+      itemsCompradosHydratingRef.current = true;
+      const raw = localStorage.getItem(itemsCompradosKey);
+      if (raw) {
+        setItemsComprados(JSON.parse(raw));
+      } else {
+        setItemsComprados({});
+      }
+    } catch (error) {
+      console.error('Error leyendo estado de items comprados:', error);
+    }
+  }, [itemsCompradosKey]);
+
+  useEffect(() => {
+    if (itemsCompradosHydratingRef.current) {
+      itemsCompradosHydratingRef.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(itemsCompradosKey, JSON.stringify(itemsComprados));
+    } catch (error) {
+      console.error('Error guardando estado de items comprados:', error);
+    }
+  }, [itemsComprados, itemsCompradosKey]);
 
   const cambiarEstado = (nuevoEstado) => {
     if (nuevoEstado === 'Cerrado') {
@@ -5191,7 +5219,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 <tr key={item.id ?? index}>
                   <td className="px-4 py-3">{index + 1}</td>
                   <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
-                  <td className="px-4 py-3">{item.descripcion}</td>
+                  <td className={`px-4 py-3 ${itemsComprados[item.id ?? index] ? 'line-through text-gray-400' : ''}`}>
+                    {item.descripcion}
+                  </td>
                   <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
                   <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
                   <td className="px-4 py-3">
@@ -5314,7 +5344,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
       {showCerrarModal && (
         <ModalCerrarProtocolo
           protocolo={protocolo}
-          costoReal={costoReal}
+          costoReal={costoRealNeto}
           onClose={() => setShowCerrarModal(false)}
           onConfirmar={async (precioVenta) => {
             try {
