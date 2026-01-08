@@ -8,7 +8,9 @@ export const getOrdenesCompra = async () => {
       *,
       proveedores (
         razon_social,
-        rut
+        rut,
+        direccion,
+        contacto
       ),
       ordenes_compra_items (
         id,

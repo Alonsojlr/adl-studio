@@ -169,8 +169,11 @@ export const generarCotizacionPDF = (cotizacion, cliente, items) => {
 };
 
 // Función para generar PDF de Orden de Compra directamente
-export const generarOCPDF = (ordenCompra, proveedor, protocolo, items) => {
-  const doc = renderOCPDF(ordenCompra, proveedor, protocolo, items);
+export const generarOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
+  const doc = await renderOCPDF(ordenCompra, proveedor, protocolo, items);
+  if (!doc || typeof doc.save !== 'function') {
+    throw new Error('No se pudo generar el PDF de la OC');
+  }
   doc.save(`OC-${ordenCompra.numero || 'sin-numero'}.pdf`);
 };
 
