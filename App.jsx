@@ -8,7 +8,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
-import { generarOCDesdeTemplate, generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
+import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 // Sistema de autenticación y roles
 const USERS = {
