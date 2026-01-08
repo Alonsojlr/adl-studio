@@ -9,112 +9,183 @@ const formatCurrency = (value) => {
   }).format(Number.isFinite(value) ? value : 0);
 };
 
-export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = [], loadImageAsDataUrl) => {
-  const doc = new jsPDF();
+const safe = (v) => (v === null || v === undefined ? '' : String(v));
+const clean = (v) =>
+  safe(v)
+    .replace(/[{}]/g, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .trim();
 
-  const subtotalItems = (items || []).reduce((sum, item) => {
-    const cantidad = parseFloat(item.cantidad) || 0;
-    const valorUnitario = parseFloat(item.valorUnitario || item.valor_unitario) || 0;
-    const descuento = parseFloat(item.descuento) || 0;
-    return sum + (cantidad * valorUnitario * (1 - descuento / 100));
-  }, 0);
-  const totalCalc = protocolo.montoTotal || (subtotalItems * 1.19);
-  const netoCalc = totalCalc ? totalCalc / 1.19 : subtotalItems;
-  const ivaCalc = totalCalc ? totalCalc - netoCalc : netoCalc * 0.19;
+const getImageFormat = (dataUrl) => {
+  if (typeof dataUrl !== 'string') return 'PNG';
+  if (dataUrl.startsWith('data:image/webp')) return 'WEBP';
+  if (dataUrl.startsWith('data:image/jpeg')) return 'JPEG';
+  return 'PNG';
+};
+
+const drawCell = (doc, x, y, w, h) => {
+  doc.rect(x, y, w, h);
+};
+
+const drawLabelValue = (doc, label, value, x, y) => {
+  doc.setFont('helvetica', 'bold');
+  doc.text(label, x, y);
+  const labelWidth = doc.getTextWidth(label);
+  doc.setFont('helvetica', 'normal');
+  doc.text(value, x + labelWidth + 1.5, y);
+};
+
+export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = [], loadImageAsDataUrl) => {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const M = 18;
+  const TOTAL_W = W - M * 2;
+
+  const GREEN_DARK = [63, 169, 151];
+  const BORDER = [200, 200, 200];
+  const TEXT_DARK = [40, 40, 40];
+
+  const cliente = clean(protocolo.cliente || '');
+  const rut = clean(protocolo.rutCliente || '');
+  const ocCliente = clean(protocolo.ocCliente || 'Sin OC');
+  const estado = clean(protocolo.estado || '');
+  const fecha = clean(protocolo.fechaCreacion || protocolo.fecha || '');
+  const numeroCot = clean(protocolo.numeroCotizacion || '');
+  const tipo = clean(protocolo.tipo || '');
+  const nombreProyecto = clean(protocolo.nombreProyecto || '');
+
+  // =========================
+  // Header grid
+  // =========================
+  const topX = M;
+  const topY = 14;
+  const topH = 30;
+  const logoW = 55;
+  const rightW = TOTAL_W - logoW;
+  const colW = rightW / 3;
+  const rowH = topH / 3;
+
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.3);
+  drawCell(doc, topX, topY, TOTAL_W, topH);
+  drawCell(doc, topX, topY, logoW, topH);
+
+  for (let i = 1; i < 3; i += 1) {
+    const x = topX + logoW + colW * i;
+    doc.line(x, topY, x, topY + topH);
+  }
+  for (let i = 1; i < 3; i += 1) {
+    const y = topY + rowH * i;
+    doc.line(topX + logoW, y, topX + TOTAL_W, y);
+  }
 
   if (loadImageAsDataUrl) {
     try {
       const logoDataUrl = await loadImageAsDataUrl('/logo-building-me.png');
-      doc.addImage(logoDataUrl, 'PNG', 15, 12, 40, 16);
+      doc.addImage(logoDataUrl, getImageFormat(logoDataUrl), topX + 6, topY + 7, 43, 16);
     } catch (error) {
       console.warn('No se pudo cargar el logo para el PDF:', error);
     }
   }
 
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`PROTOCOLO N° ${protocolo.folio || ''}`, 105, 20, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setTextColor(...TEXT_DARK);
 
-  doc.setFontSize(10);
+  const gridX = topX + logoW;
+  const row1Y = topY + 8;
+  const row2Y = topY + rowH + 8;
+  const row3Y = topY + rowH * 2 + 8;
+
+  drawLabelValue(doc, 'Cliente:', cliente, gridX + 4, row1Y);
+  drawLabelValue(doc, 'OC Cliente:', ocCliente, gridX + colW + 4, row1Y);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(`PROTOCOLO  N° ${clean(protocolo.folio || '')}`, gridX + colW * 2 + colW / 2, row1Y, { align: 'center' });
+
+  doc.setFontSize(9);
+  drawLabelValue(doc, 'RUT:', rut, gridX + 4, row2Y);
+  drawLabelValue(doc, 'Estado:', estado, gridX + colW + 4, row2Y);
   doc.setFont('helvetica', 'normal');
-  let y = 35;
+  doc.text(`Fecha: ${fecha}`, gridX + colW * 2 + colW / 2, row2Y, { align: 'center' });
 
-  doc.text(`Fecha: ${protocolo.fechaCreacion || protocolo.fecha || ''}`, 20, y);
-  y += 7;
-  doc.text(`Cliente: ${protocolo.cliente || ''}`, 20, y);
-  y += 7;
-  doc.text(`RUT: ${protocolo.rutCliente || ''}`, 20, y);
-  y += 7;
-  doc.text(`N° Cotización: ${protocolo.numeroCotizacion || ''}`, 20, y);
-  y += 7;
-  doc.text(`Unidad de Negocio: ${protocolo.unidadNegocio || ''}`, 20, y);
-  y += 7;
-  doc.text(`Tipo: ${protocolo.tipo || ''}`, 20, y);
-  y += 7;
-  doc.text(`OC Cliente: ${protocolo.ocCliente || 'Sin OC'}`, 20, y);
-  y += 7;
-  doc.text(`Estado: ${protocolo.estado || ''}`, 20, y);
-  y += 10;
-
+  drawLabelValue(doc, 'N° Cotización:', numeroCot, gridX + 4, row3Y);
+  drawLabelValue(doc, 'Tipo:', tipo, gridX + colW + 4, row3Y);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Monto Neto: ${formatCurrency(netoCalc)}`, 140, y);
-  y += 7;
-  doc.text(`IVA (19%): ${formatCurrency(ivaCalc)}`, 140, y);
-  y += 7;
-  doc.text(`Total: ${formatCurrency(totalCalc)}`, 140, y);
-  y += 10;
+  doc.setFontSize(11);
+  doc.text(nombreProyecto, gridX + colW * 2 + colW / 2, row3Y, { align: 'center' });
+  doc.setFontSize(9);
 
-  if (items && items.length > 0) {
-    const tableData = items.map(item => {
-      const cantidad = parseFloat(item.cantidad) || 0;
-      const valorUnitario = parseFloat(item.valorUnitario || item.valor_unitario) || 0;
-      const descuento = parseFloat(item.descuento) || 0;
-      return [
-        item.item || '',
-        item.descripcion || '',
-        cantidad,
-        formatCurrency(valorUnitario),
-        `${descuento}%`,
-        formatCurrency(cantidad * valorUnitario * (1 - descuento / 100))
-      ];
-    });
+  let y = topY + topH + 12;
 
-    autoTable(doc, {
-      startY: y,
-      head: [['Item', 'Descripción', 'Cantidad', 'Valor Unitario', 'Descuento', 'Total']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [35, 82, 80] },
-      styles: { fontSize: 9 }
-    });
+  // =========================
+  // Items table
+  // =========================
+  const itemsData = (items || []).map((item) => ([
+    clean(item.item || ''),
+    clean(item.descripcion || ''),
+    `${item.cantidad || 0}`,
+    ''
+  ]));
 
-    y = doc.lastAutoTable.finalY + 8;
-  }
+  autoTable(doc, {
+    startY: y,
+    head: [['Item', 'Descripción', 'Cantidad', 'Notas']],
+    body: itemsData.length ? itemsData : [['', '', '', '']],
+    theme: 'grid',
+    margin: { left: M, right: M },
+    tableWidth: TOTAL_W,
+    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: TOTAL_W * 0.18 },
+      1: { cellWidth: TOTAL_W * 0.44 },
+      2: { cellWidth: TOTAL_W * 0.12 },
+      3: { cellWidth: TOTAL_W * 0.26 }
+    }
+  });
 
-  if (ordenesCompra && ordenesCompra.length > 0) {
-    const tableData = ordenesCompra.map(oc => {
-      const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
-      const total = oc.total ?? 0;
-      const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
-      return [
-        oc.numero || '',
-        oc.proveedor || '',
-        oc.tipoCosto || '',
-        formatCurrency(neto),
-        formatCurrency(iva),
-        formatCurrency(total || neto + iva)
-      ];
-    });
+  y = doc.lastAutoTable.finalY + 12;
 
-    autoTable(doc, {
-      startY: y,
-      head: [['N° OC', 'Proveedor', 'Tipo Costo', 'Neto', 'IVA', 'Total']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [35, 82, 80] },
-      styles: { fontSize: 9 }
-    });
-  }
+  // =========================
+  // OC vinculadas table
+  // =========================
+  const ocData = (ordenesCompra || []).map((oc) => {
+    const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
+    const total = oc.total ?? 0;
+    const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
+    return [
+      clean(oc.numero || ''),
+      clean(oc.proveedor || ''),
+      clean(oc.tipoCosto || ''),
+      formatCurrency(neto),
+      formatCurrency(iva),
+      formatCurrency(total || neto + iva),
+      ''
+    ];
+  });
+
+  autoTable(doc, {
+    startY: y,
+    head: [['N° OC', 'Proveedor', 'Tipo Costo', 'Neto', 'IVA', 'Total', 'Notas']],
+    body: ocData.length ? ocData : [['', '', '', '', '', '', '']],
+    theme: 'grid',
+    margin: { left: M, right: M },
+    tableWidth: TOTAL_W,
+    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: TOTAL_W * 0.12 },
+      1: { cellWidth: TOTAL_W * 0.22 },
+      2: { cellWidth: TOTAL_W * 0.16 },
+      3: { cellWidth: TOTAL_W * 0.12 },
+      4: { cellWidth: TOTAL_W * 0.12 },
+      5: { cellWidth: TOTAL_W * 0.12 },
+      6: { cellWidth: TOTAL_W * 0.14 }
+    }
+  });
 
   return doc;
 };
