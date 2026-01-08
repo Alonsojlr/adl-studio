@@ -2228,6 +2228,19 @@ const OrdenesCompraModule = ({
               alert('Error al guardar la factura');
             }
           }}
+          onSavePago={async (ordenActualizada) => {
+            try {
+              await updateOrdenCompra(ordenActualizada.id, {
+                estado: 'Pagada',
+                estado_pago: 'Pagada'
+              });
+              await loadOrdenes();
+              setOrdenSeleccionada(ordenActualizada);
+            } catch (error) {
+              console.error('Error actualizando pago:', error);
+              alert('Error al marcar como pagada');
+            }
+          }}
           onSave={async (ordenActualizada) => {
             try {
               const subtotal = ordenActualizada.items.reduce((sum, item) => {
@@ -2907,7 +2920,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
 };
 
 // Modal Detalle OC
-const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSaveFactura, startInEdit = false }) => {
+const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSaveFactura, onSavePago, startInEdit = false }) => {
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
@@ -2960,6 +2973,9 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     const actualizada = { ...orden, estadoPago: 'Pagada', estado: 'Pagada' };
     setOrden(actualizada);
     onUpdate(actualizada);
+    if (onSavePago) {
+      onSavePago(actualizada);
+    }
   };
 
   const formatCurrency = (value) => {
@@ -4589,6 +4605,19 @@ const ProtocolosModule = ({
               } catch (error) {
                 console.error('Error actualizando factura:', error);
                 alert('Error al guardar la factura');
+              }
+            }}
+            onSavePago={async (ordenActualizada) => {
+              try {
+                await updateOrdenCompra(ordenActualizada.id, {
+                  estado: 'Pagada',
+                  estado_pago: 'Pagada'
+                });
+                await refrescarOrdenesCompra();
+                setOrdenDetalle(ordenActualizada);
+              } catch (error) {
+                console.error('Error actualizando pago:', error);
+                alert('Error al marcar como pagada');
               }
             }}
             onSave={async (ordenActualizada) => {
