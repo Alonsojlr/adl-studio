@@ -244,7 +244,14 @@ export const generarOCPDF = async (ordenCompra, proveedor, protocolo, items) => 
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo generar el PDF de la OC');
+    let details = '';
+    try {
+      const errorData = await response.json();
+      details = errorData?.message || errorData?.error || '';
+    } catch (error) {
+      details = '';
+    }
+    throw new Error(details || 'No se pudo generar el PDF de la OC');
   }
 
   const blob = await response.blob();
