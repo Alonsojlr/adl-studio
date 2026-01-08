@@ -28,9 +28,16 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { ordenCompra = {}, proveedor = {}, protocolo = {}, items = [] } = req.body || {};
+    const payload = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const {
+      ordenCompra = {},
+      proveedor = {},
+      protocolo = {},
+      items = []
+    } = payload;
+    const itemsArray = Array.isArray(items) ? items : [];
 
-    const subtotal = (items || []).reduce((sum, item) => {
+    const subtotal = itemsArray.reduce((sum, item) => {
       const cantidad = parseFloat(item.cantidad) || 0;
       const valorUnitario = parseFloat(item.valor_unitario || item.valorUnitario) || 0;
       const descuento = parseFloat(item.descuento) || 0;
@@ -49,7 +56,7 @@ module.exports = async (req, res) => {
 
     const backgroundImage = `data:image/png;base64,${fondoBuffer.toString('base64')}`;
 
-    const itemsRows = (items || []).map(item => {
+    const itemsRows = itemsArray.map(item => {
       const cantidad = parseFloat(item.cantidad) || 0;
       const valorUnitario = parseFloat(item.valor_unitario || item.valorUnitario) || 0;
       const descuento = parseFloat(item.descuento) || 0;
@@ -93,7 +100,8 @@ module.exports = async (req, res) => {
     const browser = await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless
+      headless: chromium.headless,
+      defaultViewport: chromium.defaultViewport
     });
 
     const page = await browser.newPage();
@@ -114,6 +122,10 @@ module.exports = async (req, res) => {
     res.status(200).send(pdfBuffer);
   } catch (error) {
     console.error('Error generando PDF OC:', error);
-    res.status(500).json({ error: 'Error generando PDF OC' });
+    res.status(500).json({
+      error: 'Error generando PDF OC',
+      message: error.message || 'unknown',
+      stack: error.stack || null
+    });
   }
 };
