@@ -1808,6 +1808,7 @@ const OrdenesCompraModule = ({
   onOCCreada,
   onCancelarPreOC
 }) => {
+  const hideFinancials = false;
   const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [detalleEditMode, setDetalleEditMode] = useState(false);
@@ -2065,9 +2066,13 @@ const OrdenesCompraModule = ({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Item</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                {!hideFinancials && (
+                  <>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                  </>
+                )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -4407,7 +4412,8 @@ const ProtocolosModule = ({
   onAdjudicarCompra,
   onAdjudicarVentaDesdeCotizacion,
   onLimpiarProtocoloParaAbrir,
-  currentUserName
+  currentUserName,
+  user
 }) => {
   const [vistaActual, setVistaActual] = useState('listado'); // 'listado' o 'detalle'
   const [protocoloSeleccionado, setProtocoloSeleccionado] = useState(null);
@@ -4417,6 +4423,11 @@ const ProtocolosModule = ({
   const [showDetalleOC, setShowDetalleOC] = useState(false);
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [detalleEditMode, setDetalleEditMode] = useState(false);
+
+  const userEmail = String(user?.email || '').toLowerCase();
+  const hideFinancials =
+    user?.role === 'compras' &&
+    (userEmail.includes('eyzaguirre') || userEmail.includes('jeyzaguirre') || userEmail.includes('jyzaguirre'));
   
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
@@ -4559,6 +4570,7 @@ const ProtocolosModule = ({
         <VistaDetalleProtocolo
           protocolo={protocoloSeleccionado}
           ordenesCompra={ordenesCompra}
+          hideFinancials={hideFinancials}
           onVerDetalleOC={(orden, editar = false) => {
             setOrdenDetalle(orden);
             setDetalleEditMode(editar);
@@ -4712,14 +4724,15 @@ const ProtocolosModule = ({
   // Vista de listado
   return (
     <>
-      <VistaListadoProtocolos
-        protocolos={protocolos}
-        onVerDetalle={(protocolo) => {
-          setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
-          setVistaActual('detalle');
-        }}
-        onNuevoProtocolo={() => setShowNewModal(true)}
-      />
+          <VistaListadoProtocolos 
+            protocolos={protocolos}
+            hideFinancials={hideFinancials}
+            onVerDetalle={(protocolo) => {
+              setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
+              setVistaActual('detalle');
+            }} 
+            onNuevoProtocolo={() => setShowNewModal(true)}
+          />
 
       {/* Modal Nueva OC desde Protocolo */}
       {mostrarFormularioOC && datosPreOC && (
@@ -4818,7 +4831,7 @@ const ProtocolosModule = ({
 // ========================================
 // VISTA LISTADO DE PROTOCOLOS
 // ========================================
-const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) => {
+const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hideFinancials = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -4957,9 +4970,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Nombre Proyecto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                {!hideFinancials && (
+                  <>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                  </>
+                )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -4999,9 +5016,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                       <span className="text-gray-400 text-sm">Sin OC</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(neto)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(iva)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total)}</td>
+                  {!hideFinancials && (
+                    <>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(neto)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(iva)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total)}</td>
+                    </>
+                  )}
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(protocolo.estado)}`}>
                       {protocolo.estado}
@@ -5054,7 +5075,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
 // ========================================
 // VISTA DETALLE DEL PROTOCOLO (PÁGINA COMPLETA)
 // ========================================
-const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar, onVerDetalleOC }) => {
+const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar, onVerDetalleOC, hideFinancials = false }) => {
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -5143,20 +5164,24 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <p className="text-gray-500">Unidad de Negocio:</p>
                   <p className="font-semibold text-gray-800">{protocolo.unidadNegocio}</p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Monto Neto:</p>
-                  <p className="font-semibold text-gray-800">{formatCurrency(montoNeto)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Costo Neto (OC):</p>
-                  <p className="font-semibold text-blue-600">{formatCurrency(costoRealNeto)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Margen Neto:</p>
-                  <p className="font-semibold text-emerald-700">
-                    {formatCurrency(margenMontoNeto)} ({margenPctNeto.toFixed(1)}%)
-                  </p>
-                </div>
+                {!hideFinancials && (
+                  <>
+                    <div>
+                      <p className="text-gray-500">Monto Neto:</p>
+                      <p className="font-semibold text-gray-800">{formatCurrency(montoNeto)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Costo Neto (OC):</p>
+                      <p className="font-semibold text-blue-600">{formatCurrency(costoRealNeto)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Margen Neto:</p>
+                      <p className="font-semibold text-emerald-700">
+                        {formatCurrency(margenMontoNeto)} ({margenPctNeto.toFixed(1)}%)
+                      </p>
+                    </div>
+                  </>
+                )}
                 <div>
                   <p className="text-gray-500">OC Cliente:</p>
                   <p className="font-semibold text-gray-800">
@@ -5238,8 +5263,12 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Cantidad</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Descripción</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">V. Unitario</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Subtotal</th>
+                {!hideFinancials && (
+                  <>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">V. Unitario</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Subtotal</th>
+                  </>
+                )}
                 <th className="px-4 py-3 text-left text-sm font-semibold">Comprado</th>
               </tr>
             </thead>
@@ -5251,8 +5280,12 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <td className={`px-4 py-3 ${itemsComprados[item.id ?? index] ? 'line-through text-gray-400' : ''}`}>
                     {item.descripcion}
                   </td>
-                  <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
-                  <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
+                  {!hideFinancials && (
+                    <>
+                      <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
+                      <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
+                    </>
+                  )}
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
@@ -5288,9 +5321,13 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Proveedor</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                {!hideFinancials && (
+                  <>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                  </>
+                )}
                 <th className="px-4 py-3 text-left text-sm font-semibold">Factura</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
@@ -5315,9 +5352,13 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                         {oc.tipoCosto}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-semibold">{formatCurrency(neto)}</td>
-                    <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
-                    <td className="px-4 py-3 font-semibold">{formatCurrency(total || neto + iva)}</td>
+                    {!hideFinancials && (
+                      <>
+                        <td className="px-4 py-3 font-semibold">{formatCurrency(neto)}</td>
+                        <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
+                        <td className="px-4 py-3 font-semibold">{formatCurrency(total || neto + iva)}</td>
+                      </>
+                    )}
                     <td className="px-4 py-3">
                       {oc.numeroFactura ? (
                         <div>
@@ -9385,6 +9426,7 @@ const Dashboard = ({ user, onLogout }) => {
               onAdjudicarVentaDesdeCotizacion={handleAdjudicarVentaDesdeCotizacion}
               onLimpiarProtocoloParaAbrir={() => setProtocoloParaAbrir(null)}
               currentUserName={user?.name}
+              user={user}
             />
           )}
 
