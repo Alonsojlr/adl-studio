@@ -4863,7 +4863,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
       }, 0);
     }
     if (!protocolo.montoTotal) return 0;
-    return protocolo.montoTotal / 1.19;
+    return protocolo.montoTotal;
   };
 
   const stats = {
@@ -4967,8 +4967,8 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
             <tbody className="divide-y divide-gray-200">
               {protocolosFiltrados.map((protocolo) => {
                 const neto = obtenerNetoProtocolo(protocolo);
-                const total = protocolo.montoTotal || 0;
-                const iva = total ? total - neto : neto * 0.19;
+                const iva = neto * 0.19;
+                const total = neto + iva;
 
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
@@ -5001,7 +5001,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo }) 
                   </td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(neto)}</td>
                   <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(iva)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total || neto + iva)}</td>
+                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total)}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(protocolo.estado)}`}>
                       {protocolo.estado}
@@ -5065,7 +5065,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
 
   const itemsProtocolo = Array.isArray(protocolo.items) ? protocolo.items : [];
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
-  const montoNeto = protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
+  const montoNeto = protocolo.montoTotal || 0;
   const costoRealNeto = ocVinculadas.reduce(
     (total, oc) => total + (oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0)),
     0
@@ -7448,7 +7448,7 @@ const [showNewModal, setShowNewModal] = useState(false);
   const obtenerNetoCotizacion = (cot) => {
     if (cot.items && cot.items.length) return calcularSubtotalItems(cot.items);
     if (!cot.monto) return 0;
-    return cot.monto / 1.19;
+    return cot.monto;
   };
 
   const calcularTotalesItems = (items = []) => {
@@ -7613,13 +7613,13 @@ const [showNewModal, setShowNewModal] = useState(false);
                   <td className="px-6 py-4 text-gray-600">{cot.unidadNegocio}</td>
                   {(() => {
                     const neto = obtenerNetoCotizacion(cot);
-                    const total = cot.monto || 0;
-                    const iva = total ? total - neto : neto * 0.19;
+                    const iva = neto * 0.19;
+                    const total = neto + iva;
                     return (
                       <>
                         <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(neto)}</td>
                         <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(iva)}</td>
-                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(total || neto + iva)}</td>
+                        <td className="px-6 py-4 font-semibold text-gray-800">{formatMonto(total)}</td>
                       </>
                     );
                   })()}
