@@ -7243,6 +7243,8 @@ const [showNewModal, setShowNewModal] = useState(false);
         cliente: cot.clientes?.razon_social || 'Sin cliente',
         nombreProyecto: cot.nombre_proyecto,
         rut: cot.clientes?.rut || '',
+        direccionCliente: cot.clientes?.direccion || cot.direccion || '',
+        contactoCliente: cot.clientes?.persona_encargada || cot.contacto || '',
         unidadNegocio: cot.unidad_negocio,
         monto: parseFloat(cot.monto),
         estado: cot.estado,
@@ -7262,9 +7264,9 @@ const [showNewModal, setShowNewModal] = useState(false);
     }
   };
 
-  const generarPDFCotizacion = (cotizacion) => {
+  const generarPDFCotizacion = async (cotizacion) => {
     try {
-      generarCotizacionPDF(cotizacion, null, cotizacion.items || []);
+      await generarCotizacionPDF(cotizacion, null, cotizacion.items || []);
     } catch (error) {
       console.error('Error:', error);
       alert('Error al generar PDF');
@@ -8763,6 +8765,8 @@ const Dashboard = ({ user, onLogout }) => {
       cliente: cot.clientes?.razon_social || 'Sin cliente',
       nombreProyecto: cot.nombre_proyecto,
       rut: cot.clientes?.rut || '',
+      direccionCliente: cot.clientes?.direccion || cot.direccion || '',
+      contactoCliente: cot.clientes?.persona_encargada || cot.contacto || '',
       unidadNegocio: cot.unidad_negocio,
       monto: parseFloat(cot.monto) || 0,
       estado: cot.estado,

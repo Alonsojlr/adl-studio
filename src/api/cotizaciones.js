@@ -8,7 +8,9 @@ export const getCotizaciones = async () => {
       *,
       clientes (
         razon_social,
-        rut
+        rut,
+        direccion,
+        persona_encargada
       )
     `)
     .order('created_at', { ascending: false })

@@ -24,8 +24,8 @@ const formatCurrency = (value) => {
 };
 
 // Función para generar PDF de Cotización directamente
-export const generarCotizacionPDF = (cotizacion, cliente, items) => {
-  const doc = renderCotizacionPDF(cotizacion, cliente, items);
+export const generarCotizacionPDF = async (cotizacion, cliente, items) => {
+  const doc = await renderCotizacionPDF(cotizacion, cliente, items);
   doc.save(`Cotizacion-${cotizacion.numero || 'sin-numero'}.pdf`);
 };
 
