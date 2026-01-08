@@ -19,7 +19,7 @@ const loadImageAsDataUrl = async (url) => {
 export const generarOCDesdeTemplate = async (ordenCompra, proveedor, protocolo, items) => {
   try {
     // Cargar el template
-    const response = await fetch('/templates/oc-template.docx');
+    const response = await fetch(`/templates/oc-template.docx?ts=${Date.now()}`);
     const arrayBuffer = await response.arrayBuffer();
     const zip = new PizZip(arrayBuffer);
     
@@ -47,6 +47,7 @@ export const generarOCDesdeTemplate = async (ordenCompra, proveedor, protocolo, 
       contacto: proveedor?.contacto || '',
       codigo_protocolo: protocolo?.folio || ordenCompra.codigo_protocolo || '',
       forma_pago: ordenCompra.forma_pago,
+      responsable_compra: ordenCompra.responsable_compra || '',
       items: items.map(item => ({
         descripcion: item.descripcion,
         cantidad: item.cantidad,
@@ -235,81 +236,26 @@ export const generarCotizacionPDF = (cotizacion, cliente, items) => {
 };
 
 // Función para generar PDF de Orden de Compra directamente
-export const generarOCPDF = (ordenCompra, proveedor, protocolo, items) => {
-  const doc = new jsPDF();
-
-  // Calcular totales con validaciones
-  const subtotal = (items || []).reduce((sum, item) => {
-    const cantidad = parseFloat(item.cantidad) || 0;
-    const valorUnitario = parseFloat(item.valor_unitario || item.valorUnitario) || 0;
-    const descuento = parseFloat(item.descuento) || 0;
-    const total = cantidad * valorUnitario * (1 - descuento / 100);
-    return sum + total;
-  }, 0);
-  const iva = subtotal * 0.19;
-  const total = subtotal + iva;
-
-  // Título
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`ORDEN DE COMPRA N° ${ordenCompra.numero}`, 105, 20, { align: 'center' });
-
-  // Información general
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  let y = 35;
-
-  doc.text(`Fecha: ${ordenCompra.fecha}`, 20, y);
-  y += 7;
-  doc.text(`Proveedor: ${proveedor?.razon_social || 'Sin proveedor'}`, 20, y);
-  y += 7;
-  doc.text(`RUT: ${proveedor?.rut || ''}`, 20, y);
-  y += 7;
-  doc.text(`Dirección: ${proveedor?.direccion || ''}`, 20, y);
-  y += 7;
-  doc.text(`Contacto: ${proveedor?.contacto || ''}`, 20, y);
-  y += 7;
-  doc.text(`Código Protocolo: ${protocolo?.folio || ordenCompra.codigo_protocolo || ''}`, 20, y);
-  y += 7;
-  doc.text(`Forma de Pago: ${ordenCompra.forma_pago}`, 20, y);
-  y += 10;
-
-  // Tabla de items
-  const tableData = (items || []).map(item => {
-    const cantidad = parseFloat(item.cantidad) || 0;
-    const valorUnitario = parseFloat(item.valor_unitario || item.valorUnitario) || 0;
-    const descuento = parseFloat(item.descuento) || 0;
-    return [
-      item.descripcion || '',
-      cantidad,
-      formatCurrency(valorUnitario),
-      `${descuento}%`,
-      formatCurrency(cantidad * valorUnitario * (1 - descuento / 100))
-    ];
+export const generarOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
+  const response = await fetch('/api/oc-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ordenCompra, proveedor, protocolo, items })
   });
 
-  autoTable(doc, {
-    startY: y,
-    head: [['Descripción', 'Cantidad', 'Valor Unitario', 'Descuento', 'Total']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: { fillColor: [35, 82, 80] },
-    styles: { fontSize: 9 }
-  });
+  if (!response.ok) {
+    throw new Error('No se pudo generar el PDF de la OC');
+  }
 
-  y = doc.lastAutoTable.finalY + 10;
-
-  // Totales
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Subtotal: ${formatCurrency(subtotal)}`, 140, y);
-  y += 7;
-  doc.text(`IVA (19%): ${formatCurrency(iva)}`, 140, y);
-  y += 7;
-  doc.setFontSize(12);
-  doc.text(`TOTAL: ${formatCurrency(total)}`, 140, y);
-
-  // Guardar PDF
-  doc.save(`OC-${ordenCompra.numero}.pdf`);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `OC-${ordenCompra.numero || 'sin-numero'}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 };
 
 export const generarProtocoloPDF = async (protocolo, items = [], ordenesCompra = []) => {

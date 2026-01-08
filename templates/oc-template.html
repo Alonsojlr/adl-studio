@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>OC</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #333;
+      }
+      .page {
+        width: 210mm;
+        height: 297mm;
+        position: relative;
+        background-image: url("{{background_image}}");
+        background-size: cover;
+        background-repeat: no-repeat;
+      }
+      .field {
+        position: absolute;
+        font-size: 9.5px;
+        line-height: 1.2;
+      }
+      .oc-numero {
+        position: absolute;
+        top: 20mm;
+        left: 140mm;
+        width: 55mm;
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+        color: #c00000;
+      }
+      .facturar-a {
+        position: absolute;
+        top: 47mm;
+        left: 120mm;
+        width: 70mm;
+        text-align: left;
+        font-size: 8.5px;
+      }
+      .col-left {
+        left: 25mm;
+      }
+      .col-right {
+        left: 125mm;
+      }
+      .row-1 { top: 74mm; }
+      .row-2 { top: 79mm; }
+      .row-3 { top: 84mm; }
+      .row-4 { top: 89mm; }
+      .items-table {
+        position: absolute;
+        top: 112mm;
+        left: 18mm;
+        width: 174mm;
+        font-size: 9px;
+      }
+      .items-table table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .items-table td {
+        padding: 2px 4px;
+        vertical-align: top;
+      }
+      .items-table .col-cant { width: 12%; }
+      .items-table .col-desc { width: 44%; }
+      .items-table .col-unit { width: 16%; text-align: right; }
+      .items-table .col-descuento { width: 12%; text-align: right; }
+      .items-table .col-subtotal { width: 16%; text-align: right; }
+      .totals {
+        position: absolute;
+        right: 18mm;
+        bottom: 40mm;
+        width: 55mm;
+        font-size: 9.5px;
+        font-weight: bold;
+        text-align: right;
+      }
+      .totals .line {
+        margin: 3px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="oc-numero">{{numero}}</div>
+
+      <div class="facturar-a">
+        <div>{{facturar_a}}</div>
+        <div>{{facturar_rut}}</div>
+      </div>
+
+      <div class="field col-left row-1">{{proveedor}}</div>
+      <div class="field col-left row-2">{{rut}}</div>
+      <div class="field col-left row-3">{{direccion}}</div>
+      <div class="field col-left row-4">{{contacto}}</div>
+
+      <div class="field col-right row-1">{{codigo_protocolo}}</div>
+      <div class="field col-right row-2">{{forma_pago}}</div>
+      <div class="field col-right row-3">{{responsable_compra}}</div>
+      <div class="field col-right row-4">{{fecha}}</div>
+
+      <div class="items-table">
+        <table>
+          <tbody>
+            {{items_rows}}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="totals">
+        <div class="line">{{subtotal}}</div>
+        <div class="line">{{iva}}</div>
+        <div class="line">{{total}}</div>
+      </div>
+    </div>
+  </body>
+</html>

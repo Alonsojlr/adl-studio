@@ -3128,7 +3128,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, startI
               <option value="Anulada">Anulada</option>
             </select>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const proveedor = {
                   razon_social: orden.proveedor,
                   rut: orden.rutProveedor || '',
@@ -3138,7 +3138,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, startI
                 const protocolo = {
                   folio: orden.codigoProtocolo || ''
                 };
-                generarOCPDF(orden, proveedor, protocolo, orden.items || []);
+                await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
               }}
               className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
             >
