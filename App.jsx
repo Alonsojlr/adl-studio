@@ -7260,7 +7260,7 @@ const [showNewModal, setShowNewModal] = useState(false);
 
   const generarPDFCotizacion = (cotizacion) => {
     try {
-      generarCotizacionPDF(cotizacion, null, []);
+      generarCotizacionPDF(cotizacion, null, cotizacion.items || []);
     } catch (error) {
       console.error('Error:', error);
       alert('Error al generar PDF');

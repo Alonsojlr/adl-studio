@@ -45,21 +45,38 @@ export const renderCotizacionPDF = (cotizacion, cliente, items) => {
   y += 10;
 
   if (items && items.length > 0) {
-    const tableData = items.map(item => [
-      item.descripcion || '',
-      item.cantidad || 0,
-      formatCurrency(item.valorUnitario || item.valor_unitario || 0),
-      `${item.descuento || 0}%`,
-      formatCurrency((item.cantidad || 0) * (item.valorUnitario || item.valor_unitario || 0) * (1 - (item.descuento || 0) / 100))
-    ]);
+    const tableData = items.map((item, index) => {
+      const cantidad = item.cantidad || 0;
+      const valorUnitario = item.valorUnitario || item.valor_unitario || 0;
+      const descuento = item.descuento || 0;
+      const totalItem = cantidad * valorUnitario * (1 - descuento / 100);
+      return [
+        index + 1,
+        item.item || '',
+        item.descripcion || '',
+        cantidad,
+        formatCurrency(valorUnitario),
+        `${descuento}%`,
+        formatCurrency(totalItem)
+      ];
+    });
 
     autoTable(doc, {
       startY: y,
-      head: [['Descripción', 'Cantidad', 'Valor Unitario', 'Descuento', 'Total']],
+      head: [['#', 'Item', 'Descripción', 'Cant.', 'Valor Unit', 'Descuento', 'Subtotal']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [35, 82, 80] },
-      styles: { fontSize: 9 }
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 8 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 55 },
+        3: { cellWidth: 12, halign: 'right' },
+        4: { cellWidth: 25, halign: 'right' },
+        5: { cellWidth: 18, halign: 'right' },
+        6: { cellWidth: 25, halign: 'right' }
+      }
     });
 
     y = doc.lastAutoTable.finalY + 10;
