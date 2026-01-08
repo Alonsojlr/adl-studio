@@ -2213,6 +2213,21 @@ const OrdenesCompraModule = ({
               o.id === ordenActualizada.id ? ordenActualizada : o
             ));
           }}
+          onSaveFactura={async (ordenActualizada) => {
+            try {
+              await updateOrdenCompra(ordenActualizada.id, {
+                numero_factura: ordenActualizada.numeroFactura || '',
+                fecha_factura: ordenActualizada.fechaFactura || null,
+                estado: ordenActualizada.estado || 'Facturada',
+                estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+              });
+              await loadOrdenes();
+              setOrdenSeleccionada(ordenActualizada);
+            } catch (error) {
+              console.error('Error actualizando factura:', error);
+              alert('Error al guardar la factura');
+            }
+          }}
           onSave={async (ordenActualizada) => {
             try {
               const subtotal = ordenActualizada.items.reduce((sum, item) => {
@@ -2892,7 +2907,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
 };
 
 // Modal Detalle OC
-const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, startInEdit = false }) => {
+const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSaveFactura, startInEdit = false }) => {
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
@@ -2936,6 +2951,9 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, startI
     };
     setOrden(actualizada);
     onUpdate(actualizada);
+    if (onSaveFactura) {
+      onSaveFactura(actualizada);
+    }
   };
 
   const marcarPagada = () => {
@@ -4498,6 +4516,10 @@ const ProtocolosModule = ({
     const ordenesActualizadas = await getOrdenesCompra();
     setSharedOrdenesCompra(ordenesActualizadas.map(mapOrdenCompra));
   };
+
+  useEffect(() => {
+    refrescarOrdenesCompra();
+  }, []);
   const handleAdjudicarCompraLocal = (protocolo) => {
     if (onAdjudicarCompra) {
       onAdjudicarCompra(protocolo);
@@ -4553,6 +4575,21 @@ const ProtocolosModule = ({
                 prev.map(o => (o.id === ordenActualizada.id ? ordenActualizada : o))
               );
               setOrdenDetalle(ordenActualizada);
+            }}
+            onSaveFactura={async (ordenActualizada) => {
+              try {
+                await updateOrdenCompra(ordenActualizada.id, {
+                  numero_factura: ordenActualizada.numeroFactura || '',
+                  fecha_factura: ordenActualizada.fechaFactura || null,
+                  estado: ordenActualizada.estado || 'Facturada',
+                  estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                });
+                await refrescarOrdenesCompra();
+                setOrdenDetalle(ordenActualizada);
+              } catch (error) {
+                console.error('Error actualizando factura:', error);
+                alert('Error al guardar la factura');
+              }
             }}
             onSave={async (ordenActualizada) => {
               try {
@@ -4997,7 +5034,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
     }).format(value);
   };
 
-const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
+  const itemsProtocolo = Array.isArray(protocolo.items) ? protocolo.items : [];
+  const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const montoNeto = protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
   const costoRealNeto = ocVinculadas.reduce(
     (total, oc) => total + (oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0)),
@@ -5149,7 +5187,7 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {protocolo.items.map((item, index) => (
+              {itemsProtocolo.map((item, index) => (
                 <tr key={item.id ?? index}>
                   <td className="px-4 py-3">{index + 1}</td>
                   <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
@@ -5190,19 +5228,23 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                   <th className="px-4 py-3 text-left text-sm font-semibold">N° OC</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold">Proveedor</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Costo</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Factura</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
                 {ocVinculadas.map((oc) => {
                   const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
                   const total = oc.total ?? 0;
                   const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
+                  const estadoOC = oc.numeroFactura && !['Facturada', 'Pagada', 'Anulada'].includes(oc.estado)
+                    ? 'Facturada'
+                    : oc.estado;
 
                   return (
                   <tr key={oc.id} className="hover:bg-gray-50">
@@ -5218,8 +5260,24 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                     <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(total || neto + iva)}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
-                        {oc.estado}
+                      {oc.numeroFactura ? (
+                        <div>
+                          <p className="font-medium text-green-600">{oc.numeroFactura}</p>
+                          <p className="text-xs text-gray-500">{oc.fechaFactura || ''}</p>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Sin factura</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold ${
+                          estadoOC === 'Facturada' || estadoOC === 'Pagada'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {estadoOC}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -5269,8 +5327,8 @@ const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo
                 await updateCotizacion(cotizacion.id, { monto: precioVenta });
               }
               
-              // Actualizar estado del protocolo
-              await updateProtocolo(protocolo.id, { estado: 'Cerrado' });
+              // Actualizar estado y monto del protocolo
+              await updateProtocolo(protocolo.id, { estado: 'Cerrado', monto_total: precioVenta });
               
               // Actualizar en la interfaz
               onActualizar({ ...protocolo, estado: 'Cerrado', montoTotal: precioVenta });
