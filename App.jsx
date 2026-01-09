@@ -2079,7 +2079,12 @@ const OrdenesCompraModule = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {ordenesFiltradas.map((orden) => (
+              {ordenesFiltradas.map((orden) => {
+                const neto = orden.subtotal || (orden.total ? orden.total / 1.19 : 0);
+                const iva = orden.iva || (orden.total ? orden.total - neto : neto * 0.19);
+                const total = orden.total || neto + iva;
+
+                return (
                 <tr key={orden.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{orden.numero}</span>
@@ -2104,9 +2109,13 @@ const OrdenesCompraModule = ({
                       {orden.tipoCosto || 'Sin asignar'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.subtotal || 0)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.iva || 0)}</td>
-                  <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(orden.total || 0)}</td>
+                  {!hideFinancials && (
+                    <>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(neto)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(iva)}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(total)}</td>
+                    </>
+                  )}
                   <td className="px-6 py-4">
                     {orden.numeroFactura ? (
                       <div>
@@ -2147,7 +2156,8 @@ const OrdenesCompraModule = ({
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -5335,9 +5345,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             </thead>
             <tbody className="divide-y divide-gray-200">
                 {ocVinculadas.map((oc) => {
-                  const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
-                  const total = oc.total ?? 0;
-                  const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
+                  const neto = oc.subtotal || (oc.total ? oc.total / 1.19 : 0);
+                  const iva = oc.iva || (oc.total ? oc.total - neto : neto * 0.19);
+                  const total = oc.total || neto + iva;
                   const estadoOC = oc.numeroFactura && !['Facturada', 'Pagada', 'Anulada'].includes(oc.estado)
                     ? 'Facturada'
                     : oc.estado;
@@ -5356,7 +5366,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                       <>
                         <td className="px-4 py-3 font-semibold">{formatCurrency(neto)}</td>
                         <td className="px-4 py-3 font-semibold">{formatCurrency(iva)}</td>
-                        <td className="px-4 py-3 font-semibold">{formatCurrency(total || neto + iva)}</td>
+                        <td className="px-4 py-3 font-semibold">{formatCurrency(total)}</td>
                       </>
                     )}
                     <td className="px-4 py-3">
