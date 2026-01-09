@@ -156,16 +156,16 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
   // OC vinculadas table
   // =========================
   const ocData = (ordenesCompra || []).map((oc) => {
-    const neto = oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0);
-    const total = oc.total ?? 0;
-    const iva = oc.iva ?? (total ? total - neto : neto * 0.19);
+    const neto = oc.subtotal || (oc.total ? oc.total / 1.19 : 0);
+    const iva = oc.iva || (oc.total ? oc.total - neto : neto * 0.19);
+    const total = oc.total || neto + iva;
     return [
       clean(oc.numero || ''),
       clean(oc.proveedor || ''),
       clean(oc.tipoCosto || ''),
       formatCurrency(neto),
       formatCurrency(iva),
-      formatCurrency(total || neto + iva),
+      formatCurrency(total),
       clean(oc.numeroFactura || ''),
       clean(oc.estado || ''),
       ''
