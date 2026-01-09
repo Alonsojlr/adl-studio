@@ -139,6 +139,9 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     tableWidth: TOTAL_W,
     headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
     styles: { fontSize: 9, cellPadding: 2 },
+    pageBreak: 'auto',
+    rowPageBreak: 'auto',
+    showHead: 'everyPage',
     columnStyles: {
       0: { cellWidth: TOTAL_W * 0.18 },
       1: { cellWidth: TOTAL_W * 0.44 },
@@ -163,27 +166,34 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
       formatCurrency(neto),
       formatCurrency(iva),
       formatCurrency(total || neto + iva),
+      clean(oc.numeroFactura || ''),
+      clean(oc.estado || ''),
       ''
     ];
   });
 
   autoTable(doc, {
     startY: y,
-    head: [['N° OC', 'Proveedor', 'Tipo Costo', 'Neto', 'IVA', 'Total', 'Notas']],
-    body: ocData.length ? ocData : [['', '', '', '', '', '', '']],
+    head: [['N° OC', 'Proveedor', 'Tipo Costo', 'Neto', 'IVA', 'Total', 'Factura', 'Estado', 'Notas']],
+    body: ocData.length ? ocData : [['', '', '', '', '', '', '', '', '']],
     theme: 'grid',
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
     headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
     styles: { fontSize: 9, cellPadding: 2 },
+    pageBreak: 'auto',
+    rowPageBreak: 'auto',
+    showHead: 'everyPage',
     columnStyles: {
-      0: { cellWidth: TOTAL_W * 0.12 },
-      1: { cellWidth: TOTAL_W * 0.22 },
-      2: { cellWidth: TOTAL_W * 0.16 },
-      3: { cellWidth: TOTAL_W * 0.12 },
-      4: { cellWidth: TOTAL_W * 0.12 },
-      5: { cellWidth: TOTAL_W * 0.12 },
-      6: { cellWidth: TOTAL_W * 0.14 }
+      0: { cellWidth: TOTAL_W * 0.1 },
+      1: { cellWidth: TOTAL_W * 0.2 },
+      2: { cellWidth: TOTAL_W * 0.14 },
+      3: { cellWidth: TOTAL_W * 0.1 },
+      4: { cellWidth: TOTAL_W * 0.1 },
+      5: { cellWidth: TOTAL_W * 0.1 },
+      6: { cellWidth: TOTAL_W * 0.08 },
+      7: { cellWidth: TOTAL_W * 0.08 },
+      8: { cellWidth: TOTAL_W * 0.1 }
     }
   });
 
