@@ -3156,7 +3156,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
               className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               disabled={orden.numeroFactura}
             >
-              {orden.numeroFactura ? `Factura: ${orden.numeroFactura}` : 'Asignar Factura'}
+              {orden.numeroFactura ? `Documento: ${orden.numeroFactura}` : 'Asignar Documento'}
             </button>
             {orden.numeroFactura && orden.estadoPago === 'Pendiente' && (
               <button
@@ -3364,6 +3364,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
 
 // Modal Factura
 const FacturaModal = ({ onClose, onSave }) => {
+  const [tipoDocumento, setTipoDocumento] = useState('Factura');
   const [numeroFactura, setNumeroFactura] = useState('');
   const [fechaFactura, setFechaFactura] = useState('');
 
@@ -3371,21 +3372,33 @@ const FacturaModal = ({ onClose, onSave }) => {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="p-6 border-b">
-          <h4 className="text-xl font-bold text-gray-800">Asignar Número de Factura</h4>
+          <h4 className="text-xl font-bold text-gray-800">Asignar Documento</h4>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Factura *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Documento *</label>
+            <select
+              value={tipoDocumento}
+              onChange={(e) => setTipoDocumento(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="Factura">Factura</option>
+              <option value="Boleta">Boleta</option>
+              <option value="Boleta Honorarios">Boleta Honorarios</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">N° de Documento *</label>
             <input
               type="text"
               value={numeroFactura}
               onChange={(e) => setNumeroFactura(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-              placeholder="Ej: F-12345"
+              placeholder="Ej: 12345"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Factura *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Documento *</label>
             <input
               type="date"
               value={fechaFactura}
@@ -3402,7 +3415,7 @@ const FacturaModal = ({ onClose, onSave }) => {
             Cancelar
           </button>
           <button
-            onClick={() => onSave(numeroFactura, fechaFactura)}
+            onClick={() => onSave(`${tipoDocumento} ${numeroFactura}`.trim(), fechaFactura)}
             className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
             disabled={!numeroFactura || !fechaFactura}
           >
