@@ -5152,7 +5152,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const montoNeto = protocolo.montoTotal || 0;
   const costoRealNeto = ocVinculadas.reduce(
-    (total, oc) => total + (oc.subtotal ?? (oc.total ? oc.total / 1.19 : 0)),
+    (total, oc) => total + (oc.subtotal || (oc.total ? oc.total / 1.19 : 0)),
     0
   );
   const margenMontoNeto = montoNeto - costoRealNeto;
