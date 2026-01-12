@@ -1859,6 +1859,7 @@ const OrdenesCompraModule = ({
         numeroFactura: o.numero_factura || '',
         fechaFactura: o.fecha_factura || '',
         estadoPago: o.estado_pago || 'Pendiente',
+        fechaPago: o.fecha_pago || '',
         responsableCompra: o.responsable_compra || '',
         items: (o.ordenes_compra_items || []).map(item => ({
           id: item.id,
@@ -2074,6 +2075,7 @@ const OrdenesCompraModule = ({
                   </>
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Forma de Pago</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -2124,6 +2126,18 @@ const OrdenesCompraModule = ({
                       </div>
                     ) : (
                       <span className="text-gray-400 text-sm">Sin factura</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {orden.formaPago ? (
+                      <div>
+                        <p className="font-medium text-gray-800">{orden.formaPago}</p>
+                        {(orden.estadoPago === 'Pagada' || orden.estado === 'Pagada') && (
+                          <p className="text-xs text-gray-500">{orden.fechaPago || orden.fechaFactura || ''}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Sin forma de pago</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -2234,7 +2248,8 @@ const OrdenesCompraModule = ({
                 numero_factura: ordenActualizada.numeroFactura || '',
                 fecha_factura: ordenActualizada.fechaFactura || null,
                 estado: ordenActualizada.estado || 'Facturada',
-                estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                estado_pago: ordenActualizada.estadoPago || 'Pendiente',
+                fecha_pago: ordenActualizada.fechaPago || null
               });
               await loadOrdenes();
               setOrdenSeleccionada(ordenActualizada);
@@ -2247,7 +2262,8 @@ const OrdenesCompraModule = ({
             try {
               await updateOrdenCompra(ordenActualizada.id, {
                 estado: 'Pagada',
-                estado_pago: 'Pagada'
+                estado_pago: 'Pagada',
+                fecha_pago: ordenActualizada.fechaPago || new Date().toISOString().split('T')[0]
               });
               await loadOrdenes();
               setOrdenSeleccionada(ordenActualizada);
@@ -2278,7 +2294,8 @@ const OrdenesCompraModule = ({
                 estado: ordenActualizada.estado,
                 numero_factura: ordenActualizada.numeroFactura || '',
                 fecha_factura: ordenActualizada.fechaFactura || null,
-                estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                estado_pago: ordenActualizada.estadoPago || 'Pendiente',
+                fecha_pago: ordenActualizada.fechaPago || null
               });
 
               await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
@@ -2965,7 +2982,8 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
 
   const cambiarEstado = (nuevoEstado) => {
     const estadoPago = nuevoEstado === 'Pagada' ? 'Pagada' : orden.estadoPago;
-    const actualizada = { ...orden, estado: nuevoEstado, estadoPago };
+    const fechaPago = nuevoEstado === 'Pagada' ? (orden.fechaPago || new Date().toISOString().split('T')[0]) : orden.fechaPago;
+    const actualizada = { ...orden, estado: nuevoEstado, estadoPago, fechaPago };
     setOrden(actualizada);
     onUpdate(actualizada);
   };
@@ -2985,7 +3003,12 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   };
 
   const marcarPagada = () => {
-    const actualizada = { ...orden, estadoPago: 'Pagada', estado: 'Pagada' };
+    const actualizada = {
+      ...orden,
+      estadoPago: 'Pagada',
+      estado: 'Pagada',
+      fechaPago: orden.fechaPago || new Date().toISOString().split('T')[0]
+    };
     setOrden(actualizada);
     onUpdate(actualizada);
     if (onSavePago) {
@@ -4551,6 +4574,7 @@ const ProtocolosModule = ({
     numeroFactura: o.numero_factura || '',
     fechaFactura: o.fecha_factura || '',
     estadoPago: o.estado_pago || 'Pendiente',
+    fechaPago: o.fecha_pago || '',
     responsableCompra: o.responsable_compra || '',
     items: (o.ordenes_compra_items || []).map(item => ({
       id: item.id,
@@ -4633,7 +4657,8 @@ const ProtocolosModule = ({
                   numero_factura: ordenActualizada.numeroFactura || '',
                   fecha_factura: ordenActualizada.fechaFactura || null,
                   estado: ordenActualizada.estado || 'Facturada',
-                  estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                  estado_pago: ordenActualizada.estadoPago || 'Pendiente',
+                  fecha_pago: ordenActualizada.fechaPago || null
                 });
                 await refrescarOrdenesCompra();
                 setOrdenDetalle(ordenActualizada);
@@ -4646,7 +4671,8 @@ const ProtocolosModule = ({
               try {
                 await updateOrdenCompra(ordenActualizada.id, {
                   estado: 'Pagada',
-                  estado_pago: 'Pagada'
+                  estado_pago: 'Pagada',
+                  fecha_pago: ordenActualizada.fechaPago || new Date().toISOString().split('T')[0]
                 });
                 await refrescarOrdenesCompra();
                 setOrdenDetalle(ordenActualizada);
@@ -4677,7 +4703,8 @@ const ProtocolosModule = ({
                   estado: ordenActualizada.estado,
                   numero_factura: ordenActualizada.numeroFactura || '',
                   fecha_factura: ordenActualizada.fechaFactura || null,
-                  estado_pago: ordenActualizada.estadoPago || 'Pendiente'
+                  estado_pago: ordenActualizada.estadoPago || 'Pendiente',
+                  fecha_pago: ordenActualizada.fechaPago || null
                 });
 
                 await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
@@ -5358,6 +5385,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   </>
                 )}
                 <th className="px-4 py-3 text-left text-sm font-semibold">Factura</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Forma de Pago</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
               </tr>
@@ -5396,6 +5424,18 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                         </div>
                       ) : (
                         <span className="text-gray-400 text-sm">Sin factura</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {oc.formaPago ? (
+                        <div>
+                          <p className="font-medium text-gray-800">{oc.formaPago}</p>
+                          {(oc.estadoPago === 'Pagada' || estadoOC === 'Pagada') && (
+                            <p className="text-xs text-gray-500">{oc.fechaPago || oc.fechaFactura || ''}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Sin forma de pago</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -8997,6 +9037,7 @@ const Dashboard = ({ user, onLogout }) => {
       numeroFactura: o.numero_factura || '',
       fechaFactura: o.fecha_factura || '',
       estadoPago: o.estado_pago || 'Pendiente',
+      fechaPago: o.fecha_pago || '',
       responsableCompra: o.responsable_compra || '',
       items: (o.ordenes_compra_items || []).map(item => ({
         id: item.id,
