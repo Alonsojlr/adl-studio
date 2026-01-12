@@ -2077,6 +2077,7 @@ const OrdenesCompraModule = ({
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Forma de Pago</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura Building Me</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
@@ -4531,6 +4532,8 @@ const ProtocolosModule = ({
         tipo: p.tipo,
         ocCliente: p.oc_cliente,
         estado: p.estado,
+        facturaBm: p.factura_bm || '',
+        fechaFacturaBm: p.fecha_factura_bm || '',
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total),
@@ -5028,6 +5031,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                   </>
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura Building Me</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
@@ -5077,6 +5081,16 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(protocolo.estado)}`}>
                       {protocolo.estado}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {protocolo.facturaBm ? (
+                      <div>
+                        <p className="font-medium text-green-600">{protocolo.facturaBm}</p>
+                        <p className="text-xs text-gray-500">{protocolo.fechaFacturaBm || ''}</p>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Sin factura</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <button
@@ -5175,12 +5189,33 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
     }
   }, [itemsComprados, itemsCompradosKey]);
 
-  const cambiarEstado = (nuevoEstado) => {
+  const cambiarEstado = async (nuevoEstado) => {
     if (nuevoEstado === 'Cerrado') {
       setShowCerrarModal(true);
-    } else {
-      onActualizar({ ...protocolo, estado: nuevoEstado });
+      return;
     }
+    if (nuevoEstado === 'Facturado') {
+      const numeroFactura = prompt('Ingrese la factura asociada (Building Me):');
+      if (!numeroFactura) return;
+      const fechaFactura = prompt(
+        'Ingrese la fecha de la factura (YYYY-MM-DD):',
+        new Date().toISOString().split('T')[0]
+      );
+      if (!fechaFactura) return;
+      try {
+        await updateProtocolo(protocolo.id, {
+          estado: nuevoEstado,
+          factura_bm: numeroFactura,
+          fecha_factura_bm: fechaFactura
+        });
+        onActualizar({ ...protocolo, estado: nuevoEstado, facturaBm: numeroFactura, fechaFacturaBm: fechaFactura });
+      } catch (error) {
+        console.error('Error actualizando factura BM:', error);
+        alert('Error al guardar la factura');
+      }
+      return;
+    }
+    onActualizar({ ...protocolo, estado: nuevoEstado });
   };
 
   return (
@@ -5236,6 +5271,21 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <p className="text-gray-500">OC Cliente:</p>
                   <p className="font-semibold text-gray-800">
                     {protocolo.ocCliente || <span className="text-gray-400">Sin OC</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Factura Building Me:</p>
+                  <p className="font-semibold text-gray-800">
+                    {protocolo.facturaBm ? (
+                      <>
+                        <span className="text-green-600">{protocolo.facturaBm}</span>
+                        {protocolo.fechaFacturaBm && (
+                          <span className="text-xs text-gray-500 ml-2">{protocolo.fechaFacturaBm}</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-gray-400">Sin factura</span>
+                    )}
                   </p>
                 </div>
                 <div>
@@ -9137,6 +9187,8 @@ const Dashboard = ({ user, onLogout }) => {
         tipo: p.tipo,
         ocCliente: p.oc_cliente,
         estado: p.estado,
+        facturaBm: p.factura_bm || '',
+        fechaFacturaBm: p.fecha_factura_bm || '',
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total) || 0,
