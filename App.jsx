@@ -5247,10 +5247,16 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
               Adjudicar Compra (Crear OC)
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const ocCliente = prompt('Ingrese el número de OC del cliente:');
                 if (ocCliente) {
-                  onActualizar({ ...protocolo, ocCliente });
+                  try {
+                    await updateProtocolo(protocolo.id, { oc_cliente: ocCliente });
+                    onActualizar({ ...protocolo, ocCliente });
+                  } catch (error) {
+                    console.error('Error actualizando OC cliente:', error);
+                    alert('Error al guardar la OC del cliente');
+                  }
                 }
               }}
               className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
