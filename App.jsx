@@ -3469,7 +3469,37 @@ const ProveedoresModule = () => {
   const loadProveedores = async () => {
     try {
       setLoading(true);
-      const data = await getProveedores();
+      const [data, ordenes] = await Promise.all([
+        getProveedores(),
+        getOrdenesCompra()
+      ]);
+
+      const ocStatsByProveedor = new Map();
+      (ordenes || []).forEach((oc) => {
+        const proveedorId = oc.proveedor_id || oc.proveedorId;
+        if (!proveedorId) return;
+        const total = parseFloat(oc.total) || 0;
+        const subtotal = parseFloat(oc.subtotal) || 0;
+        const monto = total || subtotal || 0;
+        const estado = oc.estado || '';
+        const estadoPago = oc.estado_pago || oc.estadoPago || 'Pendiente';
+        const pendiente = estado !== 'Anulada' && estadoPago !== 'Pagada';
+
+        const current = ocStatsByProveedor.get(proveedorId) || {
+          totalOC: 0,
+          montoTotal: 0,
+          facturasPendientes: 0,
+          montoPendiente: 0
+        };
+
+        current.totalOC += 1;
+        current.montoTotal += monto;
+        if (pendiente) {
+          current.facturasPendientes += 1;
+          current.montoPendiente += monto;
+        }
+        ocStatsByProveedor.set(proveedorId, current);
+      });
       
       const transformados = data.map(p => ({
         id: p.id,
@@ -3489,10 +3519,10 @@ const ProveedoresModule = () => {
         numeroCuenta: p.numero_cuenta,
         observaciones: p.observaciones,
         fechaCreacion: p.created_at,
-        totalOC: 0,
-        montoTotal: 0,
-        facturasPendientes: 0,
-        montoPendiente: 0
+        totalOC: ocStatsByProveedor.get(p.id)?.totalOC || 0,
+        montoTotal: ocStatsByProveedor.get(p.id)?.montoTotal || 0,
+        facturasPendientes: ocStatsByProveedor.get(p.id)?.facturasPendientes || 0,
+        montoPendiente: ocStatsByProveedor.get(p.id)?.montoPendiente || 0
       }));
       
       setProveedores(transformados);
