@@ -806,7 +806,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-start justify-between">
             <div>
@@ -2604,7 +2604,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
           {/* Datos del Proveedor */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Datos del Proveedor</h4>
@@ -4298,8 +4298,8 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
@@ -7929,7 +7929,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       {/* Modal Ver Detalle */}
       {showDetalleModal && cotizacionSeleccionada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">Detalle Cotización #{cotizacionSeleccionada.numero}</h3>
@@ -7938,7 +7938,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </button>
               </div>
             </div>
-            <div className="p-6">
+            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-500">Cliente</p>
@@ -8051,7 +8051,7 @@ const [showNewModal, setShowNewModal] = useState(false);
 
       {showGanadaModal && cotizacionGanada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">
@@ -8068,7 +8068,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </button>
               </div>
             </div>
-            <div className="p-6">
+            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
               {cotizacionGanada.items && cotizacionGanada.items.length > 0 ? (
                 <div className="space-y-3">
                   {cotizacionGanada.items.map((item, index) => {
@@ -8245,7 +8245,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(90vh-140px)] overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha</label>
