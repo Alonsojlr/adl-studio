@@ -130,30 +130,8 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     ''
   ]));
 
-  autoTable(doc, {
-    startY: y,
-    head: [['Item', 'Descripción', 'Cantidad', 'Notas']],
-    body: itemsData.length ? itemsData : [['', '', '', '']],
-    theme: 'grid',
-    margin: { left: M, right: M },
-    tableWidth: TOTAL_W,
-    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
-    styles: { fontSize: 9, cellPadding: 2 },
-    pageBreak: 'auto',
-    rowPageBreak: 'auto',
-    showHead: 'everyPage',
-    columnStyles: {
-      0: { cellWidth: TOTAL_W * 0.18 },
-      1: { cellWidth: TOTAL_W * 0.44 },
-      2: { cellWidth: TOTAL_W * 0.12 },
-      3: { cellWidth: TOTAL_W * 0.26 }
-    }
-  });
-
-  y = doc.lastAutoTable.finalY + 12;
-
   // =========================
-  // OC vinculadas table
+  // OC vinculadas data
   // =========================
   const ocData = (ordenesCompra || []).map((oc) => {
     const neto = oc.subtotal || (oc.total ? oc.total / 1.19 : 0);
@@ -172,6 +150,50 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     ];
   });
 
+  const calcRowHeight = (fontSize, padding) => {
+    const textHeight = fontSize * 0.3528;
+    return textHeight + padding * 2;
+  };
+
+  const itemsRowCount = itemsData.length ? itemsData.length : 1;
+  const ocRowCount = ocData.length ? ocData.length : 1;
+  const baseFont = 9;
+  const basePadding = 2;
+  const headerGap = 12;
+  const headerHeight = calcRowHeight(baseFont, basePadding);
+  const itemsHeight = headerHeight + itemsRowCount * calcRowHeight(baseFont, basePadding);
+  const ocHeight = headerHeight + ocRowCount * calcRowHeight(baseFont, basePadding);
+  const availableHeight = H - y - headerGap - 12;
+  const neededHeight = itemsHeight + headerGap + ocHeight;
+  const scale = neededHeight > 0 ? Math.min(1, (availableHeight / neededHeight) * 0.9) : 1;
+  const tableFont = Math.max(4, baseFont * scale);
+  const tablePadding = Math.max(0.5, basePadding * scale);
+  const tableGap = Math.max(8, headerGap * scale);
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Item', 'Descripción', 'Cantidad', 'Notas']],
+    body: itemsData.length ? itemsData : [['', '', '', '']],
+    theme: 'grid',
+    margin: { left: M, right: M },
+    tableWidth: TOTAL_W,
+    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
+    styles: { fontSize: tableFont, cellPadding: tablePadding },
+    pageBreak: 'avoid',
+    rowPageBreak: 'avoid',
+    columnStyles: {
+      0: { cellWidth: TOTAL_W * 0.18 },
+      1: { cellWidth: TOTAL_W * 0.44 },
+      2: { cellWidth: TOTAL_W * 0.12 },
+      3: { cellWidth: TOTAL_W * 0.26 }
+    }
+  });
+
+  y = doc.lastAutoTable.finalY + tableGap;
+
+  // =========================
+  // OC vinculadas table
+  // =========================
   autoTable(doc, {
     startY: y,
     head: [['N° OC', 'Proveedor', 'Tipo Costo', 'Neto', 'IVA', 'Total', 'Factura', 'Estado', 'Notas']],
@@ -180,10 +202,9 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
     headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
-    styles: { fontSize: 9, cellPadding: 2 },
-    pageBreak: 'auto',
-    rowPageBreak: 'auto',
-    showHead: 'everyPage',
+    styles: { fontSize: tableFont, cellPadding: tablePadding },
+    pageBreak: 'avoid',
+    rowPageBreak: 'avoid',
     columnStyles: {
       0: { cellWidth: TOTAL_W * 0.1 },
       1: { cellWidth: TOTAL_W * 0.2 },
