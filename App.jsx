@@ -1838,7 +1838,13 @@ const OrdenesCompraModule = ({
   const loadOrdenes = async () => {
     try {
       setLoading(true);
-      const data = await getOrdenesCompra();
+      const [data, proveedoresData] = await Promise.all([
+        getOrdenesCompra(),
+        getProveedores()
+      ]);
+      const proveedoresById = new Map(
+        (proveedoresData || []).map((p) => [String(p.id), p])
+      );
 
       const transformados = data.map(o => ({
         id: o.id,
@@ -1846,10 +1852,22 @@ const OrdenesCompraModule = ({
         codigoProtocolo: o.codigo_protocolo,
         fecha: o.fecha,
         proveedorId: o.proveedor_id || null,
-        proveedor: o.proveedores?.razon_social || 'Sin proveedor',
-        rutProveedor: o.proveedores?.rut || '',
-        direccionProveedor: o.proveedores?.direccion || '',
-        contactoProveedor: o.proveedores?.contacto || '',
+        proveedor:
+          o.proveedores?.razon_social ||
+          proveedoresById.get(String(o.proveedor_id))?.razon_social ||
+          'Sin proveedor',
+        rutProveedor:
+          o.proveedores?.rut ||
+          proveedoresById.get(String(o.proveedor_id))?.rut ||
+          '',
+        direccionProveedor:
+          o.proveedores?.direccion ||
+          proveedoresById.get(String(o.proveedor_id))?.direccion ||
+          '',
+        contactoProveedor:
+          o.proveedores?.contacto ||
+          proveedoresById.get(String(o.proveedor_id))?.contacto ||
+          '',
         tipoCosto: o.tipo_costo,
         formaPago: o.forma_pago,
         subtotal: parseFloat(o.subtotal) || 0,
@@ -4588,16 +4606,28 @@ const ProtocolosModule = ({
   };
 
   const ordenesCompra = sharedOrdenesCompra;
-  const mapOrdenCompra = (o) => ({
+  const mapOrdenCompra = (o, proveedoresById = new Map()) => ({
     id: o.id,
     numero: o.numero,
     codigoProtocolo: o.codigo_protocolo,
     fecha: o.fecha,
     proveedorId: o.proveedor_id || null,
-    proveedor: o.proveedores?.razon_social || 'Sin proveedor',
-    rutProveedor: o.proveedores?.rut || '',
-    direccionProveedor: o.proveedores?.direccion || '',
-    contactoProveedor: o.proveedores?.contacto || '',
+    proveedor:
+      o.proveedores?.razon_social ||
+      proveedoresById.get(String(o.proveedor_id))?.razon_social ||
+      'Sin proveedor',
+    rutProveedor:
+      o.proveedores?.rut ||
+      proveedoresById.get(String(o.proveedor_id))?.rut ||
+      '',
+    direccionProveedor:
+      o.proveedores?.direccion ||
+      proveedoresById.get(String(o.proveedor_id))?.direccion ||
+      '',
+    contactoProveedor:
+      o.proveedores?.contacto ||
+      proveedoresById.get(String(o.proveedor_id))?.contacto ||
+      '',
     tipoCosto: o.tipo_costo,
     formaPago: o.forma_pago,
     subtotal: parseFloat(o.subtotal) || 0,
@@ -4620,8 +4650,14 @@ const ProtocolosModule = ({
     }))
   });
   const refrescarOrdenesCompra = async () => {
-    const ordenesActualizadas = await getOrdenesCompra();
-    setSharedOrdenesCompra(ordenesActualizadas.map(mapOrdenCompra));
+    const [ordenesActualizadas, proveedoresData] = await Promise.all([
+      getOrdenesCompra(),
+      getProveedores()
+    ]);
+    const proveedoresById = new Map(
+      (proveedoresData || []).map((p) => [String(p.id), p])
+    );
+    setSharedOrdenesCompra(ordenesActualizadas.map((o) => mapOrdenCompra(o, proveedoresById)));
   };
 
   useEffect(() => {
@@ -9099,15 +9135,27 @@ const Dashboard = ({ user, onLogout }) => {
       items: p.items || []
     });
 
-    const mapOrdenCompra = (o) => ({
+    const mapOrdenCompra = (o, proveedoresById = new Map()) => ({
       id: o.id,
       numero: o.numero,
       codigoProtocolo: o.codigo_protocolo,
       fecha: o.fecha,
-      proveedor: o.proveedores?.razon_social || 'Sin proveedor',
-      rutProveedor: o.proveedores?.rut || '',
-      direccionProveedor: o.proveedores?.direccion || '',
-      contactoProveedor: o.proveedores?.contacto || '',
+      proveedor:
+        o.proveedores?.razon_social ||
+        proveedoresById.get(String(o.proveedor_id))?.razon_social ||
+        'Sin proveedor',
+      rutProveedor:
+        o.proveedores?.rut ||
+        proveedoresById.get(String(o.proveedor_id))?.rut ||
+        '',
+      direccionProveedor:
+        o.proveedores?.direccion ||
+        proveedoresById.get(String(o.proveedor_id))?.direccion ||
+        '',
+      contactoProveedor:
+        o.proveedores?.contacto ||
+        proveedoresById.get(String(o.proveedor_id))?.contacto ||
+        '',
       tipoCosto: o.tipo_costo,
       formaPago: o.forma_pago,
       subtotal: parseFloat(o.subtotal) || 0,
@@ -9132,15 +9180,19 @@ const Dashboard = ({ user, onLogout }) => {
 
     const loadSharedData = async () => {
       try {
-        const [cotData, protData, ocData] = await Promise.all([
+        const [cotData, protData, ocData, proveedoresData] = await Promise.all([
           getCotizaciones(),
           getProtocolos(),
-          getOrdenesCompra()
+          getOrdenesCompra(),
+          getProveedores()
         ]);
+        const proveedoresById = new Map(
+          (proveedoresData || []).map((p) => [String(p.id), p])
+        );
 
         setSharedCotizaciones(cotData.map(mapCotizacion));
         setSharedProtocolos(protData.map(mapProtocolo));
-        setSharedOrdenesCompra(ocData.map(mapOrdenCompra));
+        setSharedOrdenesCompra(ocData.map((o) => mapOrdenCompra(o, proveedoresById)));
       } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
       }
