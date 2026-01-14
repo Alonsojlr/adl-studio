@@ -166,9 +166,9 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
   const availableHeight = H - y - headerGap - 12;
   const neededHeight = itemsHeight + headerGap + ocHeight;
   const scale = neededHeight > 0 ? Math.min(1, (availableHeight / neededHeight) * 0.9) : 1;
-  const tableFont = Math.max(4, baseFont * scale);
-  const tablePadding = Math.max(0.5, basePadding * scale);
-  const tableGap = Math.max(8, headerGap * scale);
+  const tableFont = Math.max(1, baseFont * scale);
+  const tablePadding = Math.max(0.1, basePadding * scale);
+  const tableGap = Math.max(2, headerGap * scale);
 
   autoTable(doc, {
     startY: y,
@@ -178,7 +178,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
     headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
-    styles: { fontSize: tableFont, cellPadding: tablePadding },
+    styles: { fontSize: tableFont, cellPadding: tablePadding, overflow: 'ellipsize' },
     pageBreak: 'avoid',
     rowPageBreak: 'avoid',
     columnStyles: {
@@ -202,7 +202,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
     headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
-    styles: { fontSize: tableFont, cellPadding: tablePadding },
+    styles: { fontSize: tableFont, cellPadding: tablePadding, overflow: 'ellipsize' },
     pageBreak: 'avoid',
     rowPageBreak: 'avoid',
     columnStyles: {
