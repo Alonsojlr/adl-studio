@@ -3130,6 +3130,31 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
 
 // Modal Detalle OC
 const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSaveFactura, onSavePago, startInEdit = false }) => {
+  const TIPOS_COSTO = [
+    '🚚 Transporte',
+    '🚁 Drone',
+    '💰 Rendiciones',
+    '💳 Financiamiento',
+    '📦 Varios',
+    '---',
+    'Taller/Fabricación',
+    'Imprenta/Impresión',
+    'Instalación',
+    'Desmontaje',
+    'Arriendo Soporte',
+    'Mobiliario (sillas, mesas)',
+    'Equipamiento (pantallas, TV)',
+    'Materiales',
+    'Grabación Drone',
+    'Transporte Visto Bueno',
+    'Producción Externa',
+    'Terminaciones',
+    'Materiales POP',
+    'Distribución/Logística',
+    'Promotoras/RRHH',
+    'Despacho',
+    'Financiamiento'
+  ];
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
@@ -3302,8 +3327,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 <div>
                   <p className="text-white/70">Tipo de Costo:</p>
                   {isEditing ? (
-                    <input
-                      type="text"
+                    <select
                       value={orden.tipoCosto || ''}
                       onChange={(e) => {
                         const actualizada = { ...orden, tipoCosto: e.target.value };
@@ -3311,7 +3335,16 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         onUpdate(actualizada);
                       }}
                       className="w-full px-2 py-1 rounded bg-white text-gray-800"
-                    />
+                    >
+                      <option value="">Seleccione tipo...</option>
+                      {TIPOS_COSTO.map((tipo, index) =>
+                        tipo === '---' ? (
+                          <option key={`sep-${index}`} disabled>──────────────</option>
+                        ) : (
+                          <option key={tipo} value={tipo}>{tipo}</option>
+                        )
+                      )}
+                    </select>
                   ) : (
                     <p className="font-semibold">{orden.tipoCosto || 'Sin asignar'}</p>
                   )}
