@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './src/lib/supabaseClient';
 import { getCotizaciones, createCotizacion, updateCotizacion, deleteCotizacion } from './src/api/cotizaciones';
-import { getProtocolos, createProtocolo, updateProtocolo, deleteProtocolo } from './src/api/protocolos';
-import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems } from './src/api/ordenes-compra';
+import {
+  getProtocolos,
+  createProtocolo,
+  updateProtocolo,
+  deleteProtocolo,
+  getProtocolosFacturas,
+  createProtocoloFactura,
+  updateProtocoloFactura,
+  deleteProtocoloFactura
+} from './src/api/protocolos';
+import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
@@ -248,6 +257,7 @@ const InventarioModule = ({ activeModule }) => {
   };
 
   useEffect(() => {
+    let facturasByProtocolo = {};
     if (activeModule === 'inventario') {
       loadItems();
     }
@@ -2172,9 +2182,10 @@ const OrdenesCompraModule = ({
                           setDetalleEditMode(false);
                           setShowDetalleModal(true);
                         }}
-                        className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold text-sm"
+                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        title="Ver Detalle"
                       >
-                        Ver Detalle
+                        <FileText className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
                         onClick={() => {
@@ -2182,9 +2193,48 @@ const OrdenesCompraModule = ({
                           setDetalleEditMode(true);
                           setShowDetalleModal(true);
                         }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm"
+                        className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
+                        title="Editar"
                       >
-                        Editar
+                        <Settings className="w-4 h-4 text-orange-600" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const proveedor = {
+                              razon_social: orden.proveedor,
+                              rut: orden.rutProveedor || '',
+                              direccion: orden.direccionProveedor || '',
+                              contacto: orden.contactoProveedor || ''
+                            };
+                            const protocolo = sharedProtocolos.find(p => p.folio === orden.codigoProtocolo) || { folio: orden.codigoProtocolo || '' };
+                            await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
+                          } catch (error) {
+                            console.error('Error al generar PDF:', error);
+                            alert('Error al generar el PDF');
+                          }
+                        }}
+                        className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors"
+                        title="Descargar PDF"
+                      >
+                        <Download className="w-4 h-4 text-blue-600" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`¿Eliminar la OC ${orden.numero}?`)) return;
+                          try {
+                            await deleteOrdenCompra(orden.id);
+                            setSharedOrdenesCompra(prev => prev.filter(o => o.id !== orden.id));
+                            setOrdenes(prev => prev.filter(o => o.id !== orden.id));
+                          } catch (error) {
+                            console.error('Error eliminando OC:', error);
+                            alert('Error al eliminar la OC');
+                          }
+                        }}
+                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                        title="Eliminar"
+                      >
+                        <XCircle className="w-4 h-4 text-red-600" />
                       </button>
                     </div>
                   </td>
@@ -4528,6 +4578,19 @@ const ProtocolosModule = ({
   const [protocolos, setProtocolos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const normalizarFacturaProtocolo = (factura) => ({
+    id: factura.id,
+    protocoloId: factura.protocolo_id,
+    numero: factura.numero || '',
+    fecha: factura.fecha || '',
+    montoNeto: parseFloat(factura.monto_neto) || 0,
+    iva: parseFloat(factura.iva) || 0,
+    total: parseFloat(factura.total) || 0,
+    tipoDoc: factura.tipo_doc || 'Factura',
+    estado: factura.estado || 'Emitida',
+    createdAt: factura.created_at || ''
+  });
+
   useEffect(() => {
     loadProtocolos();
   }, []);
@@ -4569,6 +4632,16 @@ const ProtocolosModule = ({
     try {
       setLoading(true);
       const data = await getProtocolos();
+      const protocolosIds = data.map(p => p.id).filter(Boolean);
+      const facturasData = protocolosIds.length > 0
+        ? await getProtocolosFacturas(protocolosIds)
+        : [];
+      const facturasByProtocolo = facturasData.reduce((acc, factura) => {
+        const key = factura.protocolo_id;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(normalizarFacturaProtocolo(factura));
+        return acc;
+      }, {});
       
       const transformados = data.map(p => ({
         id: p.id,
@@ -4580,14 +4653,30 @@ const ProtocolosModule = ({
         tipo: p.tipo,
         ocCliente: p.oc_cliente,
         estado: p.estado,
-        facturaBm: p.factura_bm || '',
-        fechaFacturaBm: p.fecha_factura_bm || '',
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total),
         items: p.items && p.items.length
           ? p.items
-          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numero_cotizacion))?.items || [])
+          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numero_cotizacion))?.items || []),
+        facturas: (() => {
+          const facturas = facturasByProtocolo[p.id] || [];
+          if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
+            return [{
+              id: `legacy-${p.id}`,
+              protocoloId: p.id,
+              numero: p.factura_bm || '',
+              fecha: p.fecha_factura_bm || '',
+              montoNeto: 0,
+              iva: 0,
+              total: 0,
+              tipoDoc: 'Factura',
+              estado: 'Emitida',
+              createdAt: ''
+            }];
+          }
+          return facturas;
+        })()
       }));
       
       setProtocolos(transformados);
@@ -4704,6 +4793,9 @@ const ProtocolosModule = ({
               p.id === protocoloActualizado.id ? protocoloActualizado : p
             ));
             setProtocoloSeleccionado(protocoloActualizado);
+            setSharedProtocolos(prev =>
+              prev.map(p => (p.id === protocoloActualizado.id ? protocoloActualizado : p))
+            );
           }}
         />
         {showDetalleOC && ordenDetalle && (
@@ -4998,6 +5090,19 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
     return protocolo.montoTotal;
   };
 
+  const obtenerResumenFacturas = (facturas = []) => {
+    const lista = Array.isArray(facturas) ? facturas : [];
+    if (!lista.length) return null;
+    const ordenadas = [...lista].sort((a, b) => {
+      const fechaA = new Date(a.fecha || a.createdAt || 0).getTime();
+      const fechaB = new Date(b.fecha || b.createdAt || 0).getTime();
+      return fechaB - fechaA;
+    });
+    const ultima = ordenadas[0];
+    const totalFacturado = lista.reduce((sum, fac) => sum + (fac.total || 0), 0);
+    return { ultima, totalFacturado, count: lista.length };
+  };
+
   const stats = {
     total: protocolos.length,
     abiertos: protocolos.filter(p => p.estado === 'Abierto').length,
@@ -5069,10 +5174,6 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
             <option value="Abierto">Abierto</option>
             <option value="En Proceso">En Proceso</option>
             <option value="Cerrado">Cerrado</option>
-            <option value="Anulado">Anulado</option>
-            <option value="Despachado Parcial">Despachado Parcial</option>
-            <option value="Facturado">Facturado</option>
-            <option value="No Facturado">No Facturado</option>
           </select>
         </div>
       </div>
@@ -5097,7 +5198,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                   </>
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Factura Building Me</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas BM</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
@@ -5106,6 +5207,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                 const neto = obtenerNetoProtocolo(protocolo);
                 const iva = neto * 0.19;
                 const total = neto + iva;
+                const resumenFacturas = obtenerResumenFacturas(protocolo.facturas);
 
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
@@ -5149,13 +5251,16 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {protocolo.facturaBm ? (
+                    {resumenFacturas ? (
                       <div>
-                        <p className="font-medium text-green-600">{protocolo.facturaBm}</p>
-                        <p className="text-xs text-gray-500">{protocolo.fechaFacturaBm || ''}</p>
+                        <p className="font-medium text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</p>
+                        <p className="text-xs text-gray-500">{resumenFacturas.ultima?.fecha || ''}</p>
+                        {resumenFacturas.count > 1 && (
+                          <p className="text-xs text-gray-400">+{resumenFacturas.count - 1} más</p>
+                        )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">Sin factura</span>
+                      <span className="text-gray-400 text-sm">Sin facturas</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -5215,8 +5320,22 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   };
 
   const itemsProtocolo = Array.isArray(protocolo.items) ? protocolo.items : [];
+  const facturasProtocolo = Array.isArray(protocolo.facturas) ? protocolo.facturas : [];
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
-  const montoNeto = protocolo.montoTotal || 0;
+  const calcularNetoProtocolo = () => {
+    const items = protocolo.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    return protocolo.montoTotal || 0;
+  };
+  const montoNeto = calcularNetoProtocolo();
   const costoRealNeto = ocVinculadas.reduce(
     (total, oc) => total + (oc.subtotal || (oc.total ? oc.total / 1.19 : 0)),
     0
@@ -5225,9 +5344,27 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const margenPctNeto = montoNeto ? (margenMontoNeto / montoNeto) * 100 : 0;
 
   const [showCerrarModal, setShowCerrarModal] = useState(false);
+  const [showFacturaModal, setShowFacturaModal] = useState(false);
+  const [facturaEnEdicion, setFacturaEnEdicion] = useState(null);
   const [itemsComprados, setItemsComprados] = useState({});
   const itemsCompradosKey = `protocolos.itemsComprados.${protocolo.id ?? protocolo.folio ?? 'default'}`;
   const itemsCompradosHydratingRef = useRef(true);
+
+  const resumenFacturas = (() => {
+    if (!facturasProtocolo.length) return null;
+    const ordenadas = [...facturasProtocolo].sort((a, b) => {
+      const fechaA = new Date(a.fecha || a.createdAt || 0).getTime();
+      const fechaB = new Date(b.fecha || b.createdAt || 0).getTime();
+      return fechaB - fechaA;
+    });
+    const ultima = ordenadas[0];
+    const totalFacturado = facturasProtocolo.reduce((sum, fac) => sum + (fac.total || 0), 0);
+    return { ultima, totalFacturado, count: facturasProtocolo.length };
+  })();
+  const estadosBase = ['Abierto', 'En Proceso', 'Cerrado'];
+  const estadosSelect = estadosBase.includes(protocolo.estado)
+    ? estadosBase
+    : [...estadosBase, protocolo.estado];
 
   useEffect(() => {
     try {
@@ -5260,28 +5397,96 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
       setShowCerrarModal(true);
       return;
     }
-    if (nuevoEstado === 'Facturado') {
-      const numeroFactura = prompt('Ingrese la factura asociada (Building Me):');
-      if (!numeroFactura) return;
-      const fechaFactura = prompt(
-        'Ingrese la fecha de la factura (YYYY-MM-DD):',
-        new Date().toISOString().split('T')[0]
-      );
-      if (!fechaFactura) return;
-      try {
-        await updateProtocolo(protocolo.id, {
-          estado: nuevoEstado,
-          factura_bm: numeroFactura,
-          fecha_factura_bm: fechaFactura
-        });
-        onActualizar({ ...protocolo, estado: nuevoEstado, facturaBm: numeroFactura, fechaFacturaBm: fechaFactura });
-      } catch (error) {
-        console.error('Error actualizando factura BM:', error);
-        alert('Error al guardar la factura');
+    try {
+      await updateProtocolo(protocolo.id, { estado: nuevoEstado });
+      onActualizar({ ...protocolo, estado: nuevoEstado });
+    } catch (error) {
+      console.error('Error actualizando estado de protocolo:', error);
+      alert('Error al actualizar el estado');
+    }
+  };
+
+  const guardarFacturaProtocolo = async (facturaData) => {
+    const neto = Number(facturaData.montoNeto) || 0;
+    const iva = facturaData.iva !== '' && facturaData.iva !== null
+      ? Number(facturaData.iva) || 0
+      : Math.round(neto * 0.19);
+    const total = facturaData.total !== '' && facturaData.total !== null
+      ? Number(facturaData.total) || 0
+      : neto + iva;
+
+    const payload = {
+      protocolo_id: protocolo.id,
+      numero: facturaData.numero,
+      fecha: facturaData.fecha || null,
+      monto_neto: neto,
+      iva,
+      total,
+      tipo_doc: facturaData.tipoDoc || 'Factura',
+      estado: facturaData.estado || 'Emitida'
+    };
+
+    try {
+      let facturasActualizadas = [...facturasProtocolo];
+      if (facturaData.id && !String(facturaData.id).startsWith('legacy-')) {
+        const actualizada = await updateProtocoloFactura(facturaData.id, payload);
+        facturasActualizadas = facturasActualizadas.map(f =>
+          f.id === facturaData.id
+            ? {
+                id: actualizada.id,
+                protocoloId: actualizada.protocolo_id,
+                numero: actualizada.numero,
+                fecha: actualizada.fecha || '',
+                montoNeto: parseFloat(actualizada.monto_neto) || 0,
+                iva: parseFloat(actualizada.iva) || 0,
+                total: parseFloat(actualizada.total) || 0,
+                tipoDoc: actualizada.tipo_doc || 'Factura',
+                estado: actualizada.estado || 'Emitida',
+                createdAt: actualizada.created_at || ''
+              }
+            : f
+        );
+      } else {
+        const creada = await createProtocoloFactura(payload);
+        facturasActualizadas = [
+          {
+            id: creada.id,
+            protocoloId: creada.protocolo_id,
+            numero: creada.numero,
+            fecha: creada.fecha || '',
+            montoNeto: parseFloat(creada.monto_neto) || 0,
+            iva: parseFloat(creada.iva) || 0,
+            total: parseFloat(creada.total) || 0,
+            tipoDoc: creada.tipo_doc || 'Factura',
+            estado: creada.estado || 'Emitida',
+            createdAt: creada.created_at || ''
+          },
+          ...facturasActualizadas
+        ];
       }
+      onActualizar({ ...protocolo, facturas: facturasActualizadas });
+      setFacturaEnEdicion(null);
+      setShowFacturaModal(false);
+    } catch (error) {
+      console.error('Error guardando factura del protocolo:', error);
+      alert('Error al guardar la factura');
+    }
+  };
+
+  const eliminarFacturaProtocolo = async (factura) => {
+    if (String(factura.id).startsWith('legacy-')) {
+      alert('Esta factura viene del histórico. Migra los datos para poder eliminarla.');
       return;
     }
-    onActualizar({ ...protocolo, estado: nuevoEstado });
+    if (!window.confirm('¿Eliminar esta factura del protocolo?')) return;
+    try {
+      await deleteProtocoloFactura(factura.id);
+      const facturasActualizadas = facturasProtocolo.filter(f => f.id !== factura.id);
+      onActualizar({ ...protocolo, facturas: facturasActualizadas });
+    } catch (error) {
+      console.error('Error eliminando factura del protocolo:', error);
+      alert('Error al eliminar la factura');
+    }
   };
 
   return (
@@ -5340,17 +5545,20 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Factura Building Me:</p>
+                  <p className="text-gray-500">Facturas BM:</p>
                   <p className="font-semibold text-gray-800">
-                    {protocolo.facturaBm ? (
+                    {resumenFacturas ? (
                       <>
-                        <span className="text-green-600">{protocolo.facturaBm}</span>
-                        {protocolo.fechaFacturaBm && (
-                          <span className="text-xs text-gray-500 ml-2">{protocolo.fechaFacturaBm}</span>
+                        <span className="text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</span>
+                        {resumenFacturas.ultima?.fecha && (
+                          <span className="text-xs text-gray-500 ml-2">{resumenFacturas.ultima?.fecha}</span>
                         )}
+                        <span className="text-xs text-gray-500 ml-2">
+                          ({resumenFacturas.count} factura{resumenFacturas.count === 1 ? '' : 's'})
+                        </span>
                       </>
                     ) : (
-                      <span className="text-gray-400">Sin factura</span>
+                      <span className="text-gray-400">Sin facturas</span>
                     )}
                   </p>
                 </div>
@@ -5368,13 +5576,14 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 onChange={(e) => cambiarEstado(e.target.value)}
                 className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
               >
-                <option value="Abierto">🟢 Abierto</option>
-                <option value="En Proceso">🟡 En Proceso</option>
-                <option value="Cerrado">✅ Cerrado</option>
-                <option value="Facturado">🧾 Facturado</option>
-                <option value="No Facturado">⏳ No Facturado</option>
-                <option value="Anulado">❌ Anulado</option>
-                <option value="Despachado Parcial">📦 Despachado Parcial</option>
+                {estadosSelect.map((estado) => (
+                  <option key={estado} value={estado}>
+                    {estado === 'Abierto' && '🟢 '}
+                    {estado === 'En Proceso' && '🟡 '}
+                    {estado === 'Cerrado' && '✅ '}
+                    {estado}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -5388,6 +5597,17 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             >
               <ShoppingCart className="w-5 h-5 inline mr-2" />
               Adjudicar Compra (Crear OC)
+            </button>
+            <button
+              onClick={() => {
+                setFacturaEnEdicion(null);
+                setShowFacturaModal(true);
+              }}
+              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              style={{ borderColor: '#45ad98', color: '#235250' }}
+            >
+              <FileText className="w-5 h-5 inline mr-2" />
+              Agregar Factura
             </button>
             <button
               onClick={async () => {
@@ -5595,6 +5815,94 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
         )}
       </div>
 
+      {/* Facturas del Protocolo */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg mt-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">
+          Facturas Building Me ({facturasProtocolo.length})
+        </h3>
+        {facturasProtocolo.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Doc</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
+                  {!hideFinancials && (
+                    <>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
+                    </>
+                  )}
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {facturasProtocolo.map((factura) => {
+                  const isLegacy = String(factura.id).startsWith('legacy-');
+                  const estadoColor = factura.estado === 'Pagada'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-yellow-100 text-yellow-800';
+                  return (
+                    <tr key={factura.id}>
+                      <td className="px-4 py-3 font-semibold">{factura.tipoDoc || 'Factura'}</td>
+                      <td className="px-4 py-3 text-gray-700">{factura.numero || 'Sin número'}</td>
+                      <td className="px-4 py-3 text-gray-600">{factura.fecha || 'Sin fecha'}</td>
+                      {!hideFinancials && (
+                        <>
+                          <td className="px-4 py-3">{formatCurrency(factura.montoNeto || 0)}</td>
+                          <td className="px-4 py-3">{formatCurrency(factura.iva || 0)}</td>
+                          <td className="px-4 py-3 font-semibold">{formatCurrency(factura.total || 0)}</td>
+                        </>
+                      )}
+                      <td className="px-4 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${estadoColor}`}>
+                          {factura.estado || 'Emitida'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 space-x-2">
+                        <button
+                          onClick={() => {
+                            setFacturaEnEdicion(factura);
+                            setShowFacturaModal(true);
+                          }}
+                          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                          disabled={isLegacy}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => eliminarFacturaProtocolo(factura)}
+                          className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                          disabled={isLegacy}
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-gray-500 text-sm">No hay facturas registradas.</div>
+        )}
+      </div>
+
+      {showFacturaModal && (
+        <FacturaProtocoloModal
+          factura={facturaEnEdicion}
+          onClose={() => {
+            setShowFacturaModal(false);
+            setFacturaEnEdicion(null);
+          }}
+          onSave={guardarFacturaProtocolo}
+        />
+      )}
+
       {/* Modal Cerrar Protocolo */}
       {showCerrarModal && (
         <ModalCerrarProtocolo
@@ -5723,6 +6031,164 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+};
+
+// Modal Factura Protocolo
+const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
+  const [tipoDoc, setTipoDoc] = useState(factura?.tipoDoc || 'Factura');
+  const [numero, setNumero] = useState(factura?.numero || '');
+  const [fecha, setFecha] = useState(
+    factura?.fecha || new Date().toISOString().split('T')[0]
+  );
+  const [montoNeto, setMontoNeto] = useState(
+    factura?.montoNeto !== undefined && factura?.montoNeto !== null ? factura.montoNeto : ''
+  );
+  const [iva, setIva] = useState(
+    factura?.iva !== undefined && factura?.iva !== null ? factura.iva : ''
+  );
+  const [total, setTotal] = useState(
+    factura?.total !== undefined && factura?.total !== null ? factura.total : ''
+  );
+  const [estado, setEstado] = useState(factura?.estado || 'Emitida');
+
+  useEffect(() => {
+    const neto = Number(montoNeto);
+    if (Number.isFinite(neto)) {
+      const nextIva = Math.round(neto * 0.19);
+      setIva(nextIva);
+      setTotal(neto + nextIva);
+    } else {
+      setIva('');
+      setTotal('');
+    }
+  }, [montoNeto]);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+        <div className="p-6 border-b">
+          <h4 className="text-xl font-bold text-gray-800">
+            {factura ? 'Editar Factura' : 'Agregar Factura'}
+          </h4>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Documento *</label>
+            <select
+              value={tipoDoc}
+              onChange={(e) => setTipoDoc(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="Factura">Factura</option>
+              <option value="Boleta">Boleta</option>
+              <option value="Boleta Honorarios">Boleta Honorarios</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">N° Documento *</label>
+              <input
+                type="text"
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                placeholder="Ej: 12345"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha *</label>
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Neto</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={montoNeto}
+                onChange={(e) => setMontoNeto(e.target.value)}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">IVA</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={iva}
+                onChange={() => {}}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
+                placeholder="Calculado automaticamente"
+                disabled
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Total</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={total}
+                onChange={() => {}}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
+                placeholder="Calculado automaticamente"
+                disabled
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            IVA y Total se calculan automaticamente desde el neto.
+          </p>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
+            <select
+              value={estado}
+              onChange={(e) => setEstado(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="Emitida">Emitida</option>
+              <option value="Pagada">Pagada</option>
+            </select>
+          </div>
+        </div>
+        <div className="p-6 border-t flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() =>
+              onSave({
+                id: factura?.id,
+                tipoDoc,
+                numero: numero.trim(),
+                fecha,
+                montoNeto,
+                iva,
+                total,
+                estado
+              })
+            }
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            disabled={!numero || !fecha}
+          >
+            Guardar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -9100,6 +9566,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
   useEffect(() => {
+    let facturasByProtocolo = {};
     const mapCotizacion = (cot) => ({
       id: cot.id,
       numero: cot.numero,
@@ -9132,7 +9599,25 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
-      items: p.items || []
+      items: p.items || [],
+      facturas: (() => {
+        const facturas = facturasByProtocolo[p.id] || [];
+        if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
+          return [{
+            id: `legacy-${p.id}`,
+            protocoloId: p.id,
+            numero: p.factura_bm || '',
+            fecha: p.fecha_factura_bm || '',
+            montoNeto: 0,
+            iva: 0,
+            total: 0,
+            tipoDoc: 'Factura',
+            estado: 'Emitida',
+            createdAt: ''
+          }];
+        }
+        return facturas;
+      })()
     });
 
     const mapOrdenCompra = (o, proveedoresById = new Map()) => ({
@@ -9180,12 +9665,30 @@ const Dashboard = ({ user, onLogout }) => {
 
     const loadSharedData = async () => {
       try {
-        const [cotData, protData, ocData, proveedoresData] = await Promise.all([
+        const [cotData, protData, ocData, proveedoresData, facturasData] = await Promise.all([
           getCotizaciones(),
           getProtocolos(),
           getOrdenesCompra(),
-          getProveedores()
+          getProveedores(),
+          getProtocolosFacturas()
         ]);
+        facturasByProtocolo = facturasData.reduce((acc, factura) => {
+          const key = factura.protocolo_id;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push({
+            id: factura.id,
+            protocoloId: factura.protocolo_id,
+            numero: factura.numero || '',
+            fecha: factura.fecha || '',
+            montoNeto: parseFloat(factura.monto_neto) || 0,
+            iva: parseFloat(factura.iva) || 0,
+            total: parseFloat(factura.total) || 0,
+            tipoDoc: factura.tipo_doc || 'Factura',
+            estado: factura.estado || 'Emitida',
+            createdAt: factura.created_at || ''
+          });
+          return acc;
+        }, {});
         const proveedoresById = new Map(
           (proveedoresData || []).map((p) => [String(p.id), p])
         );
@@ -9238,10 +9741,28 @@ const Dashboard = ({ user, onLogout }) => {
         adjudicada_a_protocolo: protocoloCreado.folio
       });
 
-      const [cotizacionesActualizadas, protocolosActualizados] = await Promise.all([
+      const [cotizacionesActualizadas, protocolosActualizados, facturasData] = await Promise.all([
         getCotizaciones(),
-        getProtocolos()
+        getProtocolos(),
+        getProtocolosFacturas()
       ]);
+      const facturasByProtocolo = facturasData.reduce((acc, factura) => {
+        const key = factura.protocolo_id;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push({
+          id: factura.id,
+          protocoloId: factura.protocolo_id,
+          numero: factura.numero || '',
+          fecha: factura.fecha || '',
+          montoNeto: parseFloat(factura.monto_neto) || 0,
+          iva: parseFloat(factura.iva) || 0,
+          total: parseFloat(factura.total) || 0,
+          tipoDoc: factura.tipo_doc || 'Factura',
+          estado: factura.estado || 'Emitida',
+          createdAt: factura.created_at || ''
+        });
+        return acc;
+      }, {});
 
       setSharedCotizaciones(cotizacionesActualizadas.map(cot => ({
         id: cot.id,
@@ -9269,12 +9790,28 @@ const Dashboard = ({ user, onLogout }) => {
         tipo: p.tipo,
         ocCliente: p.oc_cliente,
         estado: p.estado,
-        facturaBm: p.factura_bm || '',
-        fechaFacturaBm: p.fecha_factura_bm || '',
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total) || 0,
-        items: p.items || []
+        items: p.items || [],
+        facturas: (() => {
+          const facturas = facturasByProtocolo[p.id] || [];
+          if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
+            return [{
+              id: `legacy-${p.id}`,
+              protocoloId: p.id,
+              numero: p.factura_bm || '',
+              fecha: p.fecha_factura_bm || '',
+              montoNeto: 0,
+              iva: 0,
+              total: 0,
+              tipoDoc: 'Factura',
+              estado: 'Emitida',
+              createdAt: ''
+            }];
+          }
+          return facturas;
+        })()
       })));
 
       setProtocoloParaAbrir(protocoloCreado);

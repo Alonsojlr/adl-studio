@@ -49,3 +49,49 @@ export const deleteProtocolo = async (id) => {
   
   if (error) throw error
 }
+
+// ===== Facturas de protocolo =====
+export const getProtocolosFacturas = async (protocolosIds = []) => {
+  let query = supabase
+    .from('protocolos_facturas')
+    .select('*')
+    .order('fecha', { ascending: false })
+
+  if (protocolosIds.length > 0) {
+    query = query.in('protocolo_id', protocolosIds)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+export const createProtocoloFactura = async (factura) => {
+  const { data, error } = await supabase
+    .from('protocolos_facturas')
+    .insert([factura])
+    .select()
+
+  if (error) throw error
+  return data[0]
+}
+
+export const updateProtocoloFactura = async (id, updates) => {
+  const { data, error } = await supabase
+    .from('protocolos_facturas')
+    .update(updates)
+    .eq('id', id)
+    .select()
+
+  if (error) throw error
+  return data[0]
+}
+
+export const deleteProtocoloFactura = async (id) => {
+  const { error } = await supabase
+    .from('protocolos_facturas')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
