@@ -1349,26 +1349,90 @@ const AdministracionModule = () => {
 };
 
 // Módulo de Informes
-const InformesModule = ({ activeModule }) => {
+const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocolos = [], selectedUnit }) => {
   if (activeModule !== 'informes') return null;
 
   const [vistaActual, setVistaActual] = useState('dashboard');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
 
-  // Datos de ejemplo - en producción vendrían de la base de datos
-  const ordenesCompra = [
-    { id: 1, numero: 'OC-17403', protocolo: '30650', proveedor: 'ACERBEN SPA', tipoCosto: 'Taller/Fabricación', unidadNegocio: 'Stand y Ferias', total: 2975000, fecha: '2025-01-22', estado: 'Pagada' },
-    { id: 2, numero: 'OC-17404', protocolo: '30650', proveedor: 'Transportes Rápidos', tipoCosto: '🚚 Transporte', unidadNegocio: 'Stand y Ferias', total: 450000, fecha: '2025-01-23', estado: 'Pagada' },
-    { id: 3, numero: 'OC-17405', protocolo: '30651', proveedor: 'Imprenta Digital', tipoCosto: 'Imprenta/Impresión', unidadNegocio: 'Vía Pública', total: 1800000, fecha: '2025-01-24', estado: 'Facturada' },
-    { id: 4, numero: 'OC-17406', protocolo: '30651', proveedor: 'Soportes Chile', tipoCosto: 'Arriendo Soporte', unidadNegocio: 'Vía Pública', total: 2500000, fecha: '2025-01-25', estado: 'Emitida' },
-    { id: 5, numero: 'OC-17407', protocolo: '30652', proveedor: 'FleteXpress', tipoCosto: '🚚 Transporte', unidadNegocio: 'Inmobiliarias', total: 350000, fecha: '2025-01-26', estado: 'Recibida' },
-    { id: 6, numero: 'OC-17408', protocolo: '', proveedor: 'Petrobras', tipoCosto: '💰 Rendiciones', unidadNegocio: 'Varios', total: 180000, fecha: '2025-01-27', estado: 'Pagada' }
+  const months = [
+    { value: '1', label: 'Enero' },
+    { value: '2', label: 'Febrero' },
+    { value: '3', label: 'Marzo' },
+    { value: '4', label: 'Abril' },
+    { value: '5', label: 'Mayo' },
+    { value: '6', label: 'Junio' },
+    { value: '7', label: 'Julio' },
+    { value: '8', label: 'Agosto' },
+    { value: '9', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' }
   ];
 
-  const protocolos = [
-    { folio: '30650', cliente: 'Constructora ABC', unidadNegocio: 'Stand y Ferias', montoVenta: 5000000 },
-    { folio: '30651', cliente: 'Inmobiliaria XYZ', unidadNegocio: 'Vía Pública', montoVenta: 7500000 },
-    { folio: '30652', cliente: 'Mall Plaza', unidadNegocio: 'Inmobiliarias', montoVenta: 3200000 }
-  ];
+  const obtenerNetoOC = (oc) => {
+    if (oc.subtotal && oc.subtotal > 0) return oc.subtotal;
+    if (oc.total) return oc.total / 1.19;
+    return 0;
+  };
+
+  const obtenerNetoProtocolo = (protocolo) => {
+    const items = protocolo.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    return protocolo.montoTotal || 0;
+  };
+
+  const yearsDisponibles = Array.from(
+    new Set([
+      ...sharedOrdenesCompra.map(oc => (oc.fecha ? new Date(oc.fecha).getFullYear() : null)),
+      ...sharedProtocolos.map(p => (p.fechaCreacion ? new Date(p.fechaCreacion).getFullYear() : null))
+    ].filter(Boolean))
+  ).sort((a, b) => b - a);
+
+  const cumpleFiltroFecha = (fecha) => {
+    if (!fecha) return false;
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) return false;
+    const month = String(date.getMonth() + 1);
+    const year = String(date.getFullYear());
+    if (selectedYear !== 'all' && year !== selectedYear) return false;
+    if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+    return true;
+  };
+
+  const protocolosByFolio = sharedProtocolos.reduce((acc, protocolo) => {
+    if (protocolo.folio) acc[protocolo.folio] = protocolo;
+    return acc;
+  }, {});
+
+  const ordenesCompra = sharedOrdenesCompra
+    .map(oc => ({
+      ...oc,
+      unidadNegocio:
+        oc.unidadNegocio ||
+        protocolosByFolio[oc.codigoProtocolo]?.unidadNegocio ||
+        'Sin asignar',
+      neto: obtenerNetoOC(oc)
+    }))
+    .filter(oc => (selectedUnit === 'Todas' ? true : oc.unidadNegocio === selectedUnit))
+    .filter(oc => (selectedMonth === 'all' && selectedYear === 'all') ? true : cumpleFiltroFecha(oc.fecha));
+
+  const protocolos = sharedProtocolos
+    .filter(p => (selectedUnit === 'Todas' ? true : p.unidadNegocio === selectedUnit))
+    .filter(p => (selectedMonth === 'all' && selectedYear === 'all') ? true : cumpleFiltroFecha(p.fechaCreacion))
+    .map(p => ({
+      ...p,
+      montoVenta: obtenerNetoProtocolo(p)
+    }));
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
@@ -1386,7 +1450,7 @@ const InformesModule = ({ activeModule }) => {
       if (!tipos[tipo]) {
         tipos[tipo] = { total: 0, cantidad: 0 };
       }
-      tipos[tipo].total += oc.total;
+      tipos[tipo].total += oc.neto || 0;
       tipos[tipo].cantidad += 1;
     });
     return Object.entries(tipos)
@@ -1402,7 +1466,7 @@ const InformesModule = ({ activeModule }) => {
       if (!unidades[un]) {
         unidades[un] = { total: 0, cantidad: 0 };
       }
-      unidades[un].total += oc.total;
+      unidades[un].total += oc.neto || 0;
       unidades[un].cantidad += 1;
     });
     return Object.entries(unidades)
@@ -1414,8 +1478,8 @@ const InformesModule = ({ activeModule }) => {
   const margenPorProyecto = () => {
     return protocolos.map(prot => {
       const costosProyecto = ordenesCompra
-        .filter(oc => oc.protocolo === prot.folio)
-        .reduce((sum, oc) => sum + oc.total, 0);
+        .filter(oc => oc.codigoProtocolo === prot.folio)
+        .reduce((sum, oc) => sum + (oc.neto || 0), 0);
       
       const margen = prot.montoVenta - costosProyecto;
       const porcentajeMargen = prot.montoVenta > 0 ? (margen / prot.montoVenta) * 100 : 0;
@@ -1432,7 +1496,7 @@ const InformesModule = ({ activeModule }) => {
   const tiposCosto = gastoPorTipo();
   const unidadesNegocio = gastoPorUN();
   const margenes = margenPorProyecto();
-  const totalGastos = ordenesCompra.reduce((sum, oc) => sum + oc.total, 0);
+  const totalGastos = ordenesCompra.reduce((sum, oc) => sum + (oc.neto || 0), 0);
 
   return (
     <div>
@@ -1485,6 +1549,50 @@ const InformesModule = ({ activeModule }) => {
           >
             🏢 Por Unidad de Negocio
           </button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white rounded-xl p-4 shadow-lg mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Mes</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="all">Todos</option>
+              {months.map((mes) => (
+                <option key={mes.value} value={mes.value}>{mes.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Año</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="all">Todos</option>
+              {yearsDisponibles.map((year) => (
+                <option key={year} value={String(year)}>{year}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMonth('all');
+                setSelectedYear('all');
+              }}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              Limpiar filtros
+            </button>
+          </div>
         </div>
       </div>
 
@@ -10198,7 +10306,12 @@ const Dashboard = ({ user, onLogout }) => {
           <InventarioModule activeModule={activeModule} />
 
           {/* Módulo de Informes */}
-          <InformesModule activeModule={activeModule} />
+          <InformesModule
+            activeModule={activeModule}
+            sharedOrdenesCompra={sharedOrdenesCompra}
+            sharedProtocolos={sharedProtocolos}
+            selectedUnit={selectedUnit}
+          />
         </main>
     </div>
   );
