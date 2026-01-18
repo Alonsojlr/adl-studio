@@ -6393,8 +6393,31 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
 
         <div className="bg-white rounded-2xl p-6 shadow-lg">
           <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Protocolo {protocolo.folio}</h2>
+            <div className="flex-1">
+              <div className="grid grid-cols-3 items-center mb-4">
+                <h2 className="text-3xl font-bold text-gray-800">
+                  Protocolo {protocolo.folio}
+                </h2>
+                <h3 className="text-3xl font-bold text-gray-800 text-center">
+                  {protocolo.nombreProyecto || 'Sin nombre de proyecto'}
+                </h3>
+                <div className="flex justify-end">
+                  <select
+                    value={protocolo.estado}
+                    onChange={(e) => cambiarEstado(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  >
+                    {estadosSelect.map((estado) => (
+                      <option key={estado} value={estado}>
+                        {estado === 'Abierto' && '🟢 '}
+                        {estado === 'En Proceso' && '🟡 '}
+                        {estado === 'Cerrado' && '✅ '}
+                        {estado}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-2 md:grid-cols-7 gap-4 text-sm">
                 <div>
                   <p className="text-gray-500">Cliente:</p>
@@ -6450,29 +6473,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                     )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Proyecto:</p>
-                  <p className="font-semibold text-gray-800">
-                    {protocolo.nombreProyecto || <span className="text-gray-400">Sin nombre</span>}
-                  </p>
-                </div>
               </div>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <select
-                value={protocolo.estado}
-                onChange={(e) => cambiarEstado(e.target.value)}
-                className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
-              >
-                {estadosSelect.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {estado === 'Abierto' && '🟢 '}
-                    {estado === 'En Proceso' && '🟡 '}
-                    {estado === 'Cerrado' && '✅ '}
-                    {estado}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
 
