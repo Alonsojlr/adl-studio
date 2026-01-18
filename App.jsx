@@ -577,97 +577,103 @@ const InventarioModule = ({ activeModule }) => {
       </div>
 
       {/* Listado de Items - Vista de Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {itemsFiltrados.map((item) => {
-          const disponible = calcularStockDisponible(item);
-          const porcentajeDisponible = (disponible / item.stockTotal) * 100;
-          
-          return (
-            <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all">
-              {/* Imagen */}
-              <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                {item.foto ? (
-                  <img src={item.foto} alt={item.nombre} className="w-full h-full object-cover" />
-                ) : (
-                  <Package className="w-20 h-20 text-gray-400" />
-                )}
-              </div>
-
-              {/* Contenido */}
-              <div className="p-6">
-                <div className="mb-3">
-                  <span className="text-xs font-mono text-gray-500">{item.codigo}</span>
-                  <h3 className="text-lg font-bold text-gray-800 mt-1">{item.nombre}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{item.descripcion}</p>
+      {loadingItems ? (
+        <div className="text-center py-12 bg-white rounded-xl">
+          <p className="text-gray-500">Cargando inventario...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {itemsFiltrados.map((item) => {
+            const disponible = calcularStockDisponible(item);
+            const porcentajeDisponible = (disponible / item.stockTotal) * 100;
+            
+            return (
+              <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all">
+                {/* Imagen */}
+                <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  {item.foto ? (
+                    <img src={item.foto} alt={item.nombre} className="w-full h-full object-cover" />
+                  ) : (
+                    <Package className="w-20 h-20 text-gray-400" />
+                  )}
                 </div>
 
-                <div className="mb-4">
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                    {item.categoria}
-                  </span>
-                </div>
-
-                {/* Stock */}
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold text-gray-700">Stock Total:</span>
-                    <span className="text-lg font-bold text-gray-800">{item.stockTotal} {item.unidadMedida}</span>
+                {/* Contenido */}
+                <div className="p-6">
+                  <div className="mb-3">
+                    <span className="text-xs font-mono text-gray-500">{item.codigo}</span>
+                    <h3 className="text-lg font-bold text-gray-800 mt-1">{item.nombre}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{item.descripcion}</p>
                   </div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold text-gray-700">Disponible:</span>
-                    <span className={`text-lg font-bold ${disponible === 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {disponible} {item.unidadMedida}
+
+                  <div className="mb-4">
+                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                      {item.categoria}
                     </span>
                   </div>
 
-                  {/* Barra de disponibilidad */}
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all ${
-                        porcentajeDisponible === 0 ? 'bg-red-500' : 'bg-green-500'
-                      }`}
-                      style={{ width: `${porcentajeDisponible}%` }}
-                    ></div>
-                  </div>
-                </div>
+                  {/* Stock */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Stock Total:</span>
+                      <span className="text-lg font-bold text-gray-800">{item.stockTotal} {item.unidadMedida}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-semibold text-gray-700">Disponible:</span>
+                      <span className={`text-lg font-bold ${disponible === 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {disponible} {item.unidadMedida}
+                      </span>
+                    </div>
 
-                {/* Reservas */}
-                {item.reservas.filter(r => !r.devuelto).length > 0 && (
-                  <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
-                    <p className="text-xs font-semibold text-yellow-800 mb-1">
-                      📅 {item.reservas.filter(r => !r.devuelto).length} Reservas Activas
-                    </p>
-                    {item.reservas.filter(r => !r.devuelto).slice(0, 2).map(r => (
-                      <p key={r.id} className="text-xs text-yellow-700">
-                        Prot. {r.protocolo}: {r.cantidad} und ({r.fechaDesde} - {r.fechaHasta})
+                    {/* Barra de disponibilidad */}
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          porcentajeDisponible === 0 ? 'bg-red-500' : 'bg-green-500'
+                        }`}
+                        style={{ width: `${porcentajeDisponible}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Reservas */}
+                  {item.reservas.filter(r => !r.devuelto).length > 0 && (
+                    <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+                      <p className="text-xs font-semibold text-yellow-800 mb-1">
+                        📅 {item.reservas.filter(r => !r.devuelto).length} Reservas Activas
                       </p>
-                    ))}
+                      {item.reservas.filter(r => !r.devuelto).slice(0, 2).map(r => (
+                        <p key={r.id} className="text-xs text-yellow-700">
+                          Prot. {r.protocolo}: {r.cantidad} und ({r.fechaDesde} - {r.fechaHasta})
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Ubicación */}
+                  <div className="mb-4 text-sm text-gray-600">
+                    <p>📍 {item.ubicacion}</p>
                   </div>
-                )}
 
-                {/* Ubicación */}
-                <div className="mb-4 text-sm text-gray-600">
-                  <p>📍 {item.ubicacion}</p>
+                  {/* Botón */}
+                  <button
+                    onClick={() => {
+                      setItemSeleccionado(item);
+                      setShowFichaModal(true);
+                    }}
+                    className="w-full py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                    style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+                  >
+                    Ver Ficha Completa
+                  </button>
                 </div>
-
-                {/* Botón */}
-                <button
-                  onClick={() => {
-                    setItemSeleccionado(item);
-                    setShowFichaModal(true);
-                  }}
-                  className="w-full py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                  style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
-                >
-                  Ver Ficha Completa
-                </button>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {itemsFiltrados.length === 0 && (
+      {!loadingItems && itemsFiltrados.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl">
           <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No se encontraron items en el inventario</p>
@@ -2895,7 +2901,13 @@ const OrdenesCompraModule = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {ordenesFiltradas.map((orden) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={14} className="px-6 py-8 text-center text-gray-500">
+                    Cargando órdenes de compra...
+                  </td>
+                </tr>
+              ) : ordenesFiltradas.map((orden) => {
                 const neto = orden.subtotal || (orden.total ? orden.total / 1.19 : 0);
                 const iva = orden.iva || (orden.total ? orden.total - neto : neto * 0.19);
                 const total = orden.total || neto + iva;
@@ -3030,7 +3042,7 @@ const OrdenesCompraModule = ({
           </table>
         </div>
 
-        {ordenesFiltradas.length === 0 && (
+        {!loading && ordenesFiltradas.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-gray-500">No se encontraron órdenes de compra</p>
           </div>
@@ -4617,7 +4629,13 @@ const ProveedoresModule = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {proveedoresFiltrados.map((proveedor) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    Cargando proveedores...
+                  </td>
+                </tr>
+              ) : proveedoresFiltrados.map((proveedor) => (
                 <tr key={proveedor.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{proveedor.codigo}</span>
@@ -4698,7 +4716,7 @@ const ProveedoresModule = () => {
           </table>
         </div>
 
-        {proveedoresFiltrados.length === 0 && (
+        {!loading && proveedoresFiltrados.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-gray-500">No se encontraron proveedores</p>
           </div>
@@ -5791,6 +5809,7 @@ const ProtocolosModule = ({
           <VistaListadoProtocolos 
             protocolos={protocolos}
             hideFinancials={hideFinancials}
+            loading={loading}
             onVerDetalle={(protocolo) => {
               setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
               setVistaActual('detalle');
@@ -5895,7 +5914,7 @@ const ProtocolosModule = ({
 // ========================================
 // VISTA LISTADO DE PROTOCOLOS
 // ========================================
-const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hideFinancials = false }) => {
+const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hideFinancials = false, loading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -6056,7 +6075,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {protocolosFiltrados.map((protocolo) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={hideFinancials ? 8 : 11} className="px-6 py-8 text-center text-gray-500">
+                    Cargando protocolos...
+                  </td>
+                </tr>
+              ) : protocolosFiltrados.map((protocolo) => {
                 const neto = obtenerNetoProtocolo(protocolo);
                 const iva = neto * 0.19;
                 const total = neto + iva;
@@ -6150,7 +6175,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
           </table>
         </div>
 
-        {protocolosFiltrados.length === 0 && (
+        {!loading && protocolosFiltrados.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-gray-500">No se encontraron protocolos</p>
           </div>
@@ -8235,7 +8260,13 @@ const ClientesModule = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {clientesFiltrados.map((cliente) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    Cargando clientes...
+                  </td>
+                </tr>
+              ) : clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{cliente.codigo}</span>
@@ -8292,7 +8323,7 @@ const ClientesModule = () => {
           </table>
         </div>
 
-        {clientesFiltrados.length === 0 && (
+        {!loading && clientesFiltrados.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-gray-500">No se encontraron clientes</p>
           </div>
@@ -9149,7 +9180,13 @@ const [showNewModal, setShowNewModal] = useState(false);
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {cotizacionesFiltradas.map((cot) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                    Cargando cotizaciones...
+                  </td>
+                </tr>
+              ) : cotizacionesFiltradas.map((cot) => (
                 <tr key={cot.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono font-semibold text-gray-800">#{cot.numero}</span>
@@ -9276,7 +9313,7 @@ const [showNewModal, setShowNewModal] = useState(false);
           </table>
         </div>
 
-        {cotizacionesFiltradas.length === 0 && (
+        {!loading && cotizacionesFiltradas.length === 0 && (
           <div className="p-12 text-center">
             <p className="text-gray-500">No se encontraron cotizaciones</p>
           </div>
