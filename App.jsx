@@ -3446,7 +3446,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra (Manual)</h3>
@@ -3456,7 +3456,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
           {/* Datos del Proveedor */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Datos del Proveedor</h4>
@@ -3959,7 +3959,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -4162,7 +4162,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {/* Items */}
           <h4 className="text-lg font-bold text-gray-800 mb-4">Detalle de Items</h4>
           <div className="mb-6">
@@ -7282,7 +7282,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
@@ -7295,7 +7295,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1">
           {/* Info del Protocolo (solo lectura) */}
           <div className="mb-6 p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
             <h4 className="font-semibold text-blue-800 mb-2">📋 Datos del Protocolo</h4>
