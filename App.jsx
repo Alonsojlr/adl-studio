@@ -20,6 +20,20 @@ import { getGastosAdministracion, createGastoAdministracion, updateGastoAdminist
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
+const TOAST_EVENT = 'app-toast';
+
+const notifyToast = (message, type = 'success') => {
+  if (!message) return;
+  window.dispatchEvent(new CustomEvent(TOAST_EVENT, { detail: { message, type } }));
+};
+
+// Replace browser alerts with toast notifications.
+const alert = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  const type = normalized.includes('error') ? 'error' : 'success';
+  notifyToast(message, type);
+};
+
 // Sistema de autenticación y roles
 const USERS = {
   'alopez@buildingme.cl': { 
@@ -148,6 +162,45 @@ const MEDIOS_PAGO = [
   'Caja Chica',
   'Tarjeta de Crédito'
 ];
+
+const ToastContainer = () => {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      const { message, type } = event.detail || {};
+      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const toast = { id, message, type: type || 'success' };
+      setToasts((prev) => [...prev, toast]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 4000);
+    };
+
+    window.addEventListener(TOAST_EVENT, handler);
+    return () => window.removeEventListener(TOAST_EVENT, handler);
+  }, []);
+
+  const colorMap = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    error: 'border-red-200 bg-red-50 text-red-900',
+    warning: 'border-yellow-200 bg-yellow-50 text-yellow-900',
+    info: 'border-blue-200 bg-blue-50 text-blue-900'
+  };
+
+  return (
+    <div className="fixed top-4 left-4 z-[9999] space-y-2">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          className={`min-w-[260px] max-w-sm rounded-xl border px-4 py-3 shadow-lg ${colorMap[toast.type] || colorMap.info}`}
+        >
+          <p className="text-sm font-semibold">{toast.message}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // Componente de Login
 const LoginPage = ({ onLogin }) => {
@@ -11043,8 +11096,18 @@ export default function App() {
   };
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <>
+        <ToastContainer />
+        <LoginPage onLogin={handleLogin} />
+      </>
+    );
   }
 
-  return <Dashboard user={user} onLogout={handleLogout} />;
+  return (
+    <>
+      <ToastContainer />
+      <Dashboard user={user} onLogout={handleLogout} />
+    </>
+  );
 }

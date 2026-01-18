@@ -23,10 +23,25 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+const openPdfInNewTab = (doc, filename) => {
+  try {
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+      doc.save(filename);
+      return;
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (error) {
+    doc.save(filename);
+  }
+};
+
 // Función para generar PDF de Cotización directamente
 export const generarCotizacionPDF = async (cotizacion, cliente, items) => {
   const doc = await renderCotizacionPDF(cotizacion, cliente, items);
-  doc.save(`Cotizacion-${cotizacion.numero || 'sin-numero'}.pdf`);
+  openPdfInNewTab(doc, `Cotizacion-${cotizacion.numero || 'sin-numero'}.pdf`);
 };
 
 // Función para generar PDF de Orden de Compra directamente
@@ -35,10 +50,10 @@ export const generarOCPDF = async (ordenCompra, proveedor, protocolo, items) => 
   if (!doc || typeof doc.save !== 'function') {
     throw new Error('No se pudo generar el PDF de la OC');
   }
-  doc.save(`OC-${ordenCompra.numero || 'sin-numero'}.pdf`);
+  openPdfInNewTab(doc, `OC-${ordenCompra.numero || 'sin-numero'}.pdf`);
 };
 
 export const generarProtocoloPDF = async (protocolo, items = [], ordenesCompra = []) => {
   const doc = await renderProtocoloPDF(protocolo, items, ordenesCompra, loadImageAsDataUrl);
-  doc.save(`Protocolo-${protocolo.folio || 'sin-folio'}.pdf`);
+  openPdfInNewTab(doc, `Protocolo-${protocolo.folio || 'sin-folio'}.pdf`);
 };
