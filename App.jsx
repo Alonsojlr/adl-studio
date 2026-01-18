@@ -16,6 +16,7 @@ import { getClientes, createCliente, updateCliente, deleteCliente } from './src/
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
+import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
@@ -111,6 +112,41 @@ const ACTIVIDADES_USO = [
   'Compra Proyecto',
   'Compra Cliente',
   'Financiamiento Cliente'
+];
+
+const ADMIN_CENTRO_COSTO = 'CC-ADM-01 | Administración General';
+const ADMIN_TIPOS_COSTO = [
+  'Software / Licencias',
+  'Equipamiento (Computadores, pantallas)',
+  'Mobiliario Oficina',
+  'Telefonía / Comunicaciones',
+  'Servicios Profesionales (contador, asesorías)',
+  'Marketing / Branding',
+  'Papelería Oficina',
+  'Arriendo / Gastos Oficina',
+  'Mantención / Soporte',
+  'Créditos / Intereses',
+  'RRHH / Sueldos',
+  'Varios Administración'
+];
+const ADMIN_ACTIVIDADES_USO = [
+  'Operación General',
+  'Gestión Administrativa',
+  'Soporte Operativo',
+  'Ventas / Comercial',
+  'Marketing',
+  'RRHH',
+  'Sistemas',
+  'Oficina',
+  'Dirección'
+];
+const MEDIOS_PAGO = [
+  'Contado Efectivo',
+  '30 días',
+  '60 días',
+  'Transferencia Bancaria',
+  'Caja Chica',
+  'Tarjeta de Crédito'
 ];
 
 // Componente de Login
@@ -1403,17 +1439,533 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
   );
 };
 
-// Placeholder para Administración
-const AdministracionModule = () => {
+// Módulo de Administración (Registro de Gastos)
+const AdministracionModule = ({ activeModule }) => {
+  if (activeModule !== 'administracion') return null;
+
+  const [gastos, setGastos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingGasto, setEditingGasto] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+
+  const [formData, setFormData] = useState({
+    fecha: new Date().toISOString().split('T')[0],
+    nombreGasto: '',
+    proveedor: '',
+    numeroDocumento: '',
+    medioPago: '',
+    montoNeto: '',
+    iva: '',
+    total: '',
+    observaciones: '',
+    centroCosto: ADMIN_CENTRO_COSTO,
+    tipoCosto: '',
+    actividadUso: ''
+  });
+
+  const months = [
+    { value: '1', label: 'Enero' },
+    { value: '2', label: 'Febrero' },
+    { value: '3', label: 'Marzo' },
+    { value: '4', label: 'Abril' },
+    { value: '5', label: 'Mayo' },
+    { value: '6', label: 'Junio' },
+    { value: '7', label: 'Julio' },
+    { value: '8', label: 'Agosto' },
+    { value: '9', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' }
+  ];
+
+  const loadGastos = async () => {
+    try {
+      setLoading(true);
+      const data = await getGastosAdministracion();
+      const transformados = data.map((g) => ({
+        id: g.id,
+        fecha: g.fecha,
+        proveedor: g.proveedor || '',
+        nombreGasto: g.nombre_gasto || '',
+        numeroDocumento: g.numero_documento || '',
+        medioPago: g.medio_pago || '',
+        montoNeto: parseFloat(g.monto_neto) || 0,
+        iva: parseFloat(g.iva) || 0,
+        total: parseFloat(g.total) || 0,
+        observaciones: g.observaciones || '',
+        centroCosto: g.centro_costo || ADMIN_CENTRO_COSTO,
+        tipoCosto: g.tipo_costo || '',
+        actividadUso: g.actividad_uso || ''
+      }));
+      setGastos(transformados);
+    } catch (error) {
+      console.error('Error cargando gastos de administración:', error);
+      setGastos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGastos();
+  }, []);
+
+  useEffect(() => {
+    const neto = Number(formData.montoNeto);
+    if (Number.isFinite(neto)) {
+      const iva = Math.round(neto * 0.19);
+      setFormData((prev) => ({
+        ...prev,
+        iva,
+        total: neto + iva
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        iva: '',
+        total: ''
+      }));
+    }
+  }, [formData.montoNeto]);
+
+  const yearsDisponibles = Array.from(
+    new Set(gastos.map(g => (g.fecha ? new Date(g.fecha).getFullYear() : null)).filter(Boolean))
+  ).sort((a, b) => b - a);
+
+  const cumpleFiltroFecha = (fecha) => {
+    if (!fecha) return false;
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) return false;
+    const month = String(date.getMonth() + 1);
+    const year = String(date.getFullYear());
+    if (selectedYear !== 'all' && year !== selectedYear) return false;
+    if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+    return true;
+  };
+
+  const gastosFiltrados = gastos.filter(g =>
+    (selectedMonth === 'all' && selectedYear === 'all') ? true : cumpleFiltroFecha(g.fecha)
+  );
+
+  const totalNeto = gastosFiltrados.reduce((sum, g) => sum + (g.montoNeto || 0), 0);
+  const totalIva = gastosFiltrados.reduce((sum, g) => sum + (g.iva || 0), 0);
+  const totalFinal = gastosFiltrados.reduce((sum, g) => sum + (g.total || 0), 0);
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(value);
+
+  const resetForm = () => {
+    setFormData({
+      fecha: new Date().toISOString().split('T')[0],
+      nombreGasto: '',
+      proveedor: '',
+      numeroDocumento: '',
+      medioPago: '',
+      montoNeto: '',
+      iva: '',
+      total: '',
+      observaciones: '',
+      centroCosto: ADMIN_CENTRO_COSTO,
+      tipoCosto: '',
+      actividadUso: ''
+    });
+  };
+
+  const openNew = () => {
+    setEditingGasto(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEdit = (gasto) => {
+    setEditingGasto(gasto);
+    setFormData({
+      fecha: gasto.fecha || new Date().toISOString().split('T')[0],
+      proveedor: gasto.proveedor || '',
+      nombreGasto: gasto.nombreGasto || '',
+      numeroDocumento: gasto.numeroDocumento || '',
+      medioPago: gasto.medioPago || '',
+      montoNeto: gasto.montoNeto || '',
+      iva: gasto.iva || '',
+      total: gasto.total || '',
+      observaciones: gasto.observaciones || '',
+      centroCosto: gasto.centroCosto || ADMIN_CENTRO_COSTO,
+      tipoCosto: gasto.tipoCosto || '',
+      actividadUso: gasto.actividadUso || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    const payload = {
+      fecha: formData.fecha,
+      nombre_gasto: formData.nombreGasto,
+      proveedor: formData.proveedor,
+      numero_documento: formData.numeroDocumento,
+      medio_pago: formData.medioPago,
+      monto_neto: Number(formData.montoNeto) || 0,
+      iva: Number(formData.iva) || 0,
+      total: Number(formData.total) || 0,
+      observaciones: formData.observaciones,
+      centro_costo: ADMIN_CENTRO_COSTO,
+      tipo_costo: formData.tipoCosto,
+      actividad_uso: formData.actividadUso
+    };
+
+    try {
+      if (editingGasto) {
+        await updateGastoAdministracion(editingGasto.id, payload);
+      } else {
+        await createGastoAdministracion(payload);
+      }
+      await loadGastos();
+      setShowModal(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error guardando gasto administrativo:', error);
+      alert('Error al guardar el gasto');
+    }
+  };
+
+  const handleDelete = async (gastoId) => {
+    if (!window.confirm('¿Eliminar este gasto administrativo?')) return;
+    try {
+      await deleteGastoAdministracion(gastoId);
+      await loadGastos();
+    } catch (error) {
+      console.error('Error eliminando gasto administrativo:', error);
+      alert('Error al eliminar el gasto');
+    }
+  };
+
   return (
     <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Administración</h2>
-        <p className="text-gray-600">Configuración del sistema y usuarios</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">Administración</h2>
+          <p className="text-gray-600">Registro de gastos administrativos (fuera de proyectos)</p>
+        </div>
+        <button
+          onClick={openNew}
+          className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+        >
+          + Registrar gasto
+        </button>
       </div>
-      <div className="bg-white rounded-2xl p-8 shadow-lg">
-        <p className="text-gray-500 text-center">Módulo en desarrollo...</p>
+
+      <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Mes</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="all">Todos</option>
+              {months.map((mes) => (
+                <option key={mes.value} value={mes.value}>{mes.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Año</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            >
+              <option value="all">Todos</option>
+              {yearsDisponibles.map((year) => (
+                <option key={year} value={String(year)}>{year}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMonth('all');
+                setSelectedYear('all');
+              }}
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <p className="text-sm text-gray-500 mb-2">Total Neto</p>
+          <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalNeto)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <p className="text-sm text-gray-500 mb-2">IVA</p>
+          <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalIva)}</p>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-lg">
+          <p className="text-sm text-gray-500 mb-2">Total</p>
+          <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalFinal)}</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead style={{ backgroundColor: '#45ad98' }}>
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Gasto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Proveedor</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Documento</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Medio Pago</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo Costo</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Actividad</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">Cargando...</td>
+                </tr>
+              ) : gastosFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">Sin gastos registrados</td>
+                </tr>
+              ) : (
+                gastosFiltrados.map((gasto) => (
+                  <tr key={gasto.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-gray-600">{gasto.fecha}</td>
+                    <td className="px-6 py-4 text-gray-700">{gasto.nombreGasto}</td>
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-gray-800">{gasto.proveedor}</p>
+                      <p className="text-xs text-gray-500">{gasto.centroCosto}</p>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">{gasto.numeroDocumento}</td>
+                    <td className="px-6 py-4 text-gray-600">{gasto.medioPago}</td>
+                    <td className="px-6 py-4 text-gray-600">{gasto.tipoCosto}</td>
+                    <td className="px-6 py-4 text-gray-600">{gasto.actividadUso}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(gasto.montoNeto)}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(gasto.iva)}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(gasto.total)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => openEdit(gasto)}
+                          className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Settings className="w-4 h-4 text-orange-600" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(gasto.id)}
+                          className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <XCircle className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
+            <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    {editingGasto ? 'Editar Gasto' : 'Registrar Gasto'}
+                  </h3>
+                  <p className="text-white/80 text-sm mt-1">Centro de costos fijo: Administración General</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowModal(false);
+                    resetForm();
+                  }}
+                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSave} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.fecha}
+                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del Gasto *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.nombreGasto}
+                    onChange={(e) => setFormData({ ...formData, nombreGasto: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.proveedor}
+                    onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">N° Documento *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.numeroDocumento}
+                    onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    placeholder="Factura / Boleta / Contrato"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Medio de Pago *</label>
+                  <select
+                    required
+                    value={formData.medioPago}
+                    onChange={(e) => setFormData({ ...formData, medioPago: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  >
+                    <option value="">Seleccione...</option>
+                    {MEDIOS_PAGO.map((medio) => (
+                      <option key={medio} value={medio}>{medio}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Neto *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.montoNeto}
+                    onChange={(e) => setFormData({ ...formData, montoNeto: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">IVA</label>
+                  <input
+                    type="number"
+                    value={formData.iva}
+                    disabled
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Total</label>
+                  <input
+                    type="number"
+                    value={formData.total}
+                    disabled
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Centro de Costos</label>
+                  <input
+                    type="text"
+                    value={ADMIN_CENTRO_COSTO}
+                    disabled
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Costo *</label>
+                  <select
+                    required
+                    value={formData.tipoCosto}
+                    onChange={(e) => setFormData({ ...formData, tipoCosto: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  >
+                    <option value="">Seleccione tipo...</option>
+                    {ADMIN_TIPOS_COSTO.map((tipo) => (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Actividad / Uso *</label>
+                  <select
+                    required
+                    value={formData.actividadUso}
+                    onChange={(e) => setFormData({ ...formData, actividadUso: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  >
+                    <option value="">Seleccione actividad...</option>
+                    {ADMIN_ACTIVIDADES_USO.map((actividad) => (
+                      <option key={actividad} value={actividad}>{actividad}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones</label>
+                <textarea
+                  rows={3}
+                  value={formData.observaciones}
+                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+                >
+                  {editingGasto ? 'Guardar cambios' : 'Registrar gasto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -10450,7 +11002,7 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeModule === 'administracion' && user.role === 'admin' && (
-            <AdministracionModule />
+          <AdministracionModule activeModule={activeModule} />
           )}
 
           {/* Módulo de Inventario/Bodega */}
