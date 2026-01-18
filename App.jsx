@@ -43,6 +43,76 @@ const BUSINESS_UNITS = [
   'Financiamiento'
 ];
 
+const CENTROS_COSTO = [
+  {
+    label: 'Administración',
+    options: ['CC-ADM-01 | Administración General']
+  },
+  {
+    label: 'Operativos Transversales',
+    options: [
+      'CC-OP-01 | Taller de Fabricación',
+      'CC-OP-02 | Imprenta Offset',
+      'CC-OP-03 | Imprenta PVC / Telas',
+      'CC-OP-04 | Instalación / Montaje',
+      'CC-OP-05 | Transporte & Logística',
+      'CC-OP-06 | Audiovisual / Drone',
+      'CC-OP-07 | Servicios Profesionales'
+    ]
+  },
+  {
+    label: 'Unidades de Negocio (costos propios)',
+    options: [
+      'CC-VP-01 | Vía Pública',
+      'CC-ST-01 | Stands',
+      'CC-INM-01 | Inmobiliarias',
+      'CC-TM-01 | Trade Marketing',
+      'CC-VAR-01 | Varios',
+      'CC-PAP-01 | Papelería'
+    ]
+  },
+  {
+    label: 'Especial',
+    options: ['CC-FIN-01 | Financiamiento / Comisión']
+  }
+];
+
+const TIPOS_COSTO = [
+  'Materiales',
+  'Producción Externa',
+  'Mano de Obra',
+  'Transporte',
+  'Arriendo',
+  'Servicios Profesionales',
+  'Imprenta / Impresión',
+  'Mobiliario',
+  'Equipamiento',
+  'Materiales POP',
+  'Terminaciones',
+  'RRHH / Promotoras',
+  'Software / Licencias',
+  'Administración',
+  'Costos Financieros',
+  'Varios'
+];
+
+const ACTIVIDADES_USO = [
+  'Fabricación',
+  'Producción',
+  'Montaje',
+  'Desmontaje',
+  'Despacho',
+  'Distribución',
+  'Visto Bueno / Aprobación',
+  'Verificación',
+  'Registro Audiovisual',
+  'Instalación',
+  'Mantención',
+  'Compra Proyecto',
+  'Compra Cliente',
+  'Financiamiento Cliente'
+];
+
 // Componente de Login
 const LoginPage = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -1987,6 +2057,8 @@ const OrdenesCompraModule = ({
           proveedoresById.get(String(o.proveedor_id))?.contacto ||
           '',
         tipoCosto: o.tipo_costo,
+        centroCosto: o.centro_costo || '',
+        actividadUso: o.actividad_uso || '',
         formaPago: o.forma_pago,
         subtotal: parseFloat(o.subtotal) || 0,
         iva: parseFloat(o.iva) || 0,
@@ -2382,6 +2454,8 @@ const OrdenesCompraModule = ({
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
+                centro_costo: nuevaOC.centroCosto || '',
+                actividad_uso: nuevaOC.actividadUso || '',
                 forma_pago: nuevaOC.formaPago,
                 responsable_compra: nuevaOC.responsableCompra || '',
                 subtotal: parseFloat(nuevaOC.subtotal) || 0,
@@ -2463,6 +2537,8 @@ const OrdenesCompraModule = ({
                 proveedor_id: ordenActualizada.proveedorId || null,
                 codigo_protocolo: ordenActualizada.codigoProtocolo || '',
                 tipo_costo: ordenActualizada.tipoCosto || '',
+                centro_costo: ordenActualizada.centroCosto || '',
+                actividad_uso: ordenActualizada.actividadUso || '',
                 forma_pago: ordenActualizada.formaPago || '',
                 responsable_compra: ordenActualizada.responsableCompra || '',
                 subtotal,
@@ -2532,6 +2608,8 @@ const OrdenesCompraModule = ({
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
+                centro_costo: nuevaOC.centroCosto || '',
+                actividad_uso: nuevaOC.actividadUso || '',
                 forma_pago: nuevaOC.formaPago,
                 responsable_compra: nuevaOC.responsableCompra || '',
                 total: parseFloat(nuevaOC.total),
@@ -2562,35 +2640,6 @@ const OrdenesCompraModule = ({
 
 // Modal Nueva OC Manual
 const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
-  // Tipos de Costo - Lista completa Building Me
-  const TIPOS_COSTO = [
-    // Comunes (todas las UN)
-    '🚚 Transporte',
-    '🚁 Drone',
-    '💰 Rendiciones',
-    '💳 Financiamiento',
-    '📦 Varios',
-    '---', // Separador visual
-    // Específicos por UN
-    'Taller/Fabricación',
-    'Imprenta/Impresión',
-    'Instalación',
-    'Desmontaje',
-    'Arriendo Soporte',
-    'Mobiliario (sillas, mesas)',
-    'Equipamiento (pantallas, TV)',
-    'Materiales',
-    'Grabación Drone',
-    'Transporte Visto Bueno',
-    'Producción Externa',
-    'Terminaciones',
-    'Materiales POP',
-    'Distribución/Logística',
-    'Promotoras/RRHH',
-    'Despacho',
-    'Financiamiento'
-  ];
-
   const [formData, setFormData] = useState({
     codigoProtocolo: '',
     fechaProtocolo: '',
@@ -2605,6 +2654,8 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
     formaPago: '',
     responsableCompra: currentUserName || '',
     tipoCosto: '',
+    centroCosto: '',
+    actividadUso: '',
     items: [
       { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
     ],
@@ -2915,6 +2966,27 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Centro de Costos * 
+                  <span className="text-xs text-gray-500 ml-2">📌 Obligatorio</span>
+                </label>
+                <select
+                  required
+                  value={formData.centroCosto}
+                  onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                >
+                  <option value="">Seleccione centro...</option>
+                  {CENTROS_COSTO.map((grupo) => (
+                    <optgroup key={grupo.label} label={grupo.label}>
+                      {grupo.options.map((opcion) => (
+                        <option key={opcion} value={opcion}>{opcion}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Tipo de Costo * 
                   <span className="text-xs text-gray-500 ml-2">📊 Para análisis de costos</span>
                 </label>
@@ -2925,13 +2997,25 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
-                  {TIPOS_COSTO.map((tipo, index) => 
-                    tipo === '---' ? (
-                      <option key={index} disabled>──────────────</option>
-                    ) : (
-                      <option key={tipo} value={tipo}>{tipo}</option>
-                    )
-                  )}
+                  {TIPOS_COSTO.map((tipo) => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Actividad / Uso 
+                  <span className="text-xs text-gray-500 ml-2">Opcional</span>
+                </label>
+                <select
+                  value={formData.actividadUso}
+                  onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="">Seleccione actividad...</option>
+                  {ACTIVIDADES_USO.map((actividad) => (
+                    <option key={actividad} value={actividad}>{actividad}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -3130,31 +3214,6 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
 
 // Modal Detalle OC
 const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSaveFactura, onSavePago, startInEdit = false }) => {
-  const TIPOS_COSTO = [
-    '🚚 Transporte',
-    '🚁 Drone',
-    '💰 Rendiciones',
-    '💳 Financiamiento',
-    '📦 Varios',
-    '---',
-    'Taller/Fabricación',
-    'Imprenta/Impresión',
-    'Instalación',
-    'Desmontaje',
-    'Arriendo Soporte',
-    'Mobiliario (sillas, mesas)',
-    'Equipamiento (pantallas, TV)',
-    'Materiales',
-    'Grabación Drone',
-    'Transporte Visto Bueno',
-    'Producción Externa',
-    'Terminaciones',
-    'Materiales POP',
-    'Distribución/Logística',
-    'Promotoras/RRHH',
-    'Despacho',
-    'Financiamiento'
-  ];
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
@@ -3279,7 +3338,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">Orden de Compra {orden.numero}</h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-white text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-4 text-white text-sm">
                 <div>
                   <p className="text-white/70">Proveedor:</p>
                   {isEditing ? (
@@ -3347,6 +3406,52 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                     </select>
                   ) : (
                     <p className="font-semibold">{orden.tipoCosto || 'Sin asignar'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-white/70">Centro de Costos:</p>
+                  {isEditing ? (
+                    <select
+                      value={orden.centroCosto || ''}
+                      onChange={(e) => {
+                        const actualizada = { ...orden, centroCosto: e.target.value };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    >
+                      <option value="">Seleccione...</option>
+                      {CENTROS_COSTO.map((grupo) => (
+                        <optgroup key={grupo.label} label={grupo.label}>
+                          {grupo.options.map((opcion) => (
+                            <option key={opcion} value={opcion}>{opcion}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="font-semibold">{orden.centroCosto || 'Sin asignar'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-white/70">Actividad / Uso:</p>
+                  {isEditing ? (
+                    <select
+                      value={orden.actividadUso || ''}
+                      onChange={(e) => {
+                        const actualizada = { ...orden, actividadUso: e.target.value };
+                        setOrden(actualizada);
+                        onUpdate(actualizada);
+                      }}
+                      className="w-full px-2 py-1 rounded bg-white text-gray-800"
+                    >
+                      <option value="">Seleccione...</option>
+                      {ACTIVIDADES_USO.map((actividad) => (
+                        <option key={actividad} value={actividad}>{actividad}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="font-semibold">{orden.actividadUso || 'Sin asignar'}</p>
                   )}
                 </div>
                 <div>
@@ -4859,6 +4964,8 @@ const ProtocolosModule = ({
       proveedoresById.get(String(o.proveedor_id))?.contacto ||
       '',
     tipoCosto: o.tipo_costo,
+    centroCosto: o.centro_costo || '',
+    actividadUso: o.actividad_uso || '',
     formaPago: o.forma_pago,
     subtotal: parseFloat(o.subtotal) || 0,
     iva: parseFloat(o.iva) || 0,
@@ -6341,32 +6448,6 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
 // FORMULARIO OC DESDE PROTOCOLO
 // ========================================
 const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, currentUserName }) => {
-  const TIPOS_COSTO = [
-    '🚚 Transporte',
-    '🚁 Drone',
-    '💰 Rendiciones',
-    '💳 Financiamiento',
-    '📦 Varios',
-    '---',
-    'Taller/Fabricación',
-    'Imprenta/Impresión',
-    'Instalación',
-    'Desmontaje',
-    'Arriendo Soporte',
-    'Mobiliario (sillas, mesas)',
-    'Equipamiento (pantallas, TV)',
-    'Materiales',
-    'Grabación Drone',
-    'Transporte Visto Bueno',
-    'Producción Externa',
-    'Terminaciones',
-    'Materiales POP',
-    'Distribución/Logística',
-    'Promotoras/RRHH',
-    'Despacho',
-    'Financiamiento'
-  ];
-
   const [formData, setFormData] = useState({
     codigoProtocolo: datosProtocolo.codigoProtocolo,
     fechaProtocolo: datosProtocolo.fechaProtocolo,
@@ -6381,6 +6462,8 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
     formaPago: '',
     responsableCompra: currentUserName || '',
     tipoCosto: '',
+    centroCosto: '',
+    actividadUso: '',
     items: datosProtocolo.items.map(item => ({
       id: item.id,
       item: item.descripcion.substring(0, 20),
@@ -6688,6 +6771,27 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Centro de Costos * 
+                  <span className="text-xs text-gray-500 ml-2">📌 Obligatorio</span>
+                </label>
+                <select
+                  required
+                  value={formData.centroCosto}
+                  onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                >
+                  <option value="">Seleccione centro...</option>
+                  {CENTROS_COSTO.map((grupo) => (
+                    <optgroup key={grupo.label} label={grupo.label}>
+                      {grupo.options.map((opcion) => (
+                        <option key={opcion} value={opcion}>{opcion}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Tipo de Costo * 
                   <span className="text-xs text-gray-500 ml-2">📊 Para análisis</span>
                 </label>
@@ -6698,13 +6802,25 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
-                  {TIPOS_COSTO.map((tipo, index) => 
-                    tipo === '---' ? (
-                      <option key={index} disabled>──────────────</option>
-                    ) : (
-                      <option key={tipo} value={tipo}>{tipo}</option>
-                    )
-                  )}
+                  {TIPOS_COSTO.map((tipo) => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Actividad / Uso 
+                  <span className="text-xs text-gray-500 ml-2">Opcional</span>
+                </label>
+                <select
+                  value={formData.actividadUso}
+                  onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="">Seleccione actividad...</option>
+                  {ACTIVIDADES_USO.map((actividad) => (
+                    <option key={actividad} value={actividad}>{actividad}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -9783,6 +9899,8 @@ const Dashboard = ({ user, onLogout }) => {
         proveedoresById.get(String(o.proveedor_id))?.contacto ||
         '',
       tipoCosto: o.tipo_costo,
+      centroCosto: o.centro_costo || '',
+      actividadUso: o.actividad_uso || '',
       formaPago: o.forma_pago,
       subtotal: parseFloat(o.subtotal) || 0,
       iva: parseFloat(o.iva) || 0,
