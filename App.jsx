@@ -190,12 +190,19 @@ const ToastContainer = () => {
 
   return (
     <div className="fixed top-4 left-4 z-[9999] space-y-2">
+      <style>{`
+        @keyframes toast-in-left {
+          from { opacity: 0; transform: translateX(-16px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`min-w-[260px] max-w-sm rounded-xl border px-4 py-3 shadow-lg ${colorMap[toast.type] || colorMap.info}`}
+          className={`min-w-[320px] max-w-md rounded-2xl border px-5 py-4 shadow-lg ${colorMap[toast.type] || colorMap.info}`}
+          style={{ animation: 'toast-in-left 0.25s ease-out' }}
         >
-          <p className="text-sm font-semibold">{toast.message}</p>
+          <p className="text-base font-semibold">{toast.message}</p>
         </div>
       ))}
     </div>
@@ -1414,6 +1421,7 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
                             min="0"
                             value={seleccionado.valorUnitario}
                             onChange={(e) => actualizarSeleccion(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                            onFocus={(e) => e.target.select()}
                             className="w-full px-3 py-2 border rounded-lg"
                           />
                         </div>
@@ -3717,6 +3725,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -4200,6 +4209,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
                         disabled={!isEditing}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
@@ -7535,6 +7545,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -9826,6 +9837,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
@@ -10353,6 +10365,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         min="0"
                         value={item.valorUnitario}
                         onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
+                        onFocus={(e) => e.target.select()}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
