@@ -2770,7 +2770,7 @@ const OrdenesCompraModule = ({
           <p className="text-gray-600">Gestión de órdenes de compra a proveedores</p>
         </div>
         <div className="flex space-x-3">
-          {user.role === 'admin' && (
+          {['admin', 'comercial'].includes(user.role) && (
             <button
               onClick={() => setShowNewModal(true)}
               className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
@@ -10806,24 +10806,26 @@ const Dashboard = ({ user, onLogout }) => {
     calcularStats();
   }, [sharedCotizaciones, sharedProtocolos, sharedOrdenesCompra, selectedUnit]);
 
+  const isAdminLike = ['admin', 'comercial'].includes(user.role);
+
   // Permisos por rol
   const hasAccess = (module) => {
-    if (user.role === 'admin') return true;
+    if (isAdminLike) return true;
     if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
     if (user.role === 'finanzas' && ['cotizaciones', 'clientes', 'facturacion'].includes(module)) return true;
     return false;
   };
 
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'finanzas'] },
-    { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'finanzas'] },
-    { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'compras'] },
-    { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'compras'] },
-    { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'compras'] },
-    { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'compras'] },
-    { id: 'clientes', name: 'Clientes', icon: Users, roles: ['admin', 'finanzas'] },
-    { id: 'informes', name: 'Informes', icon: TrendingUp, roles: ['admin', 'finanzas'] },
-    { id: 'administracion', name: 'Administración', icon: Settings, roles: ['admin'] }
+    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'clientes', name: 'Clientes', icon: Users, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'informes', name: 'Informes', icon: TrendingUp, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'administracion', name: 'Administración', icon: Settings, roles: ['admin', 'comercial'] }
   ];
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
@@ -11105,8 +11107,8 @@ const Dashboard = ({ user, onLogout }) => {
             <ClientesModule />
           )}
 
-          {activeModule === 'administracion' && user.role === 'admin' && (
-          <AdministracionModule activeModule={activeModule} />
+          {activeModule === 'administracion' && isAdminLike && (
+            <AdministracionModule activeModule={activeModule} />
           )}
 
           {/* Módulo de Inventario/Bodega */}
