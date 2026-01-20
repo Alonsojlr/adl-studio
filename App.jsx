@@ -7704,6 +7704,8 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
           clienteId: cot.cliente_id || null,
           items: cot.items || [],
           cliente: cot.clientes?.razon_social || cot.razon_social || 'Sin cliente',
+          nombreProyecto: cot.nombre_proyecto || '',
+          unidadNegocio: cot.unidad_negocio || '',
           monto: parseFloat(cot.monto),
           estado: cot.estado,
           adjudicada_a_protocolo: cot.adjudicada_a_protocolo
@@ -7736,8 +7738,14 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
       return;
     }
     
-    // Llamar a onSave que ya está conectado a Supabase
-    onSave(cotizacion);
+    onSave({
+      numeroCotizacion: cotizacion.numero,
+      clienteId: cotizacion.clienteId,
+      nombreProyecto: cotizacion.nombreProyecto,
+      unidadNegocio: cotizacion.unidadNegocio,
+      montoTotal: cotizacion.monto,
+      tipo: 'Venta'
+    });
   };
 
   return (
@@ -7766,7 +7774,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
               <option value="">Seleccione una cotización...</option>
               {cotizacionesGanadas.map((cot) => (
                 <option key={cot.numero} value={cot.numero}>
-                  #{cot.numero} - {cot.cliente} - {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(cot.monto)}
+                  #{cot.numero} - {cot.nombreProyecto || cot.cliente} - {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(cot.monto)}
                 </option>
               ))}
             </select>
@@ -10660,6 +10668,14 @@ const Dashboard = ({ user, onLogout }) => {
  // Handlers para comunicación entre módulos
   const handleAdjudicarVentaDesdeCotizacion = async (cotizacion) => {
     try {
+      const nombreProyecto = String(
+        cotizacion.nombreProyecto || cotizacion.nombre_proyecto || ''
+      ).trim();
+      if (!nombreProyecto) {
+        alert('Agrega un Nombre del Proyecto en la cotización antes de adjudicar.');
+        return;
+      }
+
       // Verificar si la cotización ya tiene protocolo
       if (cotizacion.adjudicada_a_protocolo) {
         alert(`Esta cotización ya tiene un protocolo asignado: ${cotizacion.adjudicada_a_protocolo}`);
@@ -10679,7 +10695,7 @@ const Dashboard = ({ user, onLogout }) => {
         folio: `${ultimoFolio + 1}`,
         numero_cotizacion: cotizacion.numero,
         cliente_id: cotizacion.clienteId || null,
-        nombre_proyecto: cotizacion.nombreProyecto,
+        nombre_proyecto: nombreProyecto,
         tipo: 'Venta',
         oc_cliente: '',
         estado: 'Abierto',
