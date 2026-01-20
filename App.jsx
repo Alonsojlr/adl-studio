@@ -5165,12 +5165,15 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
         const filtradas = data
           .filter(oc => String(oc.proveedor_id) === String(proveedor.id))
           .map(oc => ({
+            id: oc.id,
             numero: oc.numero,
             protocolo: oc.codigo_protocolo || '',
             fecha: oc.fecha,
             monto: parseFloat(oc.total) || 0,
             factura: oc.numero_factura || '',
-            estado: oc.estado || 'Pendiente'
+            estado: oc.estado || 'Pendiente',
+            estadoPago: oc.estado_pago || 'Pendiente',
+            fechaPago: oc.fecha_pago || ''
           }));
         setOrdenesCompra(filtradas);
       } catch (error) {
@@ -5229,14 +5232,49 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
                           Factura: {oc.factura}
                         </p>
                       )}
+                      {oc.fechaPago && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Pagada: {oc.fechaPago}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-xl text-gray-800">{formatCurrency(oc.monto)}</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mt-1 ${
-                        oc.estado === 'Pagada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        oc.estadoPago === 'Pagada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {oc.estado}
+                        {oc.estadoPago}
                       </span>
+                      {oc.estadoPago !== 'Pagada' && oc.estado !== 'Anulada' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const fechaPago = new Date().toISOString().split('T')[0];
+                              await updateOrdenCompra(oc.id, {
+                                estado: 'Pagada',
+                                estado_pago: 'Pagada',
+                                fecha_pago: fechaPago
+                              });
+                              setOrdenesCompra(prev =>
+                                prev.map(item =>
+                                  item.id === oc.id
+                                    ? { ...item, estado: 'Pagada', estadoPago: 'Pagada', fechaPago }
+                                    : item
+                                )
+                              );
+                              alert('OC marcada como pagada.');
+                            } catch (error) {
+                              console.error('Error marcando OC como pagada:', error);
+                              alert('No se pudo marcar la OC como pagada.');
+                            }
+                          }}
+                          className="mt-3 px-3 py-1 rounded-lg text-xs font-semibold text-white"
+                          style={{ background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)' }}
+                        >
+                          Marcar como Pagada
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
