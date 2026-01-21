@@ -2761,6 +2761,29 @@ const OrdenesCompraModule = ({
     return matchSearch && matchEstado;
   });
 
+  const calcularSubtotalDesdeItems = (items = []) => {
+    return (items || []).reduce((sum, item) => {
+      const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+      const cantidad = item.cantidad || 0;
+      const descuento = item.descuento || 0;
+      const subtotal = cantidad * valorUnitario;
+      return sum + (subtotal - subtotal * (descuento / 100));
+    }, 0);
+  };
+
+  const obtenerTipoDocumentoOC = (orden) => {
+    if (orden.tipoDocumento) return orden.tipoDocumento;
+    const raw = String(orden.numeroFactura || '').toLowerCase();
+    if (!raw) return 'Factura';
+    if (raw.includes('factura internacional')) return 'Factura Internacional';
+    if (raw.includes('factura exenta')) return 'Factura Exenta';
+    if (raw.includes('boleta honorarios')) return 'Boleta Honorarios';
+    if (raw.includes('boleta comercio')) return 'Boleta Comercio';
+    if (raw.includes('factura')) return 'Factura';
+    if (raw.includes('boleta')) return 'Boleta Comercio';
+    return 'Factura';
+  };
+
   const getEstadoColor = (estado) => {
     switch(estado) {
       case 'Emitida': return 'bg-yellow-100 text-yellow-800';
@@ -2957,7 +2980,15 @@ const OrdenesCompraModule = ({
                   </td>
                 </tr>
               ) : ordenesFiltradas.map((orden) => {
-                const neto = orden.subtotal || (orden.total ? orden.total / 1.19 : 0);
+                const tipoDoc = obtenerTipoDocumentoOC(orden);
+                const subtotalItems = calcularSubtotalDesdeItems(orden.items || []);
+                const neto = orden.subtotal || subtotalItems || (() => {
+                  if (!orden.total) return 0;
+                  if (tipoDoc === 'Boleta Comercio') return orden.total / 1.19;
+                  if (tipoDoc === 'Boleta Honorarios') return orden.total / 1.1525;
+                  if (tipoDoc === 'Factura Exenta' || tipoDoc === 'Factura Internacional') return orden.total;
+                  return orden.total / 1.19;
+                })();
                 const iva = orden.iva || (orden.total ? orden.total - neto : neto * 0.19);
                 const total = orden.total || neto + iva;
 
@@ -3195,24 +3226,20 @@ const OrdenesCompraModule = ({
           onSave={async (ordenActualizada) => {
             try {
               const itemsLimpios = (() => {
-                const vistos = new Set();
-                return (ordenActualizada.items || []).filter((item) => {
+                const mapa = new Map();
+                (ordenActualizada.items || []).forEach((item) => {
                   const hasNombre = String(item.item || '').trim().length > 0;
                   const hasDescripcion = String(item.descripcion || '').trim().length > 0;
                   const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
                   const hasValor = valorUnitario > 0;
-                  if (!hasNombre && !hasDescripcion && !hasValor) return false;
+                  if (!hasNombre && !hasDescripcion && !hasValor) return;
                   const key = [
                     String(item.item || '').trim().toLowerCase(),
-                    String(item.descripcion || '').trim().toLowerCase(),
-                    valorUnitario,
-                    Number(item.cantidad || 0),
-                    Number(item.descuento || 0)
+                    String(item.descripcion || '').trim().toLowerCase()
                   ].join('|');
-                  if (vistos.has(key)) return false;
-                  vistos.add(key);
-                  return true;
+                  mapa.set(key, item);
                 });
+                return Array.from(mapa.values());
               })();
 
               const subtotal = itemsLimpios.reduce((sum, item) => {
@@ -3946,24 +3973,20 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   const prevOrdenIdRef = useRef(ordenInicial?.id);
 
   const limpiarItems = (items = []) => {
-    const vistos = new Set();
-    return (items || []).filter((item) => {
+    const mapa = new Map();
+    (items || []).forEach((item) => {
       const hasNombre = String(item.item || '').trim().length > 0;
       const hasDescripcion = String(item.descripcion || '').trim().length > 0;
       const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
       const hasValor = valorUnitario > 0;
-      if (!hasNombre && !hasDescripcion && !hasValor) return false;
+      if (!hasNombre && !hasDescripcion && !hasValor) return;
       const key = [
         String(item.item || '').trim().toLowerCase(),
-        String(item.descripcion || '').trim().toLowerCase(),
-        valorUnitario,
-        Number(item.cantidad || 0),
-        Number(item.descuento || 0)
+        String(item.descripcion || '').trim().toLowerCase()
       ].join('|');
-      if (vistos.has(key)) return false;
-      vistos.add(key);
-      return true;
+      mapa.set(key, item);
     });
+    return Array.from(mapa.values());
   };
 
   useEffect(() => {
@@ -4563,7 +4586,8 @@ const ProveedoresModule = () => {
         if (!proveedorId) return;
         const total = parseFloat(oc.total) || 0;
         const subtotal = parseFloat(oc.subtotal) || 0;
-        const monto = total || subtotal || 0;
+        const iva = parseFloat(oc.iva) || 0;
+        const monto = total || (subtotal + iva) || 0;
         const estado = oc.estado || '';
         const estadoPago = oc.estado_pago || oc.estadoPago || 'Pendiente';
         const pendiente = estado !== 'Anulada' && estadoPago !== 'Pagada';
