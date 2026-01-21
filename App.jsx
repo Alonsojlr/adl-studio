@@ -4383,7 +4383,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
         <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
           {isEditing && (
             <button
-              onClick={() => onSave && onSave({ ...orden, subtotal: totales.subtotal, iva: totales.iva, total })}
+              onClick={() => onSave && onSave({ ...orden, subtotal: totales.subtotal, iva: totales.iva, total: totales.total })}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
               style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
