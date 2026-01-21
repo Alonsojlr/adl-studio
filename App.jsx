@@ -3123,6 +3123,9 @@ const OrdenesCompraModule = ({
               await updateOrdenCompra(ordenActualizada.id, {
                 numero_factura: ordenActualizada.numeroFactura || '',
                 fecha_factura: ordenActualizada.fechaFactura || null,
+                subtotal: ordenActualizada.subtotal || 0,
+                iva: ordenActualizada.iva || 0,
+                total: ordenActualizada.total || 0,
                 estado: ordenActualizada.estado || 'Facturada',
                 estado_pago: ordenActualizada.estadoPago || 'Pendiente',
                 fecha_pago: ordenActualizada.fechaPago || null
@@ -3875,11 +3878,14 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     onUpdate(actualizada);
   };
 
-  const agregarFactura = (numeroFactura, fechaFactura) => {
+  const agregarFactura = ({ numeroFactura, fechaFactura, subtotal, iva, total }) => {
     const actualizada = {
       ...orden,
       numeroFactura,
       fechaFactura,
+      subtotal: subtotal ?? orden.subtotal,
+      iva: iva ?? orden.iva,
+      total: total ?? orden.total,
       estado: 'Facturada'
     };
     setOrden(actualizada);
@@ -3917,14 +3923,21 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     return subtotal - descuento;
   };
 
-  const totales = orden.items.reduce((acc, item) => {
+  const totalesItems = orden.items.reduce((acc, item) => {
     const subtotalItem = calcularSubtotalItem(item);
     return {
       subtotal: acc.subtotal + subtotalItem,
       iva: acc.iva + subtotalItem * 0.19
     };
   }, { subtotal: 0, iva: 0 });
-  const total = totales.subtotal + totales.iva;
+  const totalItems = totalesItems.subtotal + totalesItems.iva;
+  const totales = isEditing
+    ? { subtotal: totalesItems.subtotal, iva: totalesItems.iva, total: totalItems }
+    : {
+        subtotal: orden.subtotal ?? totalesItems.subtotal,
+        iva: orden.iva ?? totalesItems.iva,
+        total: orden.total ?? totalItems
+      };
 
   const agregarItem = () => {
     const nuevo = {
@@ -4274,12 +4287,12 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                   <span className="font-bold">{formatCurrency(totales.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>IVA 19%:</span>
+                  <span>IVA:</span>
                   <span className="font-bold">{formatCurrency(totales.iva)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold">TOTAL:</span>
-                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(total)}</span>
+                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(totales.total)}</span>
                 </div>
               </div>
             </div>
@@ -4316,8 +4329,8 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
         {showFacturaModal && (
           <FacturaModal
             onClose={() => setShowFacturaModal(false)}
-            onSave={(numeroFactura, fechaFactura) => {
-              agregarFactura(numeroFactura, fechaFactura);
+            onSave={(payload) => {
+              agregarFactura(payload);
               setShowFacturaModal(false);
             }}
           />
@@ -4332,6 +4345,29 @@ const FacturaModal = ({ onClose, onSave }) => {
   const [tipoDocumento, setTipoDocumento] = useState('Factura');
   const [numeroFactura, setNumeroFactura] = useState('');
   const [fechaFactura, setFechaFactura] = useState('');
+  const [montoBase, setMontoBase] = useState('');
+
+  const calcularTotalesDocumento = (tipo, monto) => {
+    const base = Number(monto) || 0;
+    if (!base) return { subtotal: 0, iva: 0, total: 0 };
+    if (tipo === 'Boleta Comercio') {
+      const subtotal = base / 1.19;
+      const iva = base - subtotal;
+      return { subtotal, iva, total: base };
+    }
+    if (tipo === 'Boleta Honorarios') {
+      const iva = base * 0.1525;
+      return { subtotal: base, iva, total: base + iva };
+    }
+    if (tipo === 'Factura Exenta' || tipo === 'Factura Internacional') {
+      return { subtotal: base, iva: 0, total: base };
+    }
+    const iva = base * 0.19;
+    return { subtotal: base, iva, total: base + iva };
+  };
+
+  const totalesDocumento = calcularTotalesDocumento(tipoDocumento, montoBase);
+  const labelMonto = tipoDocumento === 'Boleta Comercio' ? 'Monto Total' : 'Monto Neto';
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
@@ -4348,7 +4384,9 @@ const FacturaModal = ({ onClose, onSave }) => {
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="Factura">Factura</option>
-              <option value="Boleta">Boleta</option>
+              <option value="Factura Exenta">Factura Exenta</option>
+              <option value="Factura Internacional">Factura Internacional</option>
+              <option value="Boleta Comercio">Boleta Comercio</option>
               <option value="Boleta Honorarios">Boleta Honorarios</option>
             </select>
           </div>
@@ -4371,6 +4409,23 @@ const FacturaModal = ({ onClose, onSave }) => {
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{labelMonto} *</label>
+            <input
+              type="number"
+              min="0"
+              value={montoBase}
+              onChange={(e) => setMontoBase(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              placeholder="Ej: 150000"
+            />
+            <div className="mt-2 text-xs text-gray-500">
+              Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.subtotal)} ·
+              IVA: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.iva)} ·
+              Total: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.total)}
+            </div>
+          </div>
         </div>
         <div className="p-6 border-t flex justify-end space-x-3">
           <button
@@ -4380,9 +4435,15 @@ const FacturaModal = ({ onClose, onSave }) => {
             Cancelar
           </button>
           <button
-            onClick={() => onSave(`${tipoDocumento} ${numeroFactura}`.trim(), fechaFactura)}
+            onClick={() => onSave({
+              numeroFactura: `${tipoDocumento} ${numeroFactura}`.trim(),
+              fechaFactura,
+              subtotal: totalesDocumento.subtotal,
+              iva: totalesDocumento.iva,
+              total: totalesDocumento.total
+            })}
             className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
-            disabled={!numeroFactura || !fechaFactura}
+            disabled={!numeroFactura || !fechaFactura || !montoBase}
           >
             Guardar
           </button>
