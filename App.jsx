@@ -3194,8 +3194,30 @@ const OrdenesCompraModule = ({
           }}
           onSave={async (ordenActualizada) => {
             try {
-              const subtotal = ordenActualizada.items.reduce((sum, item) => {
-                const itemSubtotal = item.cantidad * item.valorUnitario;
+              const itemsLimpios = (() => {
+                const vistos = new Set();
+                return (ordenActualizada.items || []).filter((item) => {
+                  const hasNombre = String(item.item || '').trim().length > 0;
+                  const hasDescripcion = String(item.descripcion || '').trim().length > 0;
+                  const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+                  const hasValor = valorUnitario > 0;
+                  if (!hasNombre && !hasDescripcion && !hasValor) return false;
+                  const key = [
+                    String(item.item || '').trim().toLowerCase(),
+                    String(item.descripcion || '').trim().toLowerCase(),
+                    valorUnitario,
+                    Number(item.cantidad || 0),
+                    Number(item.descuento || 0)
+                  ].join('|');
+                  if (vistos.has(key)) return false;
+                  vistos.add(key);
+                  return true;
+                });
+              })();
+
+              const subtotal = itemsLimpios.reduce((sum, item) => {
+                const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+                const itemSubtotal = (item.cantidad || 0) * valorUnitario;
                 const itemDescuento = itemSubtotal * (item.descuento / 100);
                 return sum + (itemSubtotal - itemDescuento);
               }, 0);
@@ -3220,7 +3242,7 @@ const OrdenesCompraModule = ({
                 fecha_pago: ordenActualizada.fechaPago || null
               });
 
-              await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
+              await replaceOrdenCompraItems(ordenActualizada.id, itemsLimpios);
               await loadOrdenes();
 
               setShowDetalleModal(false);
@@ -3448,7 +3470,8 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   };
 
   const calcularSubtotalItem = (item) => {
-    const subtotal = item.cantidad * item.valorUnitario;
+    const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+    const subtotal = (item.cantidad || 0) * valorUnitario;
     const descuento = subtotal * (item.descuento / 100);
     return subtotal - descuento;
   };
@@ -3920,11 +3943,43 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
   const [proveedores, setProveedores] = useState([]);
+  const prevOrdenIdRef = useRef(ordenInicial?.id);
+
+  const limpiarItems = (items = []) => {
+    const vistos = new Set();
+    return (items || []).filter((item) => {
+      const hasNombre = String(item.item || '').trim().length > 0;
+      const hasDescripcion = String(item.descripcion || '').trim().length > 0;
+      const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+      const hasValor = valorUnitario > 0;
+      if (!hasNombre && !hasDescripcion && !hasValor) return false;
+      const key = [
+        String(item.item || '').trim().toLowerCase(),
+        String(item.descripcion || '').trim().toLowerCase(),
+        valorUnitario,
+        Number(item.cantidad || 0),
+        Number(item.descuento || 0)
+      ].join('|');
+      if (vistos.has(key)) return false;
+      vistos.add(key);
+      return true;
+    });
+  };
 
   useEffect(() => {
-    setOrden(ordenInicial);
-    setIsEditing(startInEdit);
-  }, [ordenInicial, startInEdit]);
+    setOrden({
+      ...ordenInicial,
+      items: limpiarItems(ordenInicial.items || [])
+    });
+    if (ordenInicial?.id !== prevOrdenIdRef.current) {
+      setIsEditing(startInEdit);
+      prevOrdenIdRef.current = ordenInicial?.id;
+    }
+  }, [ordenInicial]);
+
+  useEffect(() => {
+    if (startInEdit) setIsEditing(true);
+  }, [startInEdit]);
 
   useEffect(() => {
     const loadProveedores = async () => {
@@ -3993,7 +4048,9 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     return subtotal - descuento;
   };
 
-  const totalesItems = orden.items.reduce((acc, item) => {
+  const itemsFiltrados = limpiarItems(orden.items || []);
+
+  const totalesItems = itemsFiltrados.reduce((acc, item) => {
     const subtotalItem = calcularSubtotalItem(item);
     return {
       subtotal: acc.subtotal + subtotalItem,
@@ -4001,13 +4058,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     };
   }, { subtotal: 0, iva: 0 });
   const totalItems = totalesItems.subtotal + totalesItems.iva;
-  const totales = isEditing
-    ? { subtotal: totalesItems.subtotal, iva: totalesItems.iva, total: totalItems }
-    : {
-        subtotal: orden.subtotal ?? totalesItems.subtotal,
-        iva: orden.iva ?? totalesItems.iva,
-        total: orden.total ?? totalItems
-      };
+  const totales = { subtotal: totalesItems.subtotal, iva: totalesItems.iva, total: totalItems };
 
   const agregarItem = () => {
     const nuevo = {
@@ -4380,7 +4431,10 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
         <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
           {isEditing && (
             <button
-              onClick={() => onSave && onSave({ ...orden, subtotal: totales.subtotal, iva: totales.iva, total: totales.total })}
+              onClick={() => {
+                const itemsLimpios = limpiarItems(orden.items || []);
+                onSave && onSave({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
+              }}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
               style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
