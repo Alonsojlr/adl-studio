@@ -11193,25 +11193,57 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard
-                  title="Monto Total en Ventas"
-                  value={`$${(stats.montoVentas / 1000000).toFixed(1)}M`}
-                  icon={DollarSign}
-                  color="#235250"
-                  subtitle="CLP"
-                />
-                <StatCard
-                  title="Proyectos en Curso"
-                  value={stats.proyectosEnCurso}
-                  icon={Clock}
-                  color="#45ad98"
-                />
-                <StatCard
-                  title="Proyectos Terminados"
-                  value={stats.proyectosTerminados}
-                  icon={CheckCircle}
-                  color="#33b4e9"
-                />
+                {(() => {
+                  const normalizarUnidad = (unidadNegocio) => {
+                    const value = String(unidadNegocio || '').toLowerCase();
+                    if (value.includes('inmobiliaria')) return 'Inmobiliarias';
+                    if (value.includes('stand')) return 'Stand y Ferias';
+                    if (value.includes('trade')) return 'TradeMarketing';
+                    if (value.includes('imprenta')) return 'Imprenta';
+                    if (value.includes('vario')) return 'Varios';
+                    return unidadNegocio || 'Sin asignar';
+                  };
+
+                  const netoPorUnidad = sharedProtocolos.reduce((acc, protocolo) => {
+                    const unidad = normalizarUnidad(protocolo.unidadNegocio);
+                    acc[unidad] = (acc[unidad] || 0) + (protocolo.montoTotal || 0);
+                    return acc;
+                  }, {});
+
+                  const cotizacionesGanadas = sharedCotizaciones.filter(
+                    (c) => c.estado === 'ganada' && !c.adjudicada_a_protocolo
+                  );
+                  cotizacionesGanadas.forEach((cotizacion) => {
+                    const unidad = normalizarUnidad(cotizacion.unidadNegocio);
+                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + (cotizacion.monto || 0);
+                  });
+
+                  const resumen = [
+                    { label: 'Trade Marketing', key: 'TradeMarketing' },
+                    { label: 'Inmobiliaria', key: 'Inmobiliarias' },
+                    { label: 'Stand y Ferias', key: 'Stands' },
+                    { label: 'Imprenta', key: 'Imprenta' },
+                    { label: 'Varios', key: 'Varios' }
+                  ];
+
+                  const formatMonto = (monto) =>
+                    new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      minimumFractionDigits: 0
+                    }).format(monto || 0);
+
+                  return resumen.map((item, index) => (
+                    <StatCard
+                      key={item.key}
+                      title={`Monto Neto ${item.label}`}
+                      value={formatMonto(netoPorUnidad[item.key] || 0)}
+                      icon={DollarSign}
+                      color={index % 2 === 0 ? '#235250' : '#45ad98'}
+                      subtitle="CLP"
+                    />
+                  ));
+                })()}
               </div>
 
               {/* Sección de Protocolos */}
