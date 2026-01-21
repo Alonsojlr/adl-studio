@@ -3951,14 +3951,11 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     onUpdate(actualizada);
   };
 
-  const agregarFactura = ({ numeroFactura, fechaFactura, subtotal, iva, total }) => {
+  const agregarFactura = ({ numeroFactura, fechaFactura }) => {
     const actualizada = {
       ...orden,
       numeroFactura,
       fechaFactura,
-      subtotal: subtotal ?? orden.subtotal,
-      iva: iva ?? orden.iva,
-      total: total ?? orden.total,
       estado: 'Facturada'
     };
     setOrden(actualizada);
@@ -4418,29 +4415,6 @@ const FacturaModal = ({ onClose, onSave }) => {
   const [tipoDocumento, setTipoDocumento] = useState('Factura');
   const [numeroFactura, setNumeroFactura] = useState('');
   const [fechaFactura, setFechaFactura] = useState('');
-  const [montoBase, setMontoBase] = useState('');
-
-  const calcularTotalesDocumento = (tipo, monto) => {
-    const base = Number(monto) || 0;
-    if (!base) return { subtotal: 0, iva: 0, total: 0 };
-    if (tipo === 'Boleta Comercio') {
-      const subtotal = base / 1.19;
-      const iva = base - subtotal;
-      return { subtotal, iva, total: base };
-    }
-    if (tipo === 'Boleta Honorarios') {
-      const iva = base * 0.1525;
-      return { subtotal: base, iva, total: base + iva };
-    }
-    if (tipo === 'Factura Exenta' || tipo === 'Factura Internacional') {
-      return { subtotal: base, iva: 0, total: base };
-    }
-    const iva = base * 0.19;
-    return { subtotal: base, iva, total: base + iva };
-  };
-
-  const totalesDocumento = calcularTotalesDocumento(tipoDocumento, montoBase);
-  const labelMonto = tipoDocumento === 'Boleta Comercio' ? 'Monto Total' : 'Monto Neto';
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
@@ -4482,23 +4456,6 @@ const FacturaModal = ({ onClose, onSave }) => {
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">{labelMonto} *</label>
-            <input
-              type="number"
-              min="0"
-              value={montoBase}
-              onChange={(e) => setMontoBase(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-              placeholder="Ej: 150000"
-            />
-            <div className="mt-2 text-xs text-gray-500">
-              Subtotal: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.subtotal)} ·
-              IVA: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.iva)} ·
-              Total: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(totalesDocumento.total)}
-            </div>
-          </div>
         </div>
         <div className="p-6 border-t flex justify-end space-x-3">
           <button
@@ -4510,13 +4467,10 @@ const FacturaModal = ({ onClose, onSave }) => {
           <button
             onClick={() => onSave({
               numeroFactura: `${tipoDocumento} ${numeroFactura}`.trim(),
-              fechaFactura,
-              subtotal: totalesDocumento.subtotal,
-              iva: totalesDocumento.iva,
-              total: totalesDocumento.total
+              fechaFactura
             })}
             className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
-            disabled={!numeroFactura || !fechaFactura || !montoBase}
+            disabled={!numeroFactura || !fechaFactura}
           >
             Guardar
           </button>
