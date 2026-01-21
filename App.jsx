@@ -2060,12 +2060,6 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
     { value: '12', label: 'Diciembre' }
   ];
 
-  const obtenerNetoOC = (oc) => {
-    if (oc.subtotal && oc.subtotal > 0) return oc.subtotal;
-    if (oc.total) return oc.total / 1.19;
-    return 0;
-  };
-
   const obtenerTipoDocumentoOC = (oc) => {
     if (oc.tipoDocumento) return oc.tipoDocumento;
     const raw = String(oc.numeroFactura || '').toLowerCase();
@@ -2079,6 +2073,16 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
     return '';
   };
 
+  const obtenerNetoOC = (oc) => {
+    if (oc.subtotal && oc.subtotal > 0) return oc.subtotal;
+    if (!oc.total) return 0;
+    const tipoDoc = obtenerTipoDocumentoOC(oc);
+    if (tipoDoc === 'Boleta Comercio') return oc.total / 1.19;
+    if (tipoDoc === 'Boleta Honorarios') return oc.total / 1.1525;
+    if (tipoDoc === 'Factura Exenta' || tipoDoc === 'Factura Internacional') return oc.total;
+    return oc.total / 1.19;
+  };
+
   const obtenerNetoProtocolo = (protocolo) => {
     const items = protocolo.items || [];
     if (items.length > 0) {
@@ -2090,7 +2094,8 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
         return sum + (subtotal - (subtotal * (descuento / 100)));
       }, 0);
     }
-    return protocolo.montoTotal || 0;
+    if (!protocolo.montoTotal) return 0;
+    return protocolo.montoTotal;
   };
 
   const yearsDisponibles = Array.from(
@@ -2395,10 +2400,10 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Protocolo</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Cliente</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Venta</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Costos</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Margen</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Nombre Proyecto</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Venta Neta</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Costos Netos</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Margen Neto</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">%</th>
                   </tr>
                 </thead>
@@ -2406,7 +2411,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                   {margenes.map(m => (
                     <tr key={m.folio} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono font-bold">{m.folio}</td>
-                      <td className="px-4 py-3">{m.cliente}</td>
+                      <td className="px-4 py-3">{m.nombreProyecto || 'Sin nombre'}</td>
                       <td className="px-4 py-3 font-semibold">{formatCurrency(m.montoVenta)}</td>
                       <td className="px-4 py-3 text-red-600">{formatCurrency(m.costos)}</td>
                       <td className="px-4 py-3 font-bold text-green-600">{formatCurrency(m.margen)}</td>
