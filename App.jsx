@@ -3136,17 +3136,7 @@ const OrdenesCompraModule = ({
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevaOC) => {
             try {
-              // Generar número de OC
-              const ordenesExistentes = await getOrdenesCompra();
-              const ultimoNumero = ordenesExistentes.length > 0
-                ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt(o.numero.replace('OC-', ''));
-                    return isNaN(num) ? 17403 : num;
-                  }))
-                : 17402;
-
               const ocData = {
-                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: nuevaOC.codigoProtocolo || '',
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
@@ -5976,16 +5966,7 @@ const ProtocolosModule = ({
             }}
             onGuardar={async (nuevaOC) => {
               try {
-                const ordenesExistentes = await getOrdenesCompra();
-                const ultimoNumero = ordenesExistentes.length > 0
-                  ? Math.max(...ordenesExistentes.map(o => {
-                      const num = parseInt(o.numero.replace('OC-', ''));
-                      return isNaN(num) ? 17403 : num;
-                    }))
-                  : 17402;
-
                 const ocData = {
-                  numero: `OC-${ultimoNumero + 1}`,
                   codigo_protocolo: datosPreOC.codigoProtocolo,
                   fecha: new Date().toISOString().split('T')[0],
                   proveedor_id: nuevaOC.proveedorId || null,
@@ -6042,17 +6023,7 @@ const ProtocolosModule = ({
           }}
           onGuardar={async (nuevaOC) => {
             try {
-              // Generar número de OC
-              const ordenesExistentes = await getOrdenesCompra();
-              const ultimoNumero = ordenesExistentes.length > 0
-                ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt(o.numero.replace('OC-', ''));
-                    return isNaN(num) ? 17403 : num;
-                  }))
-                : 17402;
-
               const ocData = {
-                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: datosPreOC.codigoProtocolo,
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
