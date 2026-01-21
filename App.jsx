@@ -2066,6 +2066,19 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
     return 0;
   };
 
+  const obtenerTipoDocumentoOC = (oc) => {
+    if (oc.tipoDocumento) return oc.tipoDocumento;
+    const raw = String(oc.numeroFactura || '').toLowerCase();
+    if (!raw) return '';
+    if (raw.includes('factura internacional')) return 'Factura Internacional';
+    if (raw.includes('factura exenta')) return 'Factura Exenta';
+    if (raw.includes('boleta honorarios')) return 'Boleta Honorarios';
+    if (raw.includes('boleta comercio')) return 'Boleta Comercio';
+    if (raw.includes('factura')) return 'Factura';
+    if (raw.includes('boleta')) return 'Boleta Comercio';
+    return '';
+  };
+
   const obtenerNetoProtocolo = (protocolo) => {
     const items = protocolo.items || [];
     if (items.length > 0) {
@@ -2186,6 +2199,15 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
   const unidadesNegocio = gastoPorUN();
   const margenes = margenPorProyecto();
   const totalGastos = ordenesCompra.reduce((sum, oc) => sum + (oc.neto || 0), 0);
+  const totalIVA = ordenesCompra
+    .filter(oc => obtenerTipoDocumentoOC(oc) === 'Factura')
+    .reduce((sum, oc) => sum + (oc.iva || 0), 0);
+  const totalRetencion = ordenesCompra
+    .filter(oc => obtenerTipoDocumentoOC(oc) === 'Boleta Honorarios')
+    .reduce((sum, oc) => sum + (oc.iva || 0), 0);
+  const totalExentoComercio = ordenesCompra
+    .filter(oc => ['Factura Exenta', 'Factura Internacional', 'Boleta Comercio'].includes(obtenerTipoDocumentoOC(oc)))
+    .reduce((sum, oc) => sum + (oc.total || oc.neto || 0), 0);
 
   return (
     <div>
@@ -2309,6 +2331,20 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                   ? Math.round(margenes.reduce((sum, m) => sum + m.porcentajeMargen, 0) / margenes.length) 
                   : 0}%
               </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <p className="text-sm text-gray-500 mb-2">Impuestos (IVA Facturas)</p>
+              <p className="text-3xl font-bold text-emerald-600">{formatCurrency(totalIVA)}</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <p className="text-sm text-gray-500 mb-2">Retención Boletas Honorarios</p>
+              <p className="text-3xl font-bold text-indigo-600">{formatCurrency(totalRetencion)}</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <p className="text-sm text-gray-500 mb-2">Exentas / Comercio / Internacional</p>
+              <p className="text-3xl font-bold text-slate-700">{formatCurrency(totalExentoComercio)}</p>
             </div>
           </div>
 
@@ -3280,6 +3316,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
     telefonoProveedor: '',
     cotizacionProveedor: '',
     formaPago: '',
+    tipoDocumento: 'Factura',
     responsableCompra: currentUserName || '',
     tipoCosto: '',
     centroCosto: '',
@@ -3411,11 +3448,27 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
     return subtotal - descuento;
   };
 
+  const calcularTotalesPorDocumento = (subtotalBase, tipoDocumento) => {
+    const base = Number(subtotalBase) || 0;
+    if (tipoDocumento === 'Boleta Comercio') {
+      const subtotal = base / 1.19;
+      const iva = base - subtotal;
+      return { subtotal, iva, total: base };
+    }
+    if (tipoDocumento === 'Boleta Honorarios') {
+      const iva = base * 0.1525;
+      return { subtotal: base, iva, total: base + iva };
+    }
+    if (tipoDocumento === 'Factura Exenta' || tipoDocumento === 'Factura Internacional') {
+      return { subtotal: base, iva: 0, total: base };
+    }
+    const iva = base * 0.19;
+    return { subtotal: base, iva, total: base + iva };
+  };
+
   const calcularTotales = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
-    const iva = subtotal * 0.19;
-    const total = subtotal + iva;
-    return { subtotal, iva, total };
+    const subtotalBase = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
+    return calcularTotalesPorDocumento(subtotalBase, formData.tipoDocumento);
   };
 
   const resolverProveedorId = () => {
@@ -3664,6 +3717,21 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Documento *</label>
+                <select
+                  required
+                  value={formData.tipoDocumento}
+                  onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="Factura">Factura</option>
+                  <option value="Factura Exenta">Factura Exenta</option>
+                  <option value="Factura Internacional">Factura Internacional</option>
+                  <option value="Boleta Comercio">Boleta Comercio</option>
+                  <option value="Boleta Honorarios">Boleta Honorarios</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Responsable Compra *</label>
                 <input
                   type="text"
@@ -3782,7 +3850,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
               </span>
             </div>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-semibold">IVA 19%:</span>
+              <span className="text-gray-700 font-semibold">IVA:</span>
               <span className="text-xl font-bold text-gray-800">
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.iva)}
               </span>
@@ -7200,6 +7268,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
     telefonoProveedor: '',
     cotizacionProveedor: '',
     formaPago: '',
+    tipoDocumento: 'Factura',
     responsableCompra: currentUserName || '',
     tipoCosto: '',
     centroCosto: '',
@@ -7336,11 +7405,27 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
     return subtotal - descuento;
   };
 
+  const calcularTotalesPorDocumento = (subtotalBase, tipoDocumento) => {
+    const base = Number(subtotalBase) || 0;
+    if (tipoDocumento === 'Boleta Comercio') {
+      const subtotal = base / 1.19;
+      const iva = base - subtotal;
+      return { subtotal, iva, total: base };
+    }
+    if (tipoDocumento === 'Boleta Honorarios') {
+      const iva = base * 0.1525;
+      return { subtotal: base, iva, total: base + iva };
+    }
+    if (tipoDocumento === 'Factura Exenta' || tipoDocumento === 'Factura Internacional') {
+      return { subtotal: base, iva: 0, total: base };
+    }
+    const iva = base * 0.19;
+    return { subtotal: base, iva, total: base + iva };
+  };
+
   const calcularTotales = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
-    const iva = subtotal * 0.19;
-    const total = subtotal + iva;
-    return { subtotal, iva, total };
+    const subtotalBase = formData.items.reduce((sum, item) => sum + calcularSubtotalItem(item), 0);
+    return calcularTotalesPorDocumento(subtotalBase, formData.tipoDocumento);
   };
 
   const resolverProveedorId = () => {
@@ -7581,6 +7666,21 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Documento *</label>
+                <select
+                  required
+                  value={formData.tipoDocumento}
+                  onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                >
+                  <option value="Factura">Factura</option>
+                  <option value="Factura Exenta">Factura Exenta</option>
+                  <option value="Factura Internacional">Factura Internacional</option>
+                  <option value="Boleta Comercio">Boleta Comercio</option>
+                  <option value="Boleta Honorarios">Boleta Honorarios</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Responsable Compra *</label>
                 <input
                   type="text"
@@ -7699,7 +7799,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
               </span>
             </div>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-semibold">IVA 19%:</span>
+              <span className="text-gray-700 font-semibold">IVA:</span>
               <span className="text-xl font-bold text-gray-800">
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.iva)}
               </span>
