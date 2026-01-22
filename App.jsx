@@ -1419,9 +1419,17 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
                           <input
                             type="number"
                             min="0"
-                            value={seleccionado.valorUnitario}
-                            onChange={(e) => actualizarSeleccion(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                            onFocus={(e) => e.target.select()}
+                            value={seleccionado.valorUnitario === 0 ? '' : seleccionado.valorUnitario}
+                            onChange={(e) =>
+                              actualizarSeleccion(
+                                item.id,
+                                'valorUnitario',
+                                e.target.value === '' ? '' : Number(e.target.value)
+                              )
+                            }
+                            onBlur={(e) => {
+                              if (e.target.value === '') actualizarSeleccion(item.id, 'valorUnitario', 0);
+                            }}
                             className="w-full px-3 py-2 border rounded-lg"
                           />
                         </div>
@@ -3487,9 +3495,10 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   };
 
   const calcularSubtotalItem = (item) => {
-    const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-    const subtotal = (item.cantidad || 0) * valorUnitario;
-    const descuento = subtotal * (item.descuento / 100);
+    const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0) || 0;
+    const cantidad = Number(item.cantidad || 0) || 0;
+    const subtotal = cantidad * valorUnitario;
+    const descuento = subtotal * ((Number(item.descuento) || 0) / 100);
     return subtotal - descuento;
   };
 
@@ -3839,9 +3848,17 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                       <input
                         type="number"
                         min="0"
-                        value={item.valorUnitario}
-                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
+                        value={item.valorUnitario === 0 ? '' : item.valorUnitario}
+                        onChange={(e) =>
+                          actualizarItem(
+                            item.id,
+                            'valorUnitario',
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
+                        }}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -4056,8 +4073,10 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   };
 
   const calcularSubtotalItem = (item) => {
-    const subtotal = item.cantidad * item.valorUnitario;
-    const descuento = subtotal * (item.descuento / 100);
+    const cantidad = Number(item.cantidad) || 0;
+    const valorUnitario = Number(item.valorUnitario) || 0;
+    const subtotal = cantidad * valorUnitario;
+    const descuento = subtotal * ((Number(item.descuento) || 0) / 100);
     return subtotal - descuento;
   };
 
@@ -4354,9 +4373,17 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                       <input
                         type="number"
                         min="0"
-                        value={item.valorUnitario}
-                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
+                        value={item.valorUnitario === 0 ? '' : item.valorUnitario}
+                        onChange={(e) =>
+                          actualizarItem(
+                            item.id,
+                            'valorUnitario',
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
+                        }}
                         disabled={!isEditing}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
@@ -5729,9 +5756,7 @@ const ProtocolosModule = ({
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total),
-        items: p.items && p.items.length
-          ? p.items
-          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numero_cotizacion))?.items || []),
+        items: Array.isArray(p.items) ? p.items : [],
         facturas: (() => {
           const facturas = facturasByProtocolo[p.id] || [];
           if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
@@ -5761,11 +5786,8 @@ const ProtocolosModule = ({
     }
   };
 
-  const obtenerItemsProtocolo = (protocolo) => {
-    if (protocolo.items && protocolo.items.length) return protocolo.items;
-    const cotizacion = sharedCotizaciones.find(c => String(c.numero) === String(protocolo.numeroCotizacion));
-    return cotizacion?.items || [];
-  };
+  const obtenerItemsProtocolo = (protocolo) =>
+    Array.isArray(protocolo.items) ? protocolo.items : [];
 
   const ordenesCompra = sharedOrdenesCompra;
   const mapOrdenCompra = (o, proveedoresById = new Map()) => ({
@@ -6077,7 +6099,8 @@ const ProtocolosModule = ({
                 estado: 'Abierto',
                 unidad_negocio: nuevoProtocolo.unidadNegocio,
                 fecha_creacion: new Date().toISOString().split('T')[0],
-                monto_total: nuevoProtocolo.montoTotal || 0
+                monto_total: nuevoProtocolo.montoTotal || 0,
+                items: []
               };
 
               await createProtocolo(protocoloData);
@@ -6388,13 +6411,19 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const calcularNetoProtocolo = () => {
     const items = protocolo.items || [];
     if (items.length > 0) {
-      return items.reduce((sum, item) => {
-        const cantidad = item.cantidad || 0;
+      const tieneValores = items.some(item => {
         const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-        const descuento = item.descuento || 0;
-        const subtotal = cantidad * valorUnitario;
-        return sum + (subtotal - (subtotal * (descuento / 100)));
-      }, 0);
+        return Number(valorUnitario) > 0;
+      });
+      if (tieneValores) {
+        return items.reduce((sum, item) => {
+          const cantidad = item.cantidad || 0;
+          const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+          const descuento = item.descuento || 0;
+          const subtotal = cantidad * valorUnitario;
+          return sum + (subtotal - (subtotal * (descuento / 100)));
+        }, 0);
+      }
     }
     return protocolo.montoTotal || 0;
   };
@@ -6409,6 +6438,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [facturaEnEdicion, setFacturaEnEdicion] = useState(null);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [itemsComprados, setItemsComprados] = useState({});
   const itemsCompradosKey = `protocolos.itemsComprados.${protocolo.id ?? protocolo.folio ?? 'default'}`;
   const itemsCompradosHydratingRef = useRef(true);
@@ -6549,6 +6580,67 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
     } catch (error) {
       console.error('Error eliminando factura del protocolo:', error);
       alert('Error al eliminar la factura');
+    }
+  };
+
+  const guardarItemProtocolo = async (item) => {
+    const baseItems = Array.isArray(protocolo.items) ? protocolo.items : [];
+    const nuevoItem = {
+      id: Date.now(),
+      item: item.item || '',
+      descripcion: item.descripcion || '',
+      cantidad: item.cantidad || 0,
+      valorUnitario: item.valorUnitario || 0
+    };
+    const itemsActualizados = [...baseItems, nuevoItem];
+    try {
+      await updateProtocolo(protocolo.id, { items: itemsActualizados });
+      onActualizar({ ...protocolo, items: itemsActualizados });
+      setShowAddItemModal(false);
+    } catch (error) {
+      console.error('Error guardando item del protocolo:', error);
+      alert('Error al guardar el item');
+    }
+  };
+
+  const editarItemProtocolo = async (itemActualizado, itemIndex) => {
+    const baseItems = Array.isArray(protocolo.items) ? protocolo.items : [];
+    const itemsActualizados = baseItems.map((item, index) => {
+      if (itemActualizado.id != null) {
+        return item.id === itemActualizado.id ? itemActualizado : item;
+      }
+      return index === itemIndex ? itemActualizado : item;
+    });
+    try {
+      await updateProtocolo(protocolo.id, { items: itemsActualizados });
+      onActualizar({ ...protocolo, items: itemsActualizados });
+      setItemEnEdicion(null);
+    } catch (error) {
+      console.error('Error actualizando item del protocolo:', error);
+      alert('Error al actualizar el item');
+    }
+  };
+
+  const eliminarItemProtocolo = async (itemId, itemIndex) => {
+    if (!window.confirm('¿Eliminar este item del protocolo?')) return;
+    const baseItems = Array.isArray(protocolo.items) ? protocolo.items : [];
+    const itemsActualizados = baseItems.filter((item, index) => {
+      if (itemId != null) {
+        return item.id !== itemId;
+      }
+      return index !== itemIndex;
+    });
+    try {
+      await updateProtocolo(protocolo.id, { items: itemsActualizados });
+      onActualizar({ ...protocolo, items: itemsActualizados });
+      setItemsComprados((prev) => {
+        const next = { ...prev };
+        delete next[itemId ?? itemIndex];
+        return next;
+      });
+    } catch (error) {
+      console.error('Error eliminando item del protocolo:', error);
+      alert('Error al eliminar el item');
     }
   };
 
@@ -6711,55 +6803,73 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
 
       {/* Items del Protocolo */}
       <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Items del Proyecto</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-800">Items del Proyecto</h3>
+          <button
+            onClick={() => setShowAddItemModal(true)}
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+          >
+            Agregar Item
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Item</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Cantidad</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Descripción</th>
-                {!hideFinancials && (
-                  <>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">V. Unitario</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Subtotal</th>
-                  </>
-                )}
                 <th className="px-4 py-3 text-left text-sm font-semibold">Comprado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {itemsProtocolo.map((item, index) => (
-                <tr key={item.id ?? index}>
-                  <td className="px-4 py-3">{index + 1}</td>
-                  <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
-                  <td className={`px-4 py-3 ${itemsComprados[item.id ?? index] ? 'line-through text-gray-400' : ''}`}>
-                    {item.descripcion}
-                  </td>
-                  {!hideFinancials && (
-                    <>
-                      <td className="px-4 py-3">{formatCurrency(item.valorUnitario)}</td>
-                      <td className="px-4 py-3 font-semibold">{formatCurrency(item.cantidad * item.valorUnitario)}</td>
-                    </>
-                  )}
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={!!itemsComprados[item.id ?? index]}
-                      onChange={() =>
-                        setItemsComprados(prev => ({
-                          ...prev,
-                          [item.id ?? index]: !prev[item.id ?? index]
-                        }))
-                      }
-                      className="h-4 w-4"
-                    />
-                  </td>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {itemsProtocolo.map((item, index) => {
+                  const itemKey = item.id ?? index;
+                  return (
+                    <tr key={itemKey}>
+                      <td className="px-4 py-3">{index + 1}</td>
+                      <td className="px-4 py-3 font-semibold">{item.item || '-'}</td>
+                      <td className="px-4 py-3 font-semibold">{item.cantidad}</td>
+                      <td className={`px-4 py-3 ${itemsComprados[itemKey] ? 'line-through text-gray-400' : ''}`}>
+                        {item.descripcion}
+                      </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={!!itemsComprados[itemKey]}
+                        onChange={() =>
+                          setItemsComprados(prev => ({
+                            ...prev,
+                            [itemKey]: !prev[itemKey]
+                          }))
+                        }
+                        className="h-4 w-4"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setItemEnEdicion({ item, index })}
+                          className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-semibold"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => eliminarItemProtocolo(item.id, index)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-semibold"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
       </div>
 
       {/* Órdenes de Compra Vinculadas */}
@@ -6964,6 +7074,36 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             setFacturaEnEdicion(null);
           }}
           onSave={guardarFacturaProtocolo}
+        />
+      )}
+
+      {showAddItemModal && (
+        <AddItemModal
+          onClose={() => setShowAddItemModal(false)}
+          onSave={guardarItemProtocolo}
+          showProveedorFields={false}
+        />
+      )}
+
+      {itemEnEdicion && (
+        <AddItemModal
+          onClose={() => setItemEnEdicion(null)}
+          onSave={(item) => {
+            editarItemProtocolo({
+              ...itemEnEdicion.item,
+              item: item.item,
+              cantidad: item.cantidad,
+              descripcion: item.descripcion
+            }, itemEnEdicion.index);
+          }}
+          showProveedorFields={false}
+          initialData={{
+            item: itemEnEdicion.item?.item || '',
+            cantidad: itemEnEdicion.item?.cantidad || 1,
+            descripcion: itemEnEdicion.item?.descripcion || ''
+          }}
+          title="Editar Item del Protocolo"
+          submitLabel="Guardar Cambios"
         />
       )}
 
@@ -7408,8 +7548,10 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
   };
 
   const calcularSubtotalItem = (item) => {
-    const subtotal = item.cantidad * item.valorUnitario;
-    const descuento = subtotal * (item.descuento / 100);
+    const cantidad = Number(item.cantidad) || 0;
+    const valorUnitario = Number(item.valorUnitario) || 0;
+    const subtotal = cantidad * valorUnitario;
+    const descuento = subtotal * ((Number(item.descuento) || 0) / 100);
     return subtotal - descuento;
   };
 
@@ -7751,9 +7893,17 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                       <input
                         type="number"
                         min="0"
-                        value={item.valorUnitario}
-                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
+                        value={item.valorUnitario === 0 ? '' : item.valorUnitario}
+                        onChange={(e) =>
+                          actualizarItem(
+                            item.id,
+                            'valorUnitario',
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
+                        }}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -8223,28 +8373,54 @@ const OCClienteModal = ({ onClose, onSave }) => {
 };
 
 // Modal Agregar Item
-const AddItemModal = ({ onClose, onSave }) => {
-  const [formData, setFormData] = useState({
+const AddItemModal = ({
+  onClose,
+  onSave,
+  showProveedorFields = true,
+  initialData = null,
+  title = 'Adjudicar Compra - Nuevo Item',
+  submitLabel = 'Agregar Item'
+}) => {
+  const baseData = {
+    item: '',
     cantidad: 1,
     descripcion: '',
     proveedor1: { nombre: '', cantidad: 0, oc: '', factura: '', estadoPago: 'Pendiente' },
     porcentaje: 0
-  });
+  };
+  const [formData, setFormData] = useState({ ...baseData, ...(initialData || {}) });
+
+  useEffect(() => {
+    setFormData({ ...baseData, ...(initialData || {}) });
+  }, [initialData]);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
         <div className="p-6 border-b">
-          <h4 className="text-xl font-bold text-gray-800">Adjudicar Compra - Nuevo Item</h4>
+          <h4 className="text-xl font-bold text-gray-800">{title}</h4>
         </div>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Item *</label>
+              <input
+                type="text"
+                value={formData.item}
+                onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                placeholder="Ej: Letrero, Instalación, Transporte"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad *</label>
               <input
                 type="number"
-                value={formData.cantidad}
-                onChange={(e) => setFormData({...formData, cantidad: parseInt(e.target.value)})}
+                value={Number.isFinite(formData.cantidad) ? formData.cantidad : ''}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setFormData({ ...formData, cantidad: Number.isFinite(next) ? next : 0 });
+                }}
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
@@ -8259,38 +8435,49 @@ const AddItemModal = ({ onClose, onSave }) => {
             </div>
           </div>
           
-          <div className="border-t pt-4">
-            <h5 className="font-semibold text-gray-700 mb-3">Proveedor 1</h5>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor</label>
-                <input
-                  type="text"
-                  value={formData.proveedor1.nombre}
-                  onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, nombre: e.target.value}})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
-                <input
-                  type="number"
-                  value={formData.proveedor1.cantidad}
-                  onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, cantidad: parseInt(e.target.value)}})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">N° OC</label>
-                <input
-                  type="text"
-                  value={formData.proveedor1.oc}
-                  onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, oc: e.target.value}})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
+          {showProveedorFields && (
+            <div className="border-t pt-4">
+              <h5 className="font-semibold text-gray-700 mb-3">Proveedor 1</h5>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor</label>
+                  <input
+                    type="text"
+                    value={formData.proveedor1.nombre}
+                    onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, nombre: e.target.value}})}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
+                  <input
+                    type="number"
+                    value={Number.isFinite(formData.proveedor1.cantidad) ? formData.proveedor1.cantidad : ''}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      setFormData({
+                        ...formData,
+                        proveedor1: {
+                          ...formData.proveedor1,
+                          cantidad: Number.isFinite(next) ? next : 0
+                        }
+                      });
+                    }}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">N° OC</label>
+                  <input
+                    type="text"
+                    value={formData.proveedor1.oc}
+                    onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, oc: e.target.value}})}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="p-6 border-t flex justify-end space-x-3">
           <button
@@ -8303,7 +8490,7 @@ const AddItemModal = ({ onClose, onSave }) => {
             onClick={() => onSave(formData)}
             className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
           >
-            Agregar Item
+            {submitLabel}
           </button>
         </div>
       </div>
@@ -9885,7 +10072,12 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
       cotizado_por: formData.cotizadoPor,
       monto: total,
       estado: formData.estado,
-      items: formData.items || []
+      items: (formData.items || []).map(item => ({
+        ...item,
+        cantidad: Number(item.cantidad) || 0,
+        valorUnitario: Number(item.valorUnitario) || 0,
+        descuento: Number(item.descuento) || 0
+      }))
     });
   };
 
@@ -10051,9 +10243,17 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                       <input
                         type="number"
                         min="0"
-                        value={item.valorUnitario}
-                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
+                        value={item.valorUnitario === 0 ? '' : item.valorUnitario}
+                        onChange={(e) =>
+                          actualizarItem(
+                            item.id,
+                            'valorUnitario',
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
@@ -10292,7 +10492,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
       ...formData,
       clienteId,
       monto: total,
-      estado: 'emitida'
+      estado: 'emitida',
+      items: (formData.items || []).map(item => ({
+        ...item,
+        cantidad: Number(item.cantidad) || 0,
+        valorUnitario: Number(item.valorUnitario) || 0,
+        descuento: Number(item.descuento) || 0
+      }))
     };
     
     onSave(nuevaCotizacion);
@@ -10579,9 +10785,17 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                       <input
                         type="number"
                         min="0"
-                        value={item.valorUnitario}
-                        onChange={(e) => actualizarItem(item.id, 'valorUnitario', parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
+                        value={item.valorUnitario === 0 ? '' : item.valorUnitario}
+                        onChange={(e) =>
+                          actualizarItem(
+                            item.id,
+                            'valorUnitario',
+                            e.target.value === '' ? '' : Number(e.target.value)
+                          )
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
@@ -10870,7 +11084,8 @@ const Dashboard = ({ user, onLogout }) => {
         estado: 'Abierto',
         unidad_negocio: cotizacion.unidadNegocio,
         fecha_creacion: new Date().toISOString().split('T')[0],
-        monto_total: cotizacion.monto
+        monto_total: cotizacion.monto,
+        items: []
       };
 
       const protocoloCreado = await createProtocolo(nuevoProtocolo);
