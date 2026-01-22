@@ -9450,6 +9450,11 @@ const [showNewModal, setShowNewModal] = useState(false);
     return cot.monto;
   };
 
+  const montoNetoFiltrado = cotizacionesFiltradas.reduce(
+    (sum, cot) => sum + obtenerNetoCotizacion(cot),
+    0
+  );
+
   const calcularTotalesItems = (items = []) => {
     const subtotal = calcularSubtotalItems(items);
     const iva = subtotal * 0.19;
@@ -9526,10 +9531,14 @@ const [showNewModal, setShowNewModal] = useState(false);
       </div>
 
       {/* Mini Dashboard */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
         <div className="bg-white rounded-xl p-4 shadow">
           <p className="text-sm text-gray-500 mb-1">Total</p>
           <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow">
+          <p className="text-sm text-gray-500 mb-1">Total Neto</p>
+          <p className="text-lg font-bold text-gray-800">{formatMonto(montoNetoFiltrado)}</p>
         </div>
         <div className="bg-blue-50 rounded-xl p-4 shadow">
           <p className="text-sm text-blue-600 mb-1">Emitidas</p>
@@ -9589,6 +9598,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Responsable</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -9596,7 +9606,7 @@ const [showNewModal, setShowNewModal] = useState(false);
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                     Cargando cotizaciones...
                   </td>
                 </tr>
@@ -9628,6 +9638,9 @@ const [showNewModal, setShowNewModal] = useState(false);
                       </>
                     );
                   })()}
+                  <td className="px-6 py-4 text-gray-700">
+                    {cot.cotizadoPor || '—'}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(cot.estado)}`}>
                       {cot.estado.charAt(0).toUpperCase() + cot.estado.slice(1)}
