@@ -6032,6 +6032,18 @@ const ProtocolosModule = ({
               setVistaActual('detalle');
             }} 
             onNuevoProtocolo={() => setShowNewModal(true)}
+            onEliminar={async (protocolo) => {
+              if (!window.confirm(`¿Estás seguro de eliminar el protocolo ${protocolo.folio}?`)) return;
+              try {
+                await deleteProtocolo(protocolo.id);
+                setProtocolos(prev => prev.filter(p => p.id !== protocolo.id));
+                setSharedProtocolos(prev => prev.filter(p => p.id !== protocolo.id));
+                alert('Protocolo eliminado exitosamente');
+              } catch (error) {
+                console.error('Error:', error);
+                alert('Error al eliminar protocolo');
+              }
+            }}
           />
 
       {/* Modal Nueva OC desde Protocolo */}
@@ -6122,7 +6134,7 @@ const ProtocolosModule = ({
 // ========================================
 // VISTA LISTADO DE PROTOCOLOS
 // ========================================
-const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hideFinancials = false, loading = false }) => {
+const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, onEliminar, hideFinancials = false, loading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -6357,24 +6369,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, hi
                       Abrir Tablero
                     </button>
                     {/* Eliminar Protocolo */}
-                      <button
-                        onClick={async () => {
-                          if (window.confirm(`¿Estás seguro de eliminar el protocolo ${protocolo.folio}?`)) {
-                            try {
-                              await deleteProtocolo(protocolo.id);
-                              await loadProtocolos();
-                              alert('Protocolo eliminado exitosamente');
-                            } catch (error) {
-                              console.error('Error:', error);
-                              alert('Error al eliminar protocolo');
-                            }
-                          }
-                        }}
-                        className="p-3 bg-red-100 hover:bg-red-200 rounded-lg transition-colors ml-5"
-                        title="Eliminar Protocolo"
-                      >
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      </button>
+                    <button
+                      onClick={() => onEliminar?.(protocolo)}
+                      className="p-3 bg-red-100 hover:bg-red-200 rounded-lg transition-colors ml-5"
+                      title="Eliminar Protocolo"
+                    >
+                      <XCircle className="w-4 h-4 text-red-600" />
+                    </button>
                   </td>
                 </tr>
                 );
