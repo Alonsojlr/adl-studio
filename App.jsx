@@ -3997,6 +3997,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   };
 
   useEffect(() => {
+    if (isEditing) return;
     setOrden({
       ...ordenInicial,
       items: limpiarItems(ordenInicial.items || [])
@@ -4005,7 +4006,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
       setIsEditing(startInEdit);
       prevOrdenIdRef.current = ordenInicial?.id;
     }
-  }, [ordenInicial]);
+  }, [ordenInicial, isEditing, startInEdit]);
 
   useEffect(() => {
     if (startInEdit) setIsEditing(true);
@@ -5953,6 +5954,8 @@ const ProtocolosModule = ({
                   proveedor_id: ordenActualizada.proveedorId || null,
                   codigo_protocolo: ordenActualizada.codigoProtocolo || '',
                   tipo_costo: ordenActualizada.tipoCosto || '',
+                  centro_costo: ordenActualizada.centroCosto || '',
+                  actividad_uso: ordenActualizada.actividadUso || '',
                   forma_pago: ordenActualizada.formaPago || '',
                   responsable_compra: ordenActualizada.responsableCompra || '',
                   subtotal,
@@ -5993,6 +5996,8 @@ const ProtocolosModule = ({
                   fecha: new Date().toISOString().split('T')[0],
                   proveedor_id: nuevaOC.proveedorId || null,
                   tipo_costo: nuevaOC.tipoCosto,
+                  centro_costo: nuevaOC.centroCosto || '',
+                  actividad_uso: nuevaOC.actividadUso || '',
                   forma_pago: nuevaOC.formaPago,
                   responsable_compra: nuevaOC.responsableCompra || '',
                   total: parseFloat(nuevaOC.total),
@@ -6062,6 +6067,8 @@ const ProtocolosModule = ({
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
+                centro_costo: nuevaOC.centroCosto || '',
+                actividad_uso: nuevaOC.actividadUso || '',
                 forma_pago: nuevaOC.formaPago,
                 responsable_compra: nuevaOC.responsableCompra || '',
                 total: parseFloat(nuevaOC.total),
