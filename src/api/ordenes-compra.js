@@ -114,10 +114,21 @@ export const updateOrdenCompra = async (id, updates) => {
 
 // Eliminar orden de compra
 export const deleteOrdenCompra = async (id) => {
-  const { error } = await supabase
+  const { error: itemsError } = await supabase
+    .from('ordenes_compra_items')
+    .delete()
+    .eq('orden_id', id)
+
+  if (itemsError) throw itemsError
+
+  const { data, error } = await supabase
     .from('ordenes_compra')
     .delete()
     .eq('id', id)
-  
+    .select()
+
   if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar la OC')
+  }
 }
