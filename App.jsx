@@ -5336,13 +5336,20 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
     const loadHistorial = async () => {
       try {
         setLoading(true);
-        const data = await getOrdenesCompra();
+        const [data, protocolos] = await Promise.all([
+          getOrdenesCompra(),
+          getProtocolos()
+        ]);
+        const protocolosByFolio = new Map(
+          (protocolos || []).map(p => [String(p.folio), p])
+        );
         const filtradas = data
           .filter(oc => String(oc.proveedor_id) === String(proveedor.id))
           .map(oc => ({
             id: oc.id,
             numero: oc.numero,
             protocolo: oc.codigo_protocolo || '',
+            nombreProyecto: protocolosByFolio.get(String(oc.codigo_protocolo || ''))?.nombre_proyecto || '',
             fecha: oc.fecha,
             monto: parseFloat(oc.total) || 0,
             factura: oc.numero_factura || '',
@@ -5400,7 +5407,10 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
                         OC #{oc.numero}
                       </p>
                       <p className="text-sm text-gray-600">
-                        Protocolo: {oc.protocolo} | {oc.fecha}
+                        Protocolo: {oc.protocolo || 'Sin protocolo'} | {oc.fecha}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Proyecto: {oc.nombreProyecto || 'Sin nombre de proyecto'}
                       </p>
                       {oc.factura && (
                         <p className="text-sm text-green-600 mt-1">
