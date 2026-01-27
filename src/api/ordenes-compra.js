@@ -60,6 +60,21 @@ export const createOrdenCompra = async (orden, items) => {
 
 // Reemplazar items de una orden de compra
 export const replaceOrdenCompraItems = async (ordenId, items) => {
+  const itemsLimpios = (() => {
+    const mapa = new Map();
+    (items || []).forEach((item) => {
+      const nombre = String(item.item || '').trim();
+      const descripcion = String(item.descripcion || '').trim();
+      const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+      const cantidad = Number(item.cantidad ?? 0);
+      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+      if (!hasContenido) return;
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+      mapa.set(key, { ...item, item: nombre, descripcion });
+    });
+    return Array.from(mapa.values());
+  })();
+
   const { error: deleteError } = await supabase
     .from('ordenes_compra_items')
     .delete()
@@ -67,8 +82,8 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
 
   if (deleteError) throw deleteError
 
-  if (items && items.length > 0) {
-    const itemsConOrdenId = items.map(item => ({
+  if (itemsLimpios.length > 0) {
+    const itemsConOrdenId = itemsLimpios.map(item => ({
       orden_id: ordenId,
       item: item.item || '',
       cantidad: item.cantidad,
