@@ -3976,6 +3976,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
+  const [isSaving, setIsSaving] = useState(false);
   const [proveedores, setProveedores] = useState([]);
   const prevOrdenIdRef = useRef(ordenInicial?.id);
 
@@ -4472,14 +4473,21 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
         <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
           {isEditing && (
             <button
-              onClick={() => {
-                const itemsLimpios = limpiarItems(orden.items || []);
-                onSave && onSave({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
+              onClick={async () => {
+                if (isSaving) return;
+                setIsSaving(true);
+                try {
+                  const itemsLimpios = limpiarItems(orden.items || []);
+                  await onSave?.({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
+                } finally {
+                  setIsSaving(false);
+                }
               }}
-              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              disabled={isSaving}
             >
-              Guardar Cambios
+              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           )}
           <button
@@ -5942,7 +5950,24 @@ const ProtocolosModule = ({
             }}
             onSave={async (ordenActualizada) => {
               try {
-                const subtotal = ordenActualizada.items.reduce((sum, item) => {
+                const itemsLimpios = (() => {
+                  const mapa = new Map();
+                  (ordenActualizada.items || []).forEach((item) => {
+                    const hasNombre = String(item.item || '').trim().length > 0;
+                    const hasDescripcion = String(item.descripcion || '').trim().length > 0;
+                    const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+                    const hasValor = valorUnitario > 0;
+                    if (!hasNombre && !hasDescripcion && !hasValor) return;
+                    const key = [
+                      String(item.item || '').trim().toLowerCase(),
+                      String(item.descripcion || '').trim().toLowerCase()
+                    ].join('|');
+                    mapa.set(key, item);
+                  });
+                  return Array.from(mapa.values());
+                })();
+
+                const subtotal = itemsLimpios.reduce((sum, item) => {
                   const itemSubtotal = item.cantidad * item.valorUnitario;
                   const itemDescuento = itemSubtotal * (item.descuento / 100);
                   return sum + (itemSubtotal - itemDescuento);
@@ -5968,7 +5993,7 @@ const ProtocolosModule = ({
                   fecha_pago: ordenActualizada.fechaPago || null
                 });
 
-                await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
+                await replaceOrdenCompraItems(ordenActualizada.id, itemsLimpios);
                 await refrescarOrdenesCompra();
 
                 setShowDetalleOC(false);
