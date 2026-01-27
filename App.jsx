@@ -11203,6 +11203,7 @@ const Dashboard = ({ user, onLogout }) => {
     proyectosTerminados: 0,
     protocolosAbiertos: 0,
     protocolosEnProceso: 0,
+    protocolosSinOcCliente: 0,
     ocSinFactura: 0,
     pagosPendientes: 0
   });
@@ -11235,6 +11236,10 @@ const Dashboard = ({ user, onLogout }) => {
       const protocolosEnProceso = protocolosFiltrados.filter(p => p.estado === 'En Proceso').length;
       const proyectosEnCurso = protocolosAbiertos + protocolosEnProceso;
       const proyectosTerminados = protocolosFiltrados.filter(p => p.estado === 'Cerrado').length;
+      const protocolosSinOcCliente = protocolosFiltrados.filter(p => {
+        if (p.estado === 'Cerrado') return false;
+        return !String(p.ocCliente || '').trim();
+      }).length;
 
       // Estadísticas de órdenes de compra
       const ocSinFactura = sharedOrdenesCompra.filter(o => !o.numeroFactura && o.estado !== 'Anulada').length;
@@ -11250,6 +11255,7 @@ const Dashboard = ({ user, onLogout }) => {
         proyectosTerminados,
         protocolosAbiertos,
         protocolosEnProceso,
+        protocolosSinOcCliente,
         ocSinFactura,
         pagosPendientes
       });
@@ -11512,10 +11518,23 @@ const Dashboard = ({ user, onLogout }) => {
               </div>
 
               {/* Alertas */}
-              {(stats.ocSinFactura > 0 || stats.pagosPendientes > 0) && (
+              {(stats.ocSinFactura > 0 || stats.pagosPendientes > 0 || stats.protocolosSinOcCliente > 0) && (
                 <div className="mt-8">
                   <h3 className="text-xl font-bold text-gray-800 mb-4">🔔 Alertas</h3>
                   <div className="space-y-3">
+                    {stats.protocolosSinOcCliente > 0 && (
+                      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                        <div className="flex items-center">
+                          <FileText className="w-5 h-5 text-blue-600 mr-3" />
+                          <div>
+                            <p className="font-semibold text-blue-800">
+                              {stats.protocolosSinOcCliente} Protocolos sin OC Cliente asignada
+                            </p>
+                            <p className="text-sm text-blue-600">Revisa protocolos abiertos/en proceso</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {stats.ocSinFactura > 0 && (
                       <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
                         <div className="flex items-center">
