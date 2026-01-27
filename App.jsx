@@ -4336,13 +4336,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="mb-6">
             {isEditing && (
               <div className="flex justify-end mb-3">
-                <button
-                  type="button"
-                  onClick={agregarItem}
-                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
-                >
-                  + Agregar Item
-                </button>
+                <p className="text-sm text-gray-500">En edición solo puedes ajustar cantidad y valor unitario.</p>
               </div>
             )}
             <div className="space-y-4">
@@ -4355,7 +4349,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         type="text"
                         value={item.item || ''}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
@@ -4398,28 +4392,17 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
-                    {isEditing && (
-                      <div className="flex items-end">
-                        <button
-                          type="button"
-                          onClick={() => eliminarItem(item.id)}
-                          className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
                     <div className="md:col-span-6">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
                       <input
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
