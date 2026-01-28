@@ -2702,6 +2702,21 @@ const OrdenesCompraModule = ({
         (proveedoresData || []).map((p) => [String(p.id), p])
       );
 
+      const limpiarItemsOrden = (items = []) => {
+        const mapa = new Map();
+        items.forEach((item) => {
+          const nombre = String(item.item || '').trim();
+          const descripcion = String(item.descripcion || '').trim();
+          const valorUnitario = Number(item.valor_unitario ?? item.valorUnitario ?? 0);
+          const cantidad = Number(item.cantidad ?? 0);
+          const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+          if (!hasContenido) return;
+          const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+          mapa.set(key, item);
+        });
+        return Array.from(mapa.values());
+      };
+
       const transformados = data.map(o => ({
         id: o.id,
         numero: o.numero,
@@ -2737,7 +2752,7 @@ const OrdenesCompraModule = ({
         estadoPago: o.estado_pago || 'Pendiente',
         fechaPago: o.fecha_pago || '',
         responsableCompra: o.responsable_compra || '',
-        items: (o.ordenes_compra_items || []).map(item => ({
+        items: limpiarItemsOrden(o.ordenes_compra_items || []).map(item => ({
           id: item.id,
           item: item.item || '',
           cantidad: item.cantidad,
@@ -3093,7 +3108,38 @@ const OrdenesCompraModule = ({
                               contacto: orden.contactoProveedor || ''
                             };
                             const protocolo = sharedProtocolos.find(p => p.folio === orden.codigoProtocolo) || { folio: orden.codigoProtocolo || '' };
-                            await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
+                            const dedupeItemsPDF = (items = []) => {
+                              const mapa = new Map();
+                              items.forEach((item) => {
+                                const nombre = String(item.item || '').trim();
+                                const descripcion = String(item.descripcion || '').trim();
+                                const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+                                const cantidad = Number(item.cantidad ?? 0);
+                                const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+                                if (!hasContenido) return;
+                                const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+                                mapa.set(key, { ...item, item: nombre, descripcion });
+                              });
+                              return Array.from(mapa.values());
+                            };
+                            let itemsPDF = dedupeItemsPDF(orden.items || []);
+                            try {
+                              const ordenesActuales = await getOrdenesCompra();
+                              const encontrada = ordenesActuales.find(o => o.id === orden.id);
+                              if (encontrada?.ordenes_compra_items?.length) {
+                                itemsPDF = dedupeItemsPDF(encontrada.ordenes_compra_items.map(item => ({
+                                  id: item.id,
+                                  item: item.item || '',
+                                  cantidad: item.cantidad,
+                                  descripcion: item.descripcion,
+                                  valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                  descuento: parseFloat(item.descuento || 0)
+                                }));
+                              }
+                            } catch (error) {
+                              console.error('Error cargando items actualizados para PDF:', error);
+                            }
+                            await generarOCPDF(orden, proveedor, protocolo, itemsPDF);
                           } catch (error) {
                             console.error('Error al generar PDF:', error);
                             alert('Error al generar el PDF');
@@ -3983,16 +4029,14 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   const limpiarItems = (items = []) => {
     const mapa = new Map();
     (items || []).forEach((item) => {
-      const hasNombre = String(item.item || '').trim().length > 0;
-      const hasDescripcion = String(item.descripcion || '').trim().length > 0;
+      const nombre = String(item.item || '').trim();
+      const descripcion = String(item.descripcion || '').trim();
       const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
-      const hasValor = valorUnitario > 0;
-      if (!hasNombre && !hasDescripcion && !hasValor) return;
-      const key = [
-        String(item.item || '').trim().toLowerCase(),
-        String(item.descripcion || '').trim().toLowerCase()
-      ].join('|');
-      mapa.set(key, item);
+      const cantidad = Number(item.cantidad ?? 0);
+      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+      if (!hasContenido) return;
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+      mapa.set(key, { ...item, item: nombre, descripcion });
     });
     return Array.from(mapa.values());
   };
