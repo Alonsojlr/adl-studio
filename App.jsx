@@ -1522,6 +1522,7 @@ const AdministracionModule = ({ activeModule }) => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGasto, setEditingGasto] = useState(null);
+  const [pagadosVisual, setPagadosVisual] = useState({});
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
@@ -1720,6 +1721,13 @@ const AdministracionModule = ({ activeModule }) => {
     }
   };
 
+  const togglePagoVisual = (gastoId) => {
+    setPagadosVisual(prev => ({
+      ...prev,
+      [gastoId]: !prev[gastoId]
+    }));
+  };
+
   return (
     <div>
       <div className="mb-8 flex items-start justify-between">
@@ -1839,6 +1847,21 @@ const AdministracionModule = ({ activeModule }) => {
                     <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(gasto.total)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => togglePagoVisual(gasto.id)}
+                          className={`p-2 rounded-lg transition-colors border ${
+                            pagadosVisual[gasto.id]
+                              ? 'bg-green-100 border-green-200 text-green-700'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={pagadosVisual[gasto.id] ? 'Marcado como pagado (visual)' : 'Marcar pagado (visual)'}
+                        >
+                          {pagadosVisual[gasto.id] ? (
+                            <span className="text-xs font-bold">P</span>
+                          ) : (
+                            <DollarSign className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           onClick={() => openEdit(gasto)}
                           className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
