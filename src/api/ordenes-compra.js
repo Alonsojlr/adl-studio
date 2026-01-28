@@ -96,7 +96,17 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
   if (existentesError) throw existentesError
 
   const nuevosKeys = new Set(itemsLimpios.map(buildKey))
-  const idsAEliminar = (existentes || [])
+  const existentesNormalizados = (existentes || []).map((item) => ({
+    id: item.id,
+    key: buildKey({
+      item: item.item,
+      descripcion: item.descripcion,
+      cantidad: item.cantidad,
+      valor_unitario: item.valor_unitario
+    })
+  }))
+  const existentesKeys = new Set(existentesNormalizados.map(item => item.key))
+  const idsAEliminar = existentesNormalizados
     .filter((item) => !nuevosKeys.has(buildKey({
       item: item.item,
       descripcion: item.descripcion,
@@ -115,7 +125,9 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
   }
 
   if (itemsLimpios.length > 0) {
-    const itemsConOrdenId = itemsLimpios.map(item => ({
+    const itemsConOrdenId = itemsLimpios
+      .filter(item => !existentesKeys.has(buildKey(item)))
+      .map(item => ({
       orden_id: ordenId,
       item: item.item || '',
       cantidad: Number(item.cantidad ?? 0),
@@ -124,13 +136,13 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
       descuento: item.descuento || 0
     }))
 
-    const { error: upsertError } = await supabase
-      .from('ordenes_compra_items')
-      .upsert(itemsConOrdenId, {
-        onConflict: 'orden_id,item,descripcion,cantidad,valor_unitario'
-      })
+    if (itemsConOrdenId.length > 0) {
+      const { error: insertError } = await supabase
+        .from('ordenes_compra_items')
+        .insert(itemsConOrdenId)
 
-    if (upsertError) throw upsertError
+      if (insertError) throw insertError
+    }
   }
 };
 
