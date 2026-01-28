@@ -61,16 +61,21 @@ export const createOrdenCompra = async (orden, items) => {
 // Reemplazar items de una orden de compra
 export const replaceOrdenCompraItems = async (ordenId, items) => {
   const itemsLimpios = (() => {
+    const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+    const normalizeNumber = (value) => {
+      const num = Number(value ?? 0);
+      return Number.isFinite(num) ? num : 0;
+    };
     const mapa = new Map();
     (items || []).forEach((item) => {
-      const nombre = String(item.item || '').trim();
-      const descripcion = String(item.descripcion || '').trim();
-      const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
-      const cantidad = Number(item.cantidad ?? 0);
+      const nombre = normalizeText(item.item);
+      const descripcion = normalizeText(item.descripcion);
+      const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+      const cantidad = normalizeNumber(item.cantidad);
       const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
       if (!hasContenido) return;
-      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario}`;
-      mapa.set(key, { ...item, item: nombre, descripcion });
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+      mapa.set(key, { ...item, item: nombre, descripcion, cantidad, valorUnitario });
     });
     return Array.from(mapa.values());
   })();
