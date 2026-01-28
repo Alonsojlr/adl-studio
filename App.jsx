@@ -3134,7 +3134,7 @@ const OrdenesCompraModule = ({
                                   descripcion: item.descripcion,
                                   valorUnitario: parseFloat(item.valor_unitario) || 0,
                                   descuento: parseFloat(item.descuento || 0)
-                                }));
+                                })));
                               }
                             } catch (error) {
                               console.error('Error cargando items actualizados para PDF:', error);
