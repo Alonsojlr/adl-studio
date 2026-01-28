@@ -1522,7 +1522,6 @@ const AdministracionModule = ({ activeModule }) => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGasto, setEditingGasto] = useState(null);
-  const [pagadosVisual, setPagadosVisual] = useState({});
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
@@ -1573,7 +1572,8 @@ const AdministracionModule = ({ activeModule }) => {
         observaciones: g.observaciones || '',
         centroCosto: g.centro_costo || ADMIN_CENTRO_COSTO,
         tipoCosto: g.tipo_costo || '',
-        actividadUso: g.actividad_uso || ''
+        actividadUso: g.actividad_uso || '',
+        pagado: Boolean(g.pagado)
       }));
       setGastos(transformados);
     } catch (error) {
@@ -1721,11 +1721,14 @@ const AdministracionModule = ({ activeModule }) => {
     }
   };
 
-  const togglePagoVisual = (gastoId) => {
-    setPagadosVisual(prev => ({
-      ...prev,
-      [gastoId]: !prev[gastoId]
-    }));
+  const togglePagoVisual = async (gasto) => {
+    try {
+      const updated = await updateGastoAdministracion(gasto.id, { pagado: !gasto.pagado });
+      setGastos(prev => prev.map(item => (item.id === gasto.id ? { ...item, pagado: !!updated.pagado } : item)));
+    } catch (error) {
+      console.error('Error actualizando estado de pago:', error);
+      alert('No se pudo actualizar el estado de pago');
+    }
   };
 
   return (
@@ -1848,16 +1851,16 @@ const AdministracionModule = ({ activeModule }) => {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => togglePagoVisual(gasto.id)}
+                          onClick={() => togglePagoVisual(gasto)}
                           className={`p-2 rounded-lg transition-colors border ${
-                            pagadosVisual[gasto.id]
+                            gasto.pagado
                               ? 'bg-green-100 border-green-200 text-green-700'
                               : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                           }`}
-                          title={pagadosVisual[gasto.id] ? 'Marcado como pagado (visual)' : 'Marcar pagado (visual)'}
+                          title={gasto.pagado ? 'Pagado' : 'Marcar pagado'}
                         >
-                          {pagadosVisual[gasto.id] ? (
-                            <span className="text-xs font-bold">P</span>
+                          {gasto.pagado ? (
+                            <span className="w-4 h-4 flex items-center justify-center text-xs font-bold">P</span>
                           ) : (
                             <DollarSign className="w-4 h-4" />
                           )}
