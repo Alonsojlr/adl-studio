@@ -60,12 +60,20 @@ export const createOrdenCompra = async (orden, items) => {
 
 // Reemplazar items de una orden de compra
 export const replaceOrdenCompraItems = async (ordenId, items) => {
+  const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+  const normalizeNumber = (value) => {
+    const num = Number(value ?? 0);
+    return Number.isFinite(num) ? num : 0;
+  };
+  const buildKey = (item) => {
+    const nombre = normalizeText(item.item);
+    const descripcion = normalizeText(item.descripcion);
+    const cantidad = normalizeNumber(item.cantidad);
+    const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+    return `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+  };
+
   const itemsLimpios = (() => {
-    const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
-    const normalizeNumber = (value) => {
-      const num = Number(value ?? 0);
-      return Number.isFinite(num) ? num : 0;
-    };
     const mapa = new Map();
     (items || []).forEach((item) => {
       const nombre = normalizeText(item.item);
@@ -80,12 +88,31 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
     return Array.from(mapa.values());
   })();
 
-  const { error: deleteError } = await supabase
+  const { data: existentes, error: existentesError } = await supabase
     .from('ordenes_compra_items')
-    .delete()
+    .select('id, item, descripcion, cantidad, valor_unitario')
     .eq('orden_id', ordenId)
 
-  if (deleteError) throw deleteError
+  if (existentesError) throw existentesError
+
+  const nuevosKeys = new Set(itemsLimpios.map(buildKey))
+  const idsAEliminar = (existentes || [])
+    .filter((item) => !nuevosKeys.has(buildKey({
+      item: item.item,
+      descripcion: item.descripcion,
+      cantidad: item.cantidad,
+      valor_unitario: item.valor_unitario
+    })))
+    .map((item) => item.id)
+
+  if (idsAEliminar.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('ordenes_compra_items')
+      .delete()
+      .in('id', idsAEliminar)
+
+    if (deleteError) throw deleteError
+  }
 
   if (itemsLimpios.length > 0) {
     const itemsConOrdenId = itemsLimpios.map(item => ({
@@ -97,11 +124,13 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
       descuento: item.descuento || 0
     }))
 
-    const { error: insertError } = await supabase
+    const { error: upsertError } = await supabase
       .from('ordenes_compra_items')
-      .insert(itemsConOrdenId)
+      .upsert(itemsConOrdenId, {
+        onConflict: 'orden_id,item,descripcion,cantidad,valor_unitario'
+      })
 
-    if (insertError) throw insertError
+    if (upsertError) throw upsertError
   }
 };
 
