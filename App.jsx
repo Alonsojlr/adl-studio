@@ -6001,27 +6001,36 @@ const ProtocolosModule = ({
                 alert('Error al marcar como pagada');
               }
             }}
-            onSave={async (ordenActualizada) => {
-              try {
-                const itemsLimpios = (() => {
-                  const mapa = new Map();
-                  (ordenActualizada.items || []).forEach((item) => {
-                    const hasNombre = String(item.item || '').trim().length > 0;
-                    const hasDescripcion = String(item.descripcion || '').trim().length > 0;
-                    const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
-                    const hasValor = valorUnitario > 0;
-                    if (!hasNombre && !hasDescripcion && !hasValor) return;
-                    const key = [
-                      String(item.item || '').trim().toLowerCase(),
-                      String(item.descripcion || '').trim().toLowerCase()
-                    ].join('|');
-                    mapa.set(key, item);
-                  });
-                  return Array.from(mapa.values());
-                })();
+              onSave={async (ordenActualizada) => {
+                try {
+                  const itemsLimpios = (() => {
+                    const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+                    const normalizeNumber = (value) => {
+                      const num = Number(value ?? 0);
+                      return Number.isFinite(num) ? num : 0;
+                    };
+                    const mapa = new Map();
+                    (ordenActualizada.items || []).forEach((item) => {
+                      const nombre = normalizeText(item.item);
+                      const descripcion = normalizeText(item.descripcion);
+                      const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+                      const cantidad = normalizeNumber(item.cantidad);
+                      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+                      if (!hasContenido) return;
+                      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+                      mapa.set(key, {
+                        ...item,
+                        item: nombre,
+                        descripcion,
+                        cantidad,
+                        valorUnitario
+                      });
+                    });
+                    return Array.from(mapa.values());
+                  })();
 
-                const subtotal = itemsLimpios.reduce((sum, item) => {
-                  const itemSubtotal = item.cantidad * item.valorUnitario;
+                  const subtotal = itemsLimpios.reduce((sum, item) => {
+                    const itemSubtotal = item.cantidad * item.valorUnitario;
                   const itemDescuento = itemSubtotal * (item.descuento / 100);
                   return sum + (itemSubtotal - itemDescuento);
                 }, 0);
