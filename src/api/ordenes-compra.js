@@ -69,7 +69,7 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
       const cantidad = Number(item.cantidad ?? 0);
       const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
       if (!hasContenido) return;
-      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario}`;
       mapa.set(key, { ...item, item: nombre, descripcion });
     });
     return Array.from(mapa.values());
@@ -86,9 +86,9 @@ export const replaceOrdenCompraItems = async (ordenId, items) => {
     const itemsConOrdenId = itemsLimpios.map(item => ({
       orden_id: ordenId,
       item: item.item || '',
-      cantidad: item.cantidad,
+      cantidad: Number(item.cantidad ?? 0),
       descripcion: item.descripcion,
-      valor_unitario: item.valorUnitario || item.valor_unitario,
+      valor_unitario: Number(item.valorUnitario ?? item.valor_unitario ?? 0),
       descuento: item.descuento || 0
     }))
 
