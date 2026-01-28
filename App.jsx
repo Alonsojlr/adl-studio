@@ -4440,6 +4440,17 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
+                    {isEditing && (
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={() => eliminarItem(item.id)}
+                          className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
                     <div className="md:col-span-6">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
                       <input
