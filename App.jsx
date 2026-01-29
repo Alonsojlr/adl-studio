@@ -166,6 +166,10 @@ const MEDIOS_PAGO = [
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
+  const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
+
+  const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
+
   const calcularNetoCotizacion = (cot) => {
     const items = cot?.items || [];
     if (items.length > 0) {
@@ -5820,7 +5824,8 @@ const ProtocolosModule = ({
     if (sharedCotizaciones.length === 0) return;
     setProtocolos(prev =>
       prev.map(p => {
-        const cotizacion = sharedCotizaciones.find(c => String(c.numero) === String(p.numeroCotizacion));
+        const clave = normalizarNumero(p.numeroCotizacion);
+        const cotizacion = sharedCotizaciones.find(c => normalizarNumero(c.numero) === clave);
         return ({
           ...p,
           items: p.items && p.items.length ? p.items : (cotizacion?.items || []),
@@ -11131,7 +11136,7 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
-      montoNetoCotizacion: cotizacionesByNumero.get(String(p.numero_cotizacion || '')) ?? 0,
+      montoNetoCotizacion: cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion)) ?? 0,
       items: p.items || [],
       facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
@@ -11228,7 +11233,7 @@ const Dashboard = ({ user, onLogout }) => {
           (proveedoresData || []).map((p) => [String(p.id), p])
         );
         const cotizacionesByNumero = new Map(
-          (cotData || []).map((cot) => [String(cot.numero), calcularNetoCotizacion({
+          (cotData || []).map((cot) => [normalizarNumero(cot.numero), calcularNetoCotizacion({
             items: cot.items || [],
             monto: parseFloat(cot.monto) || 0
           })])
