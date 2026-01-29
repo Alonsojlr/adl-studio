@@ -11082,6 +11082,21 @@ const Dashboard = ({ user, onLogout }) => {
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
+  const calcularNetoCotizacion = (cot) => {
+    const items = cot?.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    if (!cot?.monto) return 0;
+    return cot.monto;
+  };
+
   useEffect(() => {
     let facturasByProtocolo = {};
     const mapCotizacion = (cot) => ({
@@ -11103,22 +11118,22 @@ const Dashboard = ({ user, onLogout }) => {
       adjudicada_a_protocolo: cot.adjudicada_a_protocolo
     });
 
-      const mapProtocolo = (p, cotizacionesByNumero) => ({
-        id: p.id,
-        folio: p.folio,
-        numeroCotizacion: p.numero_cotizacion || '',
-        cliente: p.clientes?.razon_social || 'Sin cliente',
-        nombreProyecto: p.nombre_proyecto,
-        rutCliente: p.clientes?.rut || '',
-        tipo: p.tipo,
-        ocCliente: p.oc_cliente,
-        estado: p.estado,
-        unidadNegocio: p.unidad_negocio,
-        fechaCreacion: p.fecha_creacion,
-        montoTotal: parseFloat(p.monto_total) || 0,
-        montoNetoCotizacion: cotizacionesByNumero.get(String(p.numero_cotizacion || '')) ?? 0,
-        items: p.items || [],
-        facturas: (() => {
+    const mapProtocolo = (p, cotizacionesByNumero) => ({
+      id: p.id,
+      folio: p.folio,
+      numeroCotizacion: p.numero_cotizacion || '',
+      cliente: p.clientes?.razon_social || 'Sin cliente',
+      nombreProyecto: p.nombre_proyecto,
+      rutCliente: p.clientes?.rut || '',
+      tipo: p.tipo,
+      ocCliente: p.oc_cliente,
+      estado: p.estado,
+      unidadNegocio: p.unidad_negocio,
+      fechaCreacion: p.fecha_creacion,
+      montoTotal: parseFloat(p.monto_total) || 0,
+      montoNetoCotizacion: cotizacionesByNumero.get(String(p.numero_cotizacion || '')) ?? 0,
+      items: p.items || [],
+      facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
         if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
           return [{
