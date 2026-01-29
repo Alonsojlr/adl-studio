@@ -166,25 +166,6 @@ const MEDIOS_PAGO = [
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
-  const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
-
-  const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
-
-  const calcularNetoCotizacion = (cot) => {
-    const items = cot?.items || [];
-    if (items.length > 0) {
-      return items.reduce((sum, item) => {
-        const cantidad = item.cantidad || 0;
-        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
-        const descuento = item.descuento || 0;
-        const subtotal = cantidad * valorUnitario;
-        return sum + (subtotal - (subtotal * (descuento / 100)));
-      }, 0);
-    }
-    if (!cot?.monto) return 0;
-    return cot.monto;
-  };
-
   useEffect(() => {
     const handler = (event) => {
       const { message, type } = event.detail || {};
