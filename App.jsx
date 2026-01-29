@@ -163,6 +163,8 @@ const MEDIOS_PAGO = [
   'Tarjeta de Crédito'
 ];
 
+const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
+
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
@@ -5803,10 +5805,19 @@ const ProtocolosModule = ({
 
   useEffect(() => {
     if (sharedCotizaciones.length === 0) return;
+    const cotizacionesByNumero = new Map(
+      sharedCotizaciones.map(c => [normalizarNumero(c.numero), c])
+    );
+    const cotizacionesByFolio = new Map(
+      sharedCotizaciones
+        .filter(c => c.adjudicada_a_protocolo)
+        .map(c => [String(c.adjudicada_a_protocolo), c])
+    );
     setProtocolos(prev =>
       prev.map(p => {
-        const clave = normalizarNumero(p.numeroCotizacion);
-        const cotizacion = sharedCotizaciones.find(c => normalizarNumero(c.numero) === clave);
+        const cotizacion =
+          cotizacionesByFolio.get(String(p.folio)) ??
+          cotizacionesByNumero.get(normalizarNumero(p.numeroCotizacion));
         return ({
           ...p,
           items: p.items && p.items.length ? p.items : (cotizacion?.items || []),
@@ -5840,7 +5851,10 @@ const ProtocolosModule = ({
   const loadProtocolos = async () => {
     try {
       setLoading(true);
-      const data = await getProtocolos();
+      const [data, cotizacionesData] = await Promise.all([
+        getProtocolos(),
+        getCotizaciones()
+      ]);
       const protocolosIds = data.map(p => p.id).filter(Boolean);
       const facturasData = protocolosIds.length > 0
         ? await getProtocolosFacturas(protocolosIds)
@@ -5852,39 +5866,54 @@ const ProtocolosModule = ({
         return acc;
       }, {});
       
-      const transformados = data.map(p => ({
-        id: p.id,
-        folio: p.folio,
-        numeroCotizacion: p.numero_cotizacion,
-        cliente: p.clientes?.razon_social || 'Sin cliente',
-        nombreProyecto: p.nombre_proyecto,
-        rutCliente: p.clientes?.rut || '',
-        tipo: p.tipo,
-        ocCliente: p.oc_cliente,
-        estado: p.estado,
-        unidadNegocio: p.unidad_negocio,
-        fechaCreacion: p.fecha_creacion,
-        montoTotal: parseFloat(p.monto_total),
-        items: Array.isArray(p.items) ? p.items : [],
-        facturas: (() => {
-          const facturas = facturasByProtocolo[p.id] || [];
-          if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
-            return [{
-              id: `legacy-${p.id}`,
-              protocoloId: p.id,
-              numero: p.factura_bm || '',
-              fecha: p.fecha_factura_bm || '',
-              montoNeto: 0,
-              iva: 0,
-              total: 0,
-              tipoDoc: 'Factura',
-              estado: 'Emitida',
-              createdAt: ''
-            }];
-          }
-          return facturas;
-        })()
-      }));
+      const cotizacionesByNumero = new Map(
+        (cotizacionesData || []).map((cot) => [normalizarNumero(cot.numero), cot])
+      );
+      const cotizacionesByFolio = new Map(
+        (cotizacionesData || [])
+          .filter((cot) => cot.adjudicada_a_protocolo)
+          .map((cot) => [String(cot.adjudicada_a_protocolo), cot])
+      );
+
+      const transformados = data.map((p) => {
+        const cotizacion =
+          cotizacionesByFolio.get(String(p.folio)) ??
+          cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion));
+        return {
+          id: p.id,
+          folio: p.folio,
+          numeroCotizacion: p.numero_cotizacion,
+          cliente: p.clientes?.razon_social || 'Sin cliente',
+          nombreProyecto: p.nombre_proyecto,
+          rutCliente: p.clientes?.rut || '',
+          tipo: p.tipo,
+          ocCliente: p.oc_cliente,
+          estado: p.estado,
+          unidadNegocio: p.unidad_negocio,
+          fechaCreacion: p.fecha_creacion,
+          montoTotal: parseFloat(p.monto_total),
+          montoNetoCotizacion: cotizacion ? calcularNetoCotizacion(cotizacion) : undefined,
+          items: Array.isArray(p.items) ? p.items : [],
+          facturas: (() => {
+            const facturas = facturasByProtocolo[p.id] || [];
+            if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
+              return [{
+                id: `legacy-${p.id}`,
+                protocoloId: p.id,
+                numero: p.factura_bm || '',
+                fecha: p.fecha_factura_bm || '',
+                montoNeto: 0,
+                iva: 0,
+                total: 0,
+                tipoDoc: 'Factura',
+                estado: 'Emitida',
+                createdAt: ''
+              }];
+            }
+            return facturas;
+          })()
+        };
+      });
       
       setProtocolos(transformados);
     } catch (error) {
@@ -11104,7 +11133,7 @@ const Dashboard = ({ user, onLogout }) => {
       adjudicada_a_protocolo: cot.adjudicada_a_protocolo
     });
 
-    const mapProtocolo = (p, cotizacionesByNumero) => ({
+    const mapProtocolo = (p, cotizacionesByNumero, cotizacionesByFolio) => ({
       id: p.id,
       folio: p.folio,
       numeroCotizacion: p.numero_cotizacion || '',
@@ -11117,7 +11146,10 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
-      montoNetoCotizacion: cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion)) ?? 0,
+      montoNetoCotizacion:
+        cotizacionesByFolio.get(String(p.folio)) ??
+        cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion)) ??
+        0,
       items: p.items || [],
       facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
@@ -11219,9 +11251,17 @@ const Dashboard = ({ user, onLogout }) => {
             monto: parseFloat(cot.monto) || 0
           })])
         );
+        const cotizacionesByFolio = new Map(
+          (cotData || [])
+            .filter((cot) => cot.adjudicada_a_protocolo)
+            .map((cot) => [String(cot.adjudicada_a_protocolo), calcularNetoCotizacion({
+              items: cot.items || [],
+              monto: parseFloat(cot.monto) || 0
+            })])
+        );
 
         setSharedCotizaciones(cotData.map(mapCotizacion));
-        setSharedProtocolos(protData.map((p) => mapProtocolo(p, cotizacionesByNumero)));
+        setSharedProtocolos(protData.map((p) => mapProtocolo(p, cotizacionesByNumero, cotizacionesByFolio)));
         setSharedOrdenesCompra(ocData.map((o) => mapOrdenCompra(o, proveedoresById)));
       } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
