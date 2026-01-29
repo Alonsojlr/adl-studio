@@ -166,6 +166,21 @@ const MEDIOS_PAGO = [
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
 
+  const calcularNetoCotizacion = (cot) => {
+    const items = cot?.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    if (!cot?.monto) return 0;
+    return cot.monto;
+  };
+
   useEffect(() => {
     const handler = (event) => {
       const { message, type } = event.detail || {};
@@ -2118,6 +2133,9 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
   };
 
   const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
     const items = protocolo.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -5783,15 +5801,32 @@ const ProtocolosModule = ({
     loadProtocolos();
   }, []);
 
+  const calcularNetoCotizacion = (cot) => {
+    const items = cot?.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    if (!cot?.monto) return 0;
+    return cot.monto;
+  };
+
   useEffect(() => {
     if (sharedCotizaciones.length === 0) return;
     setProtocolos(prev =>
-      prev.map(p => ({
-        ...p,
-        items: p.items && p.items.length
-          ? p.items
-          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numeroCotizacion))?.items || [])
-      }))
+      prev.map(p => {
+        const cotizacion = sharedCotizaciones.find(c => String(c.numero) === String(p.numeroCotizacion));
+        return ({
+          ...p,
+          items: p.items && p.items.length ? p.items : (cotizacion?.items || []),
+          montoNetoCotizacion: cotizacion ? calcularNetoCotizacion(cotizacion) : p.montoNetoCotizacion
+        });
+      })
     );
   }, [sharedCotizaciones]);
 
@@ -6288,6 +6323,9 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
   };
 
   const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
     const items = protocolo.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -6320,7 +6358,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
     abiertos: protocolos.filter(p => p.estado === 'Abierto').length,
     enProceso: protocolos.filter(p => p.estado === 'En Proceso').length,
     cerrados: protocolos.filter(p => p.estado === 'Cerrado').length,
-    montoTotal: protocolos.reduce((sum, p) => sum + p.montoTotal, 0)
+    montoTotal: protocolos.reduce((sum, p) => sum + obtenerNetoProtocolo(p), 0)
   };
 
   return (
@@ -6530,6 +6568,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const facturasProtocolo = Array.isArray(protocolo.facturas) ? protocolo.facturas : [];
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const calcularNetoProtocolo = () => {
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
     const items = protocolo.items || [];
     if (items.length > 0) {
       const tieneValores = items.some(item => {
@@ -11062,21 +11103,22 @@ const Dashboard = ({ user, onLogout }) => {
       adjudicada_a_protocolo: cot.adjudicada_a_protocolo
     });
 
-    const mapProtocolo = (p) => ({
-      id: p.id,
-      folio: p.folio,
-      numeroCotizacion: p.numero_cotizacion || '',
-      cliente: p.clientes?.razon_social || 'Sin cliente',
-      nombreProyecto: p.nombre_proyecto,
-      rutCliente: p.clientes?.rut || '',
-      tipo: p.tipo,
-      ocCliente: p.oc_cliente,
-      estado: p.estado,
-      unidadNegocio: p.unidad_negocio,
-      fechaCreacion: p.fecha_creacion,
-      montoTotal: parseFloat(p.monto_total) || 0,
-      items: p.items || [],
-      facturas: (() => {
+      const mapProtocolo = (p, cotizacionesByNumero) => ({
+        id: p.id,
+        folio: p.folio,
+        numeroCotizacion: p.numero_cotizacion || '',
+        cliente: p.clientes?.razon_social || 'Sin cliente',
+        nombreProyecto: p.nombre_proyecto,
+        rutCliente: p.clientes?.rut || '',
+        tipo: p.tipo,
+        ocCliente: p.oc_cliente,
+        estado: p.estado,
+        unidadNegocio: p.unidad_negocio,
+        fechaCreacion: p.fecha_creacion,
+        montoTotal: parseFloat(p.monto_total) || 0,
+        montoNetoCotizacion: cotizacionesByNumero.get(String(p.numero_cotizacion || '')) ?? 0,
+        items: p.items || [],
+        facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
         if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
           return [{
@@ -11170,9 +11212,15 @@ const Dashboard = ({ user, onLogout }) => {
         const proveedoresById = new Map(
           (proveedoresData || []).map((p) => [String(p.id), p])
         );
+        const cotizacionesByNumero = new Map(
+          (cotData || []).map((cot) => [String(cot.numero), calcularNetoCotizacion({
+            items: cot.items || [],
+            monto: parseFloat(cot.monto) || 0
+          })])
+        );
 
         setSharedCotizaciones(cotData.map(mapCotizacion));
-        setSharedProtocolos(protData.map(mapProtocolo));
+        setSharedProtocolos(protData.map((p) => mapProtocolo(p, cotizacionesByNumero)));
         setSharedOrdenesCompra(ocData.map((o) => mapOrdenCompra(o, proveedoresById)));
       } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
@@ -11564,7 +11612,8 @@ const Dashboard = ({ user, onLogout }) => {
 
                   const netoPorUnidad = sharedProtocolos.reduce((acc, protocolo) => {
                     const unidad = normalizarUnidad(protocolo.unidadNegocio);
-                    acc[unidad] = (acc[unidad] || 0) + (protocolo.montoTotal || 0);
+                    const neto = protocolo.montoNetoCotizacion ?? protocolo.montoTotal ?? 0;
+                    acc[unidad] = (acc[unidad] || 0) + neto;
                     return acc;
                   }, {});
 
