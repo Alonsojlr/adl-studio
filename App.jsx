@@ -14,7 +14,7 @@ import {
 import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
-import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
+import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
@@ -34,19 +34,6 @@ const alert = (message) => {
   notifyToast(message, type);
 };
 
-// Sistema de autenticación y roles
-const USERS = {
-  'alopez@buildingme.cl': { 
-    password: 'Mirusita968!', 
-    role: 'admin', 
-    name: 'Alonso López' 
-  },
-  'paula@buildingme.cl': { 
-    password: 'Tegula175', 
-    role: 'admin', 
-    name: 'Paula Ross' 
-  }
-};
 
 const BUSINESS_UNITS = [
   'Vía Pública',
@@ -11950,24 +11937,65 @@ const Dashboard = ({ user, onLogout }) => {
 // App Principal
 export default function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay una sesión guardada
-    const savedUser = localStorage.getItem('kurion_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Verificar sesión existente con Supabase Auth
+    const initSession = async () => {
+      try {
+        const profile = await obtenerSesionActual();
+        if (profile) {
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            username: profile.email,
+            name: profile.nombre,
+            role: profile.rol
+          });
+        }
+      } catch (e) {
+        console.error('Error verificando sesión:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initSession();
+
+    // Escuchar cambios de estado de auth (logout, expiración de token, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
-    localStorage.setItem('kurion_user', JSON.stringify(userData));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await cerrarSesion();
+    } catch (e) {
+      console.error('Error cerrando sesión:', e);
+    }
     setUser(null);
-    localStorage.removeItem('kurion_user');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/80 text-lg font-medium">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
