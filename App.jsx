@@ -11,7 +11,7 @@ import {
   updateProtocoloFactura,
   deleteProtocoloFactura
 } from './src/api/protocolos';
-import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
+import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
@@ -3108,10 +3108,50 @@ const OrdenesCompraModule = ({
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => {
-                          setOrdenSeleccionada(orden);
-                          setDetalleEditMode(false);
-                          setShowDetalleModal(true);
+                        onClick={async () => {
+                          try {
+                            // Recargar la OC desde la BD antes de abrir el modal
+                            const ocActualizada = await getOrdenCompraById(orden.id);
+                            const ocTransformada = {
+                              id: ocActualizada.id,
+                              numero: ocActualizada.numero,
+                              codigoProtocolo: ocActualizada.codigo_protocolo,
+                              fecha: ocActualizada.fecha,
+                              proveedorId: ocActualizada.proveedor_id || null,
+                              proveedor: ocActualizada.proveedores?.razon_social || 'Sin proveedor',
+                              rutProveedor: ocActualizada.proveedores?.rut || '',
+                              direccionProveedor: ocActualizada.proveedores?.direccion || '',
+                              contactoProveedor: ocActualizada.proveedores?.contacto || '',
+                              tipoCosto: ocActualizada.tipo_costo,
+                              centroCosto: ocActualizada.centro_costo || '',
+                              actividadUso: ocActualizada.actividad_uso || '',
+                              formaPago: ocActualizada.forma_pago,
+                              subtotal: parseFloat(ocActualizada.subtotal) || 0,
+                              iva: parseFloat(ocActualizada.iva) || 0,
+                              total: parseFloat(ocActualizada.total) || 0,
+                              estado: ocActualizada.estado,
+                              numeroFactura: ocActualizada.numero_factura || '',
+                              fechaFactura: ocActualizada.fecha_factura || '',
+                              estadoPago: ocActualizada.estado_pago || 'Pendiente',
+                              fechaPago: ocActualizada.fecha_pago || '',
+                              responsableCompra: ocActualizada.responsable_compra || '',
+                              items: (ocActualizada.ordenes_compra_items || []).map(item => ({
+                                id: item.id,
+                                item: item.item || '',
+                                cantidad: item.cantidad,
+                                descripcion: item.descripcion,
+                                valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                valor_unitario: parseFloat(item.valor_unitario) || 0,
+                                descuento: parseFloat(item.descuento || 0)
+                              }))
+                            };
+                            setOrdenSeleccionada(ocTransformada);
+                            setDetalleEditMode(false);
+                            setShowDetalleModal(true);
+                          } catch (error) {
+                            console.error('Error cargando OC:', error);
+                            alert('Error al cargar la orden de compra');
+                          }
                         }}
                         className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                         title="Ver Detalle"
@@ -3119,10 +3159,50 @@ const OrdenesCompraModule = ({
                         <FileText className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() => {
-                          setOrdenSeleccionada(orden);
-                          setDetalleEditMode(true);
-                          setShowDetalleModal(true);
+                        onClick={async () => {
+                          try {
+                            // Recargar la OC desde la BD antes de abrir el modal
+                            const ocActualizada = await getOrdenCompraById(orden.id);
+                            const ocTransformada = {
+                              id: ocActualizada.id,
+                              numero: ocActualizada.numero,
+                              codigoProtocolo: ocActualizada.codigo_protocolo,
+                              fecha: ocActualizada.fecha,
+                              proveedorId: ocActualizada.proveedor_id || null,
+                              proveedor: ocActualizada.proveedores?.razon_social || 'Sin proveedor',
+                              rutProveedor: ocActualizada.proveedores?.rut || '',
+                              direccionProveedor: ocActualizada.proveedores?.direccion || '',
+                              contactoProveedor: ocActualizada.proveedores?.contacto || '',
+                              tipoCosto: ocActualizada.tipo_costo,
+                              centroCosto: ocActualizada.centro_costo || '',
+                              actividadUso: ocActualizada.actividad_uso || '',
+                              formaPago: ocActualizada.forma_pago,
+                              subtotal: parseFloat(ocActualizada.subtotal) || 0,
+                              iva: parseFloat(ocActualizada.iva) || 0,
+                              total: parseFloat(ocActualizada.total) || 0,
+                              estado: ocActualizada.estado,
+                              numeroFactura: ocActualizada.numero_factura || '',
+                              fechaFactura: ocActualizada.fecha_factura || '',
+                              estadoPago: ocActualizada.estado_pago || 'Pendiente',
+                              fechaPago: ocActualizada.fecha_pago || '',
+                              responsableCompra: ocActualizada.responsable_compra || '',
+                              items: (ocActualizada.ordenes_compra_items || []).map(item => ({
+                                id: item.id,
+                                item: item.item || '',
+                                cantidad: item.cantidad,
+                                descripcion: item.descripcion,
+                                valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                valor_unitario: parseFloat(item.valor_unitario) || 0,
+                                descuento: parseFloat(item.descuento || 0)
+                              }))
+                            };
+                            setOrdenSeleccionada(ocTransformada);
+                            setDetalleEditMode(true);
+                            setShowDetalleModal(true);
+                          } catch (error) {
+                            console.error('Error cargando OC:', error);
+                            alert('Error al cargar la orden de compra');
+                          }
                         }}
                         className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
                         title="Editar"
@@ -4185,13 +4265,13 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     };
     const actualizada = { ...orden, items: [...orden.items, nuevo] };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   const eliminarItem = (id) => {
     const actualizada = { ...orden, items: orden.items.filter(i => i.id !== id) };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   const actualizarItem = (id, campo, valor) => {
@@ -4202,7 +4282,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
       )
     };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   return (
@@ -4416,7 +4496,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="mb-6">
             {isEditing && (
               <div className="flex justify-end mb-3">
-                <p className="text-sm text-gray-500">En edición solo puedes ajustar cantidad y valor unitario.</p>
+                <p className="text-sm text-gray-500">En edición solo puedes ajustar: Item, Descripción y Valor Unitario.</p>
               </div>
             )}
             <div className="space-y-4">
@@ -4429,7 +4509,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         type="text"
                         value={item.item || ''}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        disabled
+                        disabled={!isEditing}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
@@ -4440,7 +4520,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
@@ -4493,7 +4573,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        disabled
+                        disabled={!isEditing}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
@@ -4687,7 +4767,8 @@ const ProveedoresModule = () => {
         const total = parseFloat(oc.total) || 0;
         const subtotal = parseFloat(oc.subtotal) || 0;
         const iva = parseFloat(oc.iva) || 0;
-        const monto = total || (subtotal + iva) || 0;
+        // Usar subtotal (neto) preferentemente
+        const monto = subtotal || (total / 1.19) || 0;
         const estado = oc.estado || '';
         const estadoPago = oc.estado_pago || oc.estadoPago || 'Pendiente';
         const pendiente = estado !== 'Anulada' && estadoPago !== 'Pagada';
@@ -5789,6 +5870,11 @@ const ProtocolosModule = ({
   }, []);
 
   const calcularNetoCotizacion = (cot) => {
+    // Si ya tiene neto, usarlo directamente
+    if (cot?.neto !== undefined && cot?.neto !== null) {
+      return parseFloat(cot.neto);
+    }
+    // Si tiene items, calcular desde items
     const items = cot?.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -5799,8 +5885,9 @@ const ProtocolosModule = ({
         return sum + (subtotal - (subtotal * (descuento / 100)));
       }, 0);
     }
+    // Fallback: asumir que monto es neto (datos antiguos)
     if (!cot?.monto) return 0;
-    return cot.monto;
+    return parseFloat(cot.monto);
   };
 
   useEffect(() => {
@@ -5892,7 +5979,8 @@ const ProtocolosModule = ({
           unidadNegocio: p.unidad_negocio,
           fechaCreacion: p.fecha_creacion,
           montoTotal: parseFloat(p.monto_total),
-          montoNetoCotizacion: cotizacion ? calcularNetoCotizacion(cotizacion) : undefined,
+          montoNeto: parseFloat(p.monto_neto) || undefined,
+          montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
           items: Array.isArray(p.items) ? p.items : [],
           facturas: (() => {
             const facturas = facturasByProtocolo[p.id] || [];
@@ -6583,9 +6671,11 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const facturasProtocolo = Array.isArray(protocolo.facturas) ? protocolo.facturas : [];
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const calcularNetoProtocolo = () => {
+    // Prioridad 1: usar montoNetoCotizacion si está disponible
     if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
       return protocolo.montoNetoCotizacion;
     }
+    // Prioridad 2: calcular desde items si tienen valores
     const items = protocolo.items || [];
     if (items.length > 0) {
       const tieneValores = items.some(item => {
@@ -6602,7 +6692,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
         }, 0);
       }
     }
-    return protocolo.montoTotal || 0;
+    // Prioridad 3: usar montoTotal / 1.19 como estimación (NETO)
+    return protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
   };
   const montoNeto = calcularNetoProtocolo();
   const costoRealNeto = ocVinculadas.reduce(
@@ -9658,11 +9749,12 @@ const [showNewModal, setShowNewModal] = useState(false);
       return;
     }
     try {
-      const { total } = calcularTotalesItems(itemsSeleccionados);
+      const { subtotal } = calcularTotalesItems(itemsSeleccionados);
       await updateCotizacion(cotizacionGanada.id, {
         estado: 'ganada',
         items: itemsSeleccionados,
-        monto: total
+        neto: subtotal,
+        monto: subtotal
       });
       await loadCotizaciones();
       setShowGanadaModal(false);
@@ -10253,14 +10345,15 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const { total } = calcularTotales();
+    const { subtotal } = calcularTotales();
     onSave({
       fecha: formData.fecha,
       nombre_proyecto: formData.nombreProyecto,
       unidad_negocio: formData.unidadNegocio,
       condiciones_pago: formData.condicionesPago,
       cotizado_por: formData.cotizadoPor,
-      monto: total,
+      neto: subtotal,
+      monto: subtotal,
       estado: formData.estado,
       items: (formData.items || []).map(item => ({
         ...item,
@@ -10676,12 +10769,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
       ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 5540))
       : 5540;
     
-    const { total } = calcularTotales();
+    const { subtotal } = calcularTotales();
     const nuevaCotizacion = {
       numero: `${ultimoNumero + 1}`,
       ...formData,
       clienteId,
-      monto: total,
+      neto: subtotal,
+      monto: subtotal,
       estado: 'emitida',
       items: (formData.items || []).map(item => ({
         ...item,
@@ -11098,6 +11192,11 @@ const Dashboard = ({ user, onLogout }) => {
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
   const calcularNetoCotizacion = (cot) => {
+    // Si ya tiene neto, usarlo directamente
+    if (cot?.neto !== undefined && cot?.neto !== null) {
+      return parseFloat(cot.neto);
+    }
+    // Si tiene items, calcular desde items
     const items = cot?.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -11108,8 +11207,9 @@ const Dashboard = ({ user, onLogout }) => {
         return sum + (subtotal - (subtotal * (descuento / 100)));
       }, 0);
     }
+    // Fallback: asumir que monto es neto (datos antiguos)
     if (!cot?.monto) return 0;
-    return cot.monto;
+    return parseFloat(cot.monto);
   };
 
   useEffect(() => {
@@ -11125,7 +11225,7 @@ const Dashboard = ({ user, onLogout }) => {
       direccionCliente: cot.clientes?.direccion || cot.direccion || '',
       contactoCliente: cot.clientes?.persona_encargada || cot.contacto || '',
       unidadNegocio: cot.unidad_negocio,
-      monto: parseFloat(cot.monto) || 0,
+      monto: parseFloat(cot.neto || cot.monto) || 0,
       estado: cot.estado,
       cotizadoPor: cot.cotizado_por,
       condicionesPago: cot.condiciones_pago,
@@ -11146,10 +11246,12 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
-      montoNetoCotizacion:
+      montoNeto: parseFloat(p.monto_neto) || undefined,
+      montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (
         cotizacionesByFolio.get(String(p.folio)) ??
         cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion)) ??
-        0,
+        0
+      ),
       items: p.items || [],
       facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
@@ -11297,6 +11399,10 @@ const Dashboard = ({ user, onLogout }) => {
           }))
         : 30649;
 
+      // Calcular neto desde la cotización
+      const netoCalculado = cotizacion.monto || 0; // Ya es neto después de las correcciones
+      const totalCalculado = netoCalculado * 1.19; // Total con IVA
+
       const nuevoProtocolo = {
         folio: `${ultimoFolio + 1}`,
         numero_cotizacion: cotizacion.numero,
@@ -11307,7 +11413,8 @@ const Dashboard = ({ user, onLogout }) => {
         estado: 'Abierto',
         unidad_negocio: cotizacion.unidadNegocio,
         fecha_creacion: new Date().toISOString().split('T')[0],
-        monto_total: cotizacion.monto,
+        monto_neto: netoCalculado,
+        monto_total: totalCalculado,
         items: []
       };
 
@@ -11349,7 +11456,7 @@ const Dashboard = ({ user, onLogout }) => {
         nombreProyecto: cot.nombre_proyecto,
         rut: cot.clientes?.rut || '',
         unidadNegocio: cot.unidad_negocio,
-        monto: parseFloat(cot.monto) || 0,
+        monto: parseFloat(cot.neto || cot.monto) || 0,
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
         condicionesPago: cot.condiciones_pago,
@@ -11369,6 +11476,7 @@ const Dashboard = ({ user, onLogout }) => {
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total) || 0,
+        montoNeto: parseFloat(p.monto_neto) || undefined,
         items: p.items || [],
         facturas: (() => {
           const facturas = facturasByProtocolo[p.id] || [];
