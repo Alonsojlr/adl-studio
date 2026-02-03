@@ -84,7 +84,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
 
   if (loadImageAsDataUrl) {
     try {
-      const logoDataUrl = await loadImageAsDataUrl('/logo-building-me.png');
+      const logoDataUrl = await loadImageAsDataUrl('/logo-adl-studio.png');
       doc.addImage(logoDataUrl, getImageFormat(logoDataUrl), topX + 6, topY + 7, 43, 16);
     } catch (error) {
       console.warn('No se pudo cargar el logo para el PDF:', error);

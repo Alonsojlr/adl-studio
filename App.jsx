@@ -230,7 +230,7 @@ const LoginPage = ({ onLogin }) => {
     <div 
       className="min-h-screen flex items-center justify-center relative overflow-hidden"
       style={{
-        backgroundImage: 'url(/bg-login3.png)',
+        backgroundImage: 'url(/bg-login-adl.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -241,11 +241,11 @@ const LoginPage = ({ onLogin }) => {
 
       {/* Contenedor del login */}
       <div className="relative z-10 w-full max-w-md px-6">
-        {/* Logo Building Me centrado */}
+        {/* Logo ADL Studio centrado */}
         <div className="text-center mb-20">
-          <img 
-            src="/logo-building-me.png" 
-            alt="Building Me" 
+          <img
+            src="/logo-adl-studio.png"
+            alt="ADL Studio"
             className="h-20 mx-auto"
             style={{ filter: 'brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.3))' }}
           />
@@ -335,9 +335,9 @@ const LoginPage = ({ onLogin }) => {
           <p className="text-white/70 text-sm mb-4">
             Kodiak Software © 2025 - Todos los derechos reservados
           </p>
-          <img 
-            src="/logo-kodiak.png" 
-            alt="KODIAK" 
+          <img
+            src="/logo-kodiak.png"
+            alt="KODIAK"
             className="h-20 mx-auto opacity-90"
           />
         </div>
@@ -4069,8 +4069,8 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">76.226.767-5</p>
+              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez spa</p>
+              <p className="text-gray-600">77.111.974-3</p>
             </div>
           </div>
 
@@ -4603,9 +4603,9 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
 
             <div className="bg-blue-50 rounded-xl p-6">
               <h5 className="font-semibold text-gray-800 mb-4">Facturar a:</h5>
-              <p className="font-bold text-gray-800">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">RUT: 76.226.767-5</p>
-              <p className="text-gray-600 mt-2">La Capitanía 80, Las Condes</p>
+              <p className="font-bold text-gray-800">Grafica Lopez y Ramirez spa</p>
+              <p className="text-gray-600">RUT: 77.111.974-3</p>
+              <p className="text-gray-600 mt-2">Av Presidente Eduardo Frei Montalva 1475, Independencia</p>
               <p className="text-gray-600">Santiago - Chile</p>
             </div>
           </div>
@@ -8158,8 +8158,8 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">76.226.767-5</p>
+              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez spa</p>
+              <p className="text-gray-600">77.111.974-3</p>
             </div>
           </div>
 
@@ -11548,19 +11548,19 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="flex items-center justify-between relative">
             {/* Logo KODIAK a la izquierda */}
             <div className="flex items-center space-x-3">
-              <img 
-                src="/logo-kodiak.png" 
-                alt="KODIAK" 
+              <img
+                src="/logo-kodiak.png"
+                alt="KODIAK"
                 className="h-12 w-auto"
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
             </div>
-            
-            {/* Logo Building Me centrado */}
+
+            {/* Logo ADL Studio centrado */}
             <div className="absolute left-1/2 transform -translate-x-1/2">
-              <img 
-                src="/logo-building-me.png" 
-                alt="Building Me" 
+              <img
+                src="/logo-adl-studio.png"
+                alt="ADL Studio"
                 className="h-10 w-auto"
               />
             </div>

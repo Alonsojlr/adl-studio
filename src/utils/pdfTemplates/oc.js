@@ -58,7 +58,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   // Logo + datos empresa (izq)
   // =========================
   try {
-    const logoDataUrl = await fetchImageAsDataURL("/logo-building-me.png");
+    const logoDataUrl = await fetchImageAsDataURL("/logo-adl-studio.png");
     doc.addImage(logoDataUrl, "PNG", M, 12, 56, 18);
   } catch {
     doc.setFont("helvetica", "bold");
@@ -72,11 +72,11 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   doc.setTextColor(...GRAY_TEXT);
 
   const leftInfoY = 35;
-  doc.text("76.226.767-5", M, leftInfoY);
-  doc.text("Marketing Maria Paula Ross EIRL", M, leftInfoY + 4);
-  doc.text("La Capitania 80, Las Condes", M, leftInfoY + 8);
+  doc.text("77.111.974-3", M, leftInfoY);
+  doc.text("Grafica Lopez y Ramirez spa", M, leftInfoY + 4);
+  doc.text("Av Pdte Eduardo Frei Montalva 1475, Independencia", M, leftInfoY + 8);
   doc.text("Santiago, Chile", M, leftInfoY + 12);
-  doc.text("info@buildingme.cl", M, leftInfoY + 16);
+  doc.text("info@adlstudio.cl", M, leftInfoY + 16);
 
   // =========================
   // Caja roja (der) “ORDEN DE COMPRA {NUMERO}”
@@ -119,8 +119,8 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.3);
-  doc.text("Marketing Maria Paula Ross EIRL", factX + 34, factY + 7);
-  doc.text("76.226.767-5", factX + 34, factY + 11);
+  doc.text("Grafica Lopez y Ramirez spa", factX + 34, factY + 7);
+  doc.text("77.111.974-3", factX + 34, factY + 11);
 
   // =========================
   // Info 2 columnas (igual maqueta)
@@ -258,7 +258,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   doc.setTextColor(...GRAY_TEXT);
 
   const terms = [
-    "1.- Al recibir la orden de compra (OC), el proveedor acepta todos sus términos, entre otros el respetar los precios, fechas y forma de pago indicadas en ella. Esta OC solo es válida si el proveedor cumple con la entrega en forma oportuna, en el lugar indicado y con la especificación solicitada. La(s) Guías de Despacho deberán ser entregadas con sus respectivas copias al momento de la recepción conforme por parte de Marketing Maria Paula Ross EIRL.",
+    "1.- Al recibir la orden de compra (OC), el proveedor acepta todos sus términos, entre otros el respetar los precios, fechas y forma de pago indicadas en ella. Esta OC solo es válida si el proveedor cumple con la entrega en forma oportuna, en el lugar indicado y con la especificación solicitada. La(s) Guías de Despacho deberán ser entregadas con sus respectivas copias al momento de la recepción conforme por parte de Grafica Lopez y Ramirez spa.",
     "2.- Las facturas electrónicas deben ser emitidas con referencia explícita al N° de OC, N° Código PT y Guía de despacho respectiva.",
   ];
 

@@ -93,12 +93,12 @@ Dos formas de generar PDF:
 El PDF generado incluye:
 
 **Header:**
-- Logo Building Me (esquina superior izquierda)
+- Logo ADL Studio (esquina superior izquierda)
 - Información de la empresa:
-  - Building Me
-  - Marketing Maria Paula Ross EIRL
-  - RUT: 76.226.767-5
-  - Dirección: La Capitanía 80, Las Condes
+  - ADL Studio
+  - Grafica Lopez y Ramirez spa
+  - RUT: 77.111.974-3
+  - Dirección: Av Pdte Eduardo Frei Montalva 1475, Independencia
   - Santiago - Chile
 - Recuadro rojo con "COTIZACIÓN N° XXXXXX" (esquina superior derecha)
 

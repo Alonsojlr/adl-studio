@@ -25,10 +25,10 @@ export const generarPDFCotizacion = async (cotizacion) => {
   // Información de Building Me (debajo del logo)
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
-  doc.text('Building Me', 15, 30);
-  doc.text('Marketing Maria Paula Ross EIRL', 15, 34);
-  doc.text('76.226.767 -5', 15, 38);
-  doc.text('La Capitanía 80, Las Condes', 15, 42);
+  doc.text('ADL Studio', 15, 30);
+  doc.text('Grafica Lopez y Ramirez spa', 15, 34);
+  doc.text('77.111.974-3', 15, 38);
+  doc.text('Av Pdte Eduardo Frei Montalva 1475, Independencia', 15, 42);
   doc.text('Santiago - Chile', 15, 46);
   
   // Recuadro COTIZACIÓN (esquina superior derecha)
@@ -206,6 +206,6 @@ const getLogoBase64 = () => {
       resolve(null);
     };
     // Usar la ruta relativa del logo
-    img.src = '/logo-building-me.png';
+    img.src = '/logo-adl-studio.png';
   });
 };

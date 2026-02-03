@@ -57,7 +57,7 @@ export const renderCotizacionPDF = async (cotizacion, cliente, items) => {
   const fecha = clean(cotizacion.fecha || '');
 
   try {
-    const logoDataUrl = await loadImageAsDataUrl('/logo-building-me.png');
+    const logoDataUrl = await loadImageAsDataUrl('/logo-adl-studio.png');
     doc.addImage(logoDataUrl, 'PNG', M, 12, 56, 18);
   } catch {
     doc.setFont('helvetica', 'bold');
@@ -70,11 +70,11 @@ export const renderCotizacionPDF = async (cotizacion, cliente, items) => {
   doc.setFontSize(8);
   doc.setTextColor(...GRAY_TEXT);
   const leftInfoY = 35;
-  doc.text('76.226.767-5', M, leftInfoY);
-  doc.text('Marketing Maria Paula Ross EIRL', M, leftInfoY + 4);
-  doc.text('La Capitania 80, Las Condes', M, leftInfoY + 8);
+  doc.text('77.111.974-3', M, leftInfoY);
+  doc.text('Grafica Lopez y Ramirez spa', M, leftInfoY + 4);
+  doc.text('Av Pdte Eduardo Frei Montalva 1475, Independencia', M, leftInfoY + 8);
   doc.text('Santiago, Chile', M, leftInfoY + 12);
-  doc.text('info@buildingme.cl', M, leftInfoY + 16);
+  doc.text('info@adlstudio.cl', M, leftInfoY + 16);
 
   const boxW = 86;
   const boxH = 28;
