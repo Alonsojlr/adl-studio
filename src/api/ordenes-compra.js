@@ -22,7 +22,35 @@ export const getOrdenesCompra = async () => {
       )
     `)
     .order('created_at', { ascending: false })
-  
+
+  if (error) throw error
+  return data
+}
+
+// Obtener una orden de compra específica por ID
+export const getOrdenCompraById = async (id) => {
+  const { data, error } = await supabase
+    .from('ordenes_compra')
+    .select(`
+      *,
+      proveedores (
+        razon_social,
+        rut,
+        direccion,
+        contacto
+      ),
+      ordenes_compra_items (
+        id,
+        item,
+        cantidad,
+        descripcion,
+        valor_unitario,
+        descuento
+      )
+    `)
+    .eq('id', id)
+    .single()
+
   if (error) throw error
   return data
 }
@@ -34,9 +62,9 @@ export const createOrdenCompra = async (orden, items) => {
     .from('ordenes_compra')
     .insert([orden])
     .select()
-  
+
   if (ordenError) throw ordenError
-  
+
   // Luego crear los items
   if (items && items.length > 0) {
     const itemsConOrdenId = items.map(item => ({
@@ -47,42 +75,89 @@ export const createOrdenCompra = async (orden, items) => {
       valor_unitario: item.valorUnitario || item.valor_unitario,
       descuento: item.descuento || 0
     }))
-    
+
     const { error: itemsError } = await supabase
       .from('ordenes_compra_items')
       .insert(itemsConOrdenId)
-    
+
     if (itemsError) throw itemsError
   }
-  
+
   return ordenData[0]
 }
 
-// Reemplazar items de una orden de compra
+// Reemplazar items de una orden de compra - VERSIÓN SIMPLIFICADA Y CORREGIDA
 export const replaceOrdenCompraItems = async (ordenId, items) => {
+  // Helpers de normalización
+  const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+  const normalizeNumber = (value) => {
+    const num = Number(value ?? 0);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  // Limpiar items (eliminar duplicados y items vacíos)
+  const itemsLimpios = (() => {
+    const mapa = new Map();
+    (items || []).forEach((item) => {
+      const nombre = normalizeText(item.item);
+      const descripcion = normalizeText(item.descripcion);
+      const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+      const cantidad = normalizeNumber(item.cantidad);
+      const descuento = normalizeNumber(item.descuento || 0);
+
+      // Ignorar items vacíos
+      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+      if (!hasContenido) return;
+
+      // Usar key para detectar duplicados (sin incluir descuento)
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+      mapa.set(key, {
+        item: nombre,
+        descripcion,
+        cantidad,
+        valorUnitario,
+        descuento
+      });
+    });
+    return Array.from(mapa.values());
+  })();
+
+  // SOLUCIÓN SIMPLIFICADA: Eliminar TODOS los items existentes y volver a insertar
+  // Esto garantiza que no queden items viejos fantasma
+
+  // 1. Eliminar todos los items de esta orden
   const { error: deleteError } = await supabase
     .from('ordenes_compra_items')
     .delete()
     .eq('orden_id', ordenId)
 
-  if (deleteError) throw deleteError
+  if (deleteError) {
+    console.error('Error eliminando items:', deleteError);
+    throw deleteError;
+  }
 
-  if (items && items.length > 0) {
-    const itemsConOrdenId = items.map(item => ({
+  // 2. Insertar los nuevos items limpios
+  if (itemsLimpios.length > 0) {
+    const itemsConOrdenId = itemsLimpios.map(item => ({
       orden_id: ordenId,
       item: item.item || '',
-      cantidad: item.cantidad,
-      descripcion: item.descripcion,
-      valor_unitario: item.valorUnitario || item.valor_unitario,
-      descuento: item.descuento || 0
-    }))
+      cantidad: Number(item.cantidad ?? 0),
+      descripcion: item.descripcion || '',
+      valor_unitario: Number(item.valorUnitario ?? 0),
+      descuento: Number(item.descuento ?? 0)
+    }));
 
     const { error: insertError } = await supabase
       .from('ordenes_compra_items')
-      .insert(itemsConOrdenId)
+      .insert(itemsConOrdenId);
 
-    if (insertError) throw insertError
+    if (insertError) {
+      console.error('Error insertando items:', insertError);
+      throw insertError;
+    }
   }
+
+  console.log(`✅ Items actualizados para orden ${ordenId}: ${itemsLimpios.length} items`);
 };
 
 // Actualizar orden de compra
@@ -92,17 +167,30 @@ export const updateOrdenCompra = async (id, updates) => {
     .update(updates)
     .eq('id', id)
     .select()
-  
+
   if (error) throw error
   return data[0]
 }
 
 // Eliminar orden de compra
 export const deleteOrdenCompra = async (id) => {
-  const { error } = await supabase
+  // Primero eliminar los items
+  const { error: itemsError } = await supabase
+    .from('ordenes_compra_items')
+    .delete()
+    .eq('orden_id', id)
+
+  if (itemsError) throw itemsError
+
+  // Luego eliminar la orden
+  const { data, error } = await supabase
     .from('ordenes_compra')
     .delete()
     .eq('id', id)
-  
+    .select()
+
   if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar la OC')
+  }
 }

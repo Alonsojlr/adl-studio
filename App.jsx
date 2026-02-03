@@ -11,10 +11,10 @@ import {
   updateProtocoloFactura,
   deleteProtocoloFactura
 } from './src/api/protocolos';
-import { getOrdenesCompra, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
+import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
 import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
-import { autenticarUsuario, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
+import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
@@ -34,19 +34,6 @@ const alert = (message) => {
   notifyToast(message, type);
 };
 
-// Sistema de autenticación y roles
-const USERS = {
-  'alopez@buildingme.cl': { 
-    password: 'Mirusita968!', 
-    role: 'admin', 
-    name: 'Alonso López' 
-  },
-  'paula@buildingme.cl': { 
-    password: 'Tegula175', 
-    role: 'admin', 
-    name: 'Paula Ross' 
-  }
-};
 
 const BUSINESS_UNITS = [
   'Vía Pública',
@@ -162,6 +149,8 @@ const MEDIOS_PAGO = [
   'Caja Chica',
   'Tarjeta de Crédito'
 ];
+
+const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
 
 const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
@@ -1572,7 +1561,8 @@ const AdministracionModule = ({ activeModule }) => {
         observaciones: g.observaciones || '',
         centroCosto: g.centro_costo || ADMIN_CENTRO_COSTO,
         tipoCosto: g.tipo_costo || '',
-        actividadUso: g.actividad_uso || ''
+        actividadUso: g.actividad_uso || '',
+        pagado: Boolean(g.pagado)
       }));
       setGastos(transformados);
     } catch (error) {
@@ -1720,6 +1710,16 @@ const AdministracionModule = ({ activeModule }) => {
     }
   };
 
+  const togglePagoVisual = async (gasto) => {
+    try {
+      const updated = await updateGastoAdministracion(gasto.id, { pagado: !gasto.pagado });
+      setGastos(prev => prev.map(item => (item.id === gasto.id ? { ...item, pagado: !!updated.pagado } : item)));
+    } catch (error) {
+      console.error('Error actualizando estado de pago:', error);
+      alert('No se pudo actualizar el estado de pago');
+    }
+  };
+
   return (
     <div>
       <div className="mb-8 flex items-start justify-between">
@@ -1839,6 +1839,21 @@ const AdministracionModule = ({ activeModule }) => {
                     <td className="px-6 py-4 font-semibold text-gray-800">{formatCurrency(gasto.total)}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => togglePagoVisual(gasto)}
+                          className={`p-2 rounded-lg transition-colors border ${
+                            gasto.pagado
+                              ? 'bg-green-100 border-green-200 text-green-700'
+                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={gasto.pagado ? 'Pagado' : 'Marcar pagado'}
+                        >
+                          {gasto.pagado ? (
+                            <span className="w-4 h-4 flex items-center justify-center text-xs font-bold">P</span>
+                          ) : (
+                            <DollarSign className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           onClick={() => openEdit(gasto)}
                           className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
@@ -2092,6 +2107,9 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
   };
 
   const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
     const items = protocolo.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -2702,6 +2720,21 @@ const OrdenesCompraModule = ({
         (proveedoresData || []).map((p) => [String(p.id), p])
       );
 
+      const limpiarItemsOrden = (items = []) => {
+        const mapa = new Map();
+        items.forEach((item) => {
+          const nombre = String(item.item || '').trim();
+          const descripcion = String(item.descripcion || '').trim();
+          const valorUnitario = Number(item.valor_unitario ?? item.valorUnitario ?? 0);
+          const cantidad = Number(item.cantidad ?? 0);
+          const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+          if (!hasContenido) return;
+          const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+          mapa.set(key, item);
+        });
+        return Array.from(mapa.values());
+      };
+
       const transformados = data.map(o => ({
         id: o.id,
         numero: o.numero,
@@ -2737,7 +2770,7 @@ const OrdenesCompraModule = ({
         estadoPago: o.estado_pago || 'Pendiente',
         fechaPago: o.fecha_pago || '',
         responsableCompra: o.responsable_compra || '',
-        items: (o.ordenes_compra_items || []).map(item => ({
+        items: limpiarItemsOrden(o.ordenes_compra_items || []).map(item => ({
           id: item.id,
           item: item.item || '',
           cantidad: item.cantidad,
@@ -3062,10 +3095,50 @@ const OrdenesCompraModule = ({
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => {
-                          setOrdenSeleccionada(orden);
-                          setDetalleEditMode(false);
-                          setShowDetalleModal(true);
+                        onClick={async () => {
+                          try {
+                            // Recargar la OC desde la BD antes de abrir el modal
+                            const ocActualizada = await getOrdenCompraById(orden.id);
+                            const ocTransformada = {
+                              id: ocActualizada.id,
+                              numero: ocActualizada.numero,
+                              codigoProtocolo: ocActualizada.codigo_protocolo,
+                              fecha: ocActualizada.fecha,
+                              proveedorId: ocActualizada.proveedor_id || null,
+                              proveedor: ocActualizada.proveedores?.razon_social || 'Sin proveedor',
+                              rutProveedor: ocActualizada.proveedores?.rut || '',
+                              direccionProveedor: ocActualizada.proveedores?.direccion || '',
+                              contactoProveedor: ocActualizada.proveedores?.contacto || '',
+                              tipoCosto: ocActualizada.tipo_costo,
+                              centroCosto: ocActualizada.centro_costo || '',
+                              actividadUso: ocActualizada.actividad_uso || '',
+                              formaPago: ocActualizada.forma_pago,
+                              subtotal: parseFloat(ocActualizada.subtotal) || 0,
+                              iva: parseFloat(ocActualizada.iva) || 0,
+                              total: parseFloat(ocActualizada.total) || 0,
+                              estado: ocActualizada.estado,
+                              numeroFactura: ocActualizada.numero_factura || '',
+                              fechaFactura: ocActualizada.fecha_factura || '',
+                              estadoPago: ocActualizada.estado_pago || 'Pendiente',
+                              fechaPago: ocActualizada.fecha_pago || '',
+                              responsableCompra: ocActualizada.responsable_compra || '',
+                              items: (ocActualizada.ordenes_compra_items || []).map(item => ({
+                                id: item.id,
+                                item: item.item || '',
+                                cantidad: item.cantidad,
+                                descripcion: item.descripcion,
+                                valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                valor_unitario: parseFloat(item.valor_unitario) || 0,
+                                descuento: parseFloat(item.descuento || 0)
+                              }))
+                            };
+                            setOrdenSeleccionada(ocTransformada);
+                            setDetalleEditMode(false);
+                            setShowDetalleModal(true);
+                          } catch (error) {
+                            console.error('Error cargando OC:', error);
+                            alert('Error al cargar la orden de compra');
+                          }
                         }}
                         className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                         title="Ver Detalle"
@@ -3073,10 +3146,50 @@ const OrdenesCompraModule = ({
                         <FileText className="w-4 h-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() => {
-                          setOrdenSeleccionada(orden);
-                          setDetalleEditMode(true);
-                          setShowDetalleModal(true);
+                        onClick={async () => {
+                          try {
+                            // Recargar la OC desde la BD antes de abrir el modal
+                            const ocActualizada = await getOrdenCompraById(orden.id);
+                            const ocTransformada = {
+                              id: ocActualizada.id,
+                              numero: ocActualizada.numero,
+                              codigoProtocolo: ocActualizada.codigo_protocolo,
+                              fecha: ocActualizada.fecha,
+                              proveedorId: ocActualizada.proveedor_id || null,
+                              proveedor: ocActualizada.proveedores?.razon_social || 'Sin proveedor',
+                              rutProveedor: ocActualizada.proveedores?.rut || '',
+                              direccionProveedor: ocActualizada.proveedores?.direccion || '',
+                              contactoProveedor: ocActualizada.proveedores?.contacto || '',
+                              tipoCosto: ocActualizada.tipo_costo,
+                              centroCosto: ocActualizada.centro_costo || '',
+                              actividadUso: ocActualizada.actividad_uso || '',
+                              formaPago: ocActualizada.forma_pago,
+                              subtotal: parseFloat(ocActualizada.subtotal) || 0,
+                              iva: parseFloat(ocActualizada.iva) || 0,
+                              total: parseFloat(ocActualizada.total) || 0,
+                              estado: ocActualizada.estado,
+                              numeroFactura: ocActualizada.numero_factura || '',
+                              fechaFactura: ocActualizada.fecha_factura || '',
+                              estadoPago: ocActualizada.estado_pago || 'Pendiente',
+                              fechaPago: ocActualizada.fecha_pago || '',
+                              responsableCompra: ocActualizada.responsable_compra || '',
+                              items: (ocActualizada.ordenes_compra_items || []).map(item => ({
+                                id: item.id,
+                                item: item.item || '',
+                                cantidad: item.cantidad,
+                                descripcion: item.descripcion,
+                                valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                valor_unitario: parseFloat(item.valor_unitario) || 0,
+                                descuento: parseFloat(item.descuento || 0)
+                              }))
+                            };
+                            setOrdenSeleccionada(ocTransformada);
+                            setDetalleEditMode(true);
+                            setShowDetalleModal(true);
+                          } catch (error) {
+                            console.error('Error cargando OC:', error);
+                            alert('Error al cargar la orden de compra');
+                          }
                         }}
                         className="p-2 bg-orange-100 hover:bg-orange-200 rounded-lg transition-colors"
                         title="Editar"
@@ -3093,7 +3206,38 @@ const OrdenesCompraModule = ({
                               contacto: orden.contactoProveedor || ''
                             };
                             const protocolo = sharedProtocolos.find(p => p.folio === orden.codigoProtocolo) || { folio: orden.codigoProtocolo || '' };
-                            await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
+                            const dedupeItemsPDF = (items = []) => {
+                              const mapa = new Map();
+                              items.forEach((item) => {
+                                const nombre = String(item.item || '').trim();
+                                const descripcion = String(item.descripcion || '').trim();
+                                const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
+                                const cantidad = Number(item.cantidad ?? 0);
+                                const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+                                if (!hasContenido) return;
+                                const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}`;
+                                mapa.set(key, { ...item, item: nombre, descripcion });
+                              });
+                              return Array.from(mapa.values());
+                            };
+                            let itemsPDF = dedupeItemsPDF(orden.items || []);
+                            try {
+                              const ordenesActuales = await getOrdenesCompra();
+                              const encontrada = ordenesActuales.find(o => o.id === orden.id);
+                              if (encontrada?.ordenes_compra_items?.length) {
+                                itemsPDF = dedupeItemsPDF(encontrada.ordenes_compra_items.map(item => ({
+                                  id: item.id,
+                                  item: item.item || '',
+                                  cantidad: item.cantidad,
+                                  descripcion: item.descripcion,
+                                  valorUnitario: parseFloat(item.valor_unitario) || 0,
+                                  descuento: parseFloat(item.descuento || 0)
+                                })));
+                              }
+                            } catch (error) {
+                              console.error('Error cargando items actualizados para PDF:', error);
+                            }
+                            await generarOCPDF(orden, proveedor, protocolo, itemsPDF);
                           } catch (error) {
                             console.error('Error al generar PDF:', error);
                             alert('Error al generar el PDF');
@@ -3976,27 +4120,32 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   const [orden, setOrden] = useState(ordenInicial);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [isEditing, setIsEditing] = useState(startInEdit);
+  const [isSaving, setIsSaving] = useState(false);
   const [proveedores, setProveedores] = useState([]);
   const prevOrdenIdRef = useRef(ordenInicial?.id);
 
   const limpiarItems = (items = []) => {
+    const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+    const normalizeNumber = (value) => {
+      const num = Number(value ?? 0);
+      return Number.isFinite(num) ? num : 0;
+    };
     const mapa = new Map();
     (items || []).forEach((item) => {
-      const hasNombre = String(item.item || '').trim().length > 0;
-      const hasDescripcion = String(item.descripcion || '').trim().length > 0;
-      const valorUnitario = Number(item.valorUnitario ?? item.valor_unitario ?? 0);
-      const hasValor = valorUnitario > 0;
-      if (!hasNombre && !hasDescripcion && !hasValor) return;
-      const key = [
-        String(item.item || '').trim().toLowerCase(),
-        String(item.descripcion || '').trim().toLowerCase()
-      ].join('|');
-      mapa.set(key, item);
+      const nombre = normalizeText(item.item);
+      const descripcion = normalizeText(item.descripcion);
+      const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+      const cantidad = normalizeNumber(item.cantidad);
+      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+      if (!hasContenido) return;
+      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+      mapa.set(key, { ...item, item: nombre, descripcion, cantidad, valorUnitario });
     });
     return Array.from(mapa.values());
   };
 
   useEffect(() => {
+    if (isEditing) return;
     setOrden({
       ...ordenInicial,
       items: limpiarItems(ordenInicial.items || [])
@@ -4005,7 +4154,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
       setIsEditing(startInEdit);
       prevOrdenIdRef.current = ordenInicial?.id;
     }
-  }, [ordenInicial]);
+  }, [ordenInicial, isEditing, startInEdit]);
 
   useEffect(() => {
     if (startInEdit) setIsEditing(true);
@@ -4103,13 +4252,13 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     };
     const actualizada = { ...orden, items: [...orden.items, nuevo] };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   const eliminarItem = (id) => {
     const actualizada = { ...orden, items: orden.items.filter(i => i.id !== id) };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   const actualizarItem = (id, campo, valor) => {
@@ -4120,7 +4269,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
       )
     };
     setOrden(actualizada);
-    onUpdate(actualizada);
+    // No llamar onUpdate aquí - solo actualizar estado local
   };
 
   return (
@@ -4334,13 +4483,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="mb-6">
             {isEditing && (
               <div className="flex justify-end mb-3">
-                <button
-                  type="button"
-                  onClick={agregarItem}
-                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
-                >
-                  + Agregar Item
-                </button>
+                <p className="text-sm text-gray-500">En edición solo puedes ajustar: Item, Descripción y Valor Unitario.</p>
               </div>
             )}
             <div className="space-y-4">
@@ -4364,7 +4507,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
@@ -4396,7 +4539,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        disabled={!isEditing}
+                        disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
@@ -4471,14 +4614,21 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
         <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
           {isEditing && (
             <button
-              onClick={() => {
-                const itemsLimpios = limpiarItems(orden.items || []);
-                onSave && onSave({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
+              onClick={async () => {
+                if (isSaving) return;
+                setIsSaving(true);
+                try {
+                  const itemsLimpios = limpiarItems(orden.items || []);
+                  await onSave?.({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
+                } finally {
+                  setIsSaving(false);
+                }
               }}
-              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              disabled={isSaving}
             >
-              Guardar Cambios
+              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           )}
           <button
@@ -4604,7 +4754,8 @@ const ProveedoresModule = () => {
         const total = parseFloat(oc.total) || 0;
         const subtotal = parseFloat(oc.subtotal) || 0;
         const iva = parseFloat(oc.iva) || 0;
-        const monto = total || (subtotal + iva) || 0;
+        // Usar subtotal (neto) preferentemente
+        const monto = subtotal || (total / 1.19) || 0;
         const estado = oc.estado || '';
         const estadoPago = oc.estado_pago || oc.estadoPago || 'Pendiente';
         const pendiente = estado !== 'Anulada' && estadoPago !== 'Pagada';
@@ -5344,13 +5495,20 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
     const loadHistorial = async () => {
       try {
         setLoading(true);
-        const data = await getOrdenesCompra();
+        const [data, protocolos] = await Promise.all([
+          getOrdenesCompra(),
+          getProtocolos()
+        ]);
+        const protocolosByFolio = new Map(
+          (protocolos || []).map(p => [String(p.folio), p])
+        );
         const filtradas = data
           .filter(oc => String(oc.proveedor_id) === String(proveedor.id))
           .map(oc => ({
             id: oc.id,
             numero: oc.numero,
             protocolo: oc.codigo_protocolo || '',
+            nombreProyecto: protocolosByFolio.get(String(oc.codigo_protocolo || ''))?.nombre_proyecto || '',
             fecha: oc.fecha,
             monto: parseFloat(oc.total) || 0,
             factura: oc.numero_factura || '',
@@ -5408,7 +5566,10 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
                         OC #{oc.numero}
                       </p>
                       <p className="text-sm text-gray-600">
-                        Protocolo: {oc.protocolo} | {oc.fecha}
+                        Protocolo: {oc.protocolo || 'Sin protocolo'} | {oc.fecha}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Proyecto: {oc.nombreProyecto || 'Sin nombre de proyecto'}
                       </p>
                       {oc.factura && (
                         <p className="text-sm text-green-600 mt-1">
@@ -5695,15 +5856,48 @@ const ProtocolosModule = ({
     loadProtocolos();
   }, []);
 
+  const calcularNetoCotizacion = (cot) => {
+    // Si ya tiene neto, usarlo directamente
+    if (cot?.neto !== undefined && cot?.neto !== null) {
+      return parseFloat(cot.neto);
+    }
+    // Si tiene items, calcular desde items
+    const items = cot?.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    // Fallback: asumir que monto es neto (datos antiguos)
+    if (!cot?.monto) return 0;
+    return parseFloat(cot.monto);
+  };
+
   useEffect(() => {
     if (sharedCotizaciones.length === 0) return;
+    const cotizacionesByNumero = new Map(
+      sharedCotizaciones.map(c => [normalizarNumero(c.numero), c])
+    );
+    const cotizacionesByFolio = new Map(
+      sharedCotizaciones
+        .filter(c => c.adjudicada_a_protocolo)
+        .map(c => [String(c.adjudicada_a_protocolo), c])
+    );
     setProtocolos(prev =>
-      prev.map(p => ({
-        ...p,
-        items: p.items && p.items.length
-          ? p.items
-          : (sharedCotizaciones.find(c => String(c.numero) === String(p.numeroCotizacion))?.items || [])
-      }))
+      prev.map(p => {
+        const cotizacion =
+          cotizacionesByFolio.get(String(p.folio)) ??
+          cotizacionesByNumero.get(normalizarNumero(p.numeroCotizacion));
+        return ({
+          ...p,
+          items: p.items && p.items.length ? p.items : (cotizacion?.items || []),
+          montoNetoCotizacion: cotizacion ? calcularNetoCotizacion(cotizacion) : p.montoNetoCotizacion
+        });
+      })
     );
   }, [sharedCotizaciones]);
 
@@ -5731,7 +5925,10 @@ const ProtocolosModule = ({
   const loadProtocolos = async () => {
     try {
       setLoading(true);
-      const data = await getProtocolos();
+      const [data, cotizacionesData] = await Promise.all([
+        getProtocolos(),
+        getCotizaciones()
+      ]);
       const protocolosIds = data.map(p => p.id).filter(Boolean);
       const facturasData = protocolosIds.length > 0
         ? await getProtocolosFacturas(protocolosIds)
@@ -5743,39 +5940,55 @@ const ProtocolosModule = ({
         return acc;
       }, {});
       
-      const transformados = data.map(p => ({
-        id: p.id,
-        folio: p.folio,
-        numeroCotizacion: p.numero_cotizacion,
-        cliente: p.clientes?.razon_social || 'Sin cliente',
-        nombreProyecto: p.nombre_proyecto,
-        rutCliente: p.clientes?.rut || '',
-        tipo: p.tipo,
-        ocCliente: p.oc_cliente,
-        estado: p.estado,
-        unidadNegocio: p.unidad_negocio,
-        fechaCreacion: p.fecha_creacion,
-        montoTotal: parseFloat(p.monto_total),
-        items: Array.isArray(p.items) ? p.items : [],
-        facturas: (() => {
-          const facturas = facturasByProtocolo[p.id] || [];
-          if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
-            return [{
-              id: `legacy-${p.id}`,
-              protocoloId: p.id,
-              numero: p.factura_bm || '',
-              fecha: p.fecha_factura_bm || '',
-              montoNeto: 0,
-              iva: 0,
-              total: 0,
-              tipoDoc: 'Factura',
-              estado: 'Emitida',
-              createdAt: ''
-            }];
-          }
-          return facturas;
-        })()
-      }));
+      const cotizacionesByNumero = new Map(
+        (cotizacionesData || []).map((cot) => [normalizarNumero(cot.numero), cot])
+      );
+      const cotizacionesByFolio = new Map(
+        (cotizacionesData || [])
+          .filter((cot) => cot.adjudicada_a_protocolo)
+          .map((cot) => [String(cot.adjudicada_a_protocolo), cot])
+      );
+
+      const transformados = data.map((p) => {
+        const cotizacion =
+          cotizacionesByFolio.get(String(p.folio)) ??
+          cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion));
+        return {
+          id: p.id,
+          folio: p.folio,
+          numeroCotizacion: p.numero_cotizacion,
+          cliente: p.clientes?.razon_social || 'Sin cliente',
+          nombreProyecto: p.nombre_proyecto,
+          rutCliente: p.clientes?.rut || '',
+          tipo: p.tipo,
+          ocCliente: p.oc_cliente,
+          estado: p.estado,
+          unidadNegocio: p.unidad_negocio,
+          fechaCreacion: p.fecha_creacion,
+          montoTotal: parseFloat(p.monto_total),
+          montoNeto: parseFloat(p.monto_neto) || undefined,
+          montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
+          items: Array.isArray(p.items) ? p.items : [],
+          facturas: (() => {
+            const facturas = facturasByProtocolo[p.id] || [];
+            if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
+              return [{
+                id: `legacy-${p.id}`,
+                protocoloId: p.id,
+                numero: p.factura_bm || '',
+                fecha: p.fecha_factura_bm || '',
+                montoNeto: 0,
+                iva: 0,
+                total: 0,
+                tipoDoc: 'Factura',
+                estado: 'Emitida',
+                createdAt: ''
+              }];
+            }
+            return facturas;
+          })()
+        };
+      });
       
       setProtocolos(transformados);
     } catch (error) {
@@ -5939,10 +6152,36 @@ const ProtocolosModule = ({
                 alert('Error al marcar como pagada');
               }
             }}
-            onSave={async (ordenActualizada) => {
-              try {
-                const subtotal = ordenActualizada.items.reduce((sum, item) => {
-                  const itemSubtotal = item.cantidad * item.valorUnitario;
+              onSave={async (ordenActualizada) => {
+                try {
+                  const itemsLimpios = (() => {
+                    const normalizeText = (value) => String(value || '').trim().replace(/\s+/g, ' ');
+                    const normalizeNumber = (value) => {
+                      const num = Number(value ?? 0);
+                      return Number.isFinite(num) ? num : 0;
+                    };
+                    const mapa = new Map();
+                    (ordenActualizada.items || []).forEach((item) => {
+                      const nombre = normalizeText(item.item);
+                      const descripcion = normalizeText(item.descripcion);
+                      const valorUnitario = normalizeNumber(item.valorUnitario ?? item.valor_unitario);
+                      const cantidad = normalizeNumber(item.cantidad);
+                      const hasContenido = nombre.length > 0 || descripcion.length > 0 || valorUnitario > 0 || cantidad > 0;
+                      if (!hasContenido) return;
+                      const key = `${nombre.toLowerCase()}|${descripcion.toLowerCase()}|${cantidad}|${valorUnitario.toFixed(2)}`;
+                      mapa.set(key, {
+                        ...item,
+                        item: nombre,
+                        descripcion,
+                        cantidad,
+                        valorUnitario
+                      });
+                    });
+                    return Array.from(mapa.values());
+                  })();
+
+                  const subtotal = itemsLimpios.reduce((sum, item) => {
+                    const itemSubtotal = item.cantidad * item.valorUnitario;
                   const itemDescuento = itemSubtotal * (item.descuento / 100);
                   return sum + (itemSubtotal - itemDescuento);
                 }, 0);
@@ -5953,6 +6192,8 @@ const ProtocolosModule = ({
                   proveedor_id: ordenActualizada.proveedorId || null,
                   codigo_protocolo: ordenActualizada.codigoProtocolo || '',
                   tipo_costo: ordenActualizada.tipoCosto || '',
+                  centro_costo: ordenActualizada.centroCosto || '',
+                  actividad_uso: ordenActualizada.actividadUso || '',
                   forma_pago: ordenActualizada.formaPago || '',
                   responsable_compra: ordenActualizada.responsableCompra || '',
                   subtotal,
@@ -5965,7 +6206,7 @@ const ProtocolosModule = ({
                   fecha_pago: ordenActualizada.fechaPago || null
                 });
 
-                await replaceOrdenCompraItems(ordenActualizada.id, ordenActualizada.items || []);
+                await replaceOrdenCompraItems(ordenActualizada.id, itemsLimpios);
                 await refrescarOrdenesCompra();
 
                 setShowDetalleOC(false);
@@ -5993,6 +6234,8 @@ const ProtocolosModule = ({
                   fecha: new Date().toISOString().split('T')[0],
                   proveedor_id: nuevaOC.proveedorId || null,
                   tipo_costo: nuevaOC.tipoCosto,
+                  centro_costo: nuevaOC.centroCosto || '',
+                  actividad_uso: nuevaOC.actividadUso || '',
                   forma_pago: nuevaOC.formaPago,
                   responsable_compra: nuevaOC.responsableCompra || '',
                   total: parseFloat(nuevaOC.total),
@@ -6062,6 +6305,8 @@ const ProtocolosModule = ({
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
                 tipo_costo: nuevaOC.tipoCosto,
+                centro_costo: nuevaOC.centroCosto || '',
+                actividad_uso: nuevaOC.actividadUso || '',
                 forma_pago: nuevaOC.formaPago,
                 responsable_compra: nuevaOC.responsableCompra || '',
                 total: parseFloat(nuevaOC.total),
@@ -6168,6 +6413,9 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
   };
 
   const obtenerNetoProtocolo = (protocolo) => {
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
     const items = protocolo.items || [];
     if (items.length > 0) {
       return items.reduce((sum, item) => {
@@ -6200,7 +6448,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
     abiertos: protocolos.filter(p => p.estado === 'Abierto').length,
     enProceso: protocolos.filter(p => p.estado === 'En Proceso').length,
     cerrados: protocolos.filter(p => p.estado === 'Cerrado').length,
-    montoTotal: protocolos.reduce((sum, p) => sum + p.montoTotal, 0)
+    montoTotal: protocolos.reduce((sum, p) => sum + obtenerNetoProtocolo(p), 0)
   };
 
   return (
@@ -6410,6 +6658,11 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const facturasProtocolo = Array.isArray(protocolo.facturas) ? protocolo.facturas : [];
   const ocVinculadas = ordenesCompra.filter(oc => oc.codigoProtocolo === protocolo.folio);
   const calcularNetoProtocolo = () => {
+    // Prioridad 1: usar montoNetoCotizacion si está disponible
+    if (protocolo.montoNetoCotizacion !== undefined && protocolo.montoNetoCotizacion !== null) {
+      return protocolo.montoNetoCotizacion;
+    }
+    // Prioridad 2: calcular desde items si tienen valores
     const items = protocolo.items || [];
     if (items.length > 0) {
       const tieneValores = items.some(item => {
@@ -6426,7 +6679,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
         }, 0);
       }
     }
-    return protocolo.montoTotal || 0;
+    // Prioridad 3: usar montoTotal / 1.19 como estimación (NETO)
+    return protocolo.montoTotal ? protocolo.montoTotal / 1.19 : 0;
   };
   const montoNeto = calcularNetoProtocolo();
   const costoRealNeto = ocVinculadas.reduce(
@@ -7248,35 +7502,14 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
   const [fecha, setFecha] = useState(
     factura?.fecha || new Date().toISOString().split('T')[0]
   );
-  const [montoNeto, setMontoNeto] = useState(
-    factura?.montoNeto !== undefined && factura?.montoNeto !== null ? factura.montoNeto : ''
-  );
-  const [iva, setIva] = useState(
-    factura?.iva !== undefined && factura?.iva !== null ? factura.iva : ''
-  );
-  const [total, setTotal] = useState(
-    factura?.total !== undefined && factura?.total !== null ? factura.total : ''
-  );
   const [estado, setEstado] = useState(factura?.estado || 'Emitida');
-
-  useEffect(() => {
-    const neto = Number(montoNeto);
-    if (Number.isFinite(neto)) {
-      const nextIva = Math.round(neto * 0.19);
-      setIva(nextIva);
-      setTotal(neto + nextIva);
-    } else {
-      setIva('');
-      setTotal('');
-    }
-  }, [montoNeto]);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="p-6 border-b">
           <h4 className="text-xl font-bold text-gray-800">
-            {factura ? 'Editar Factura' : 'Agregar Factura'}
+            {factura ? 'Editar Documento' : 'Agregar Documento'}
           </h4>
         </div>
         <div className="p-6 space-y-4">
@@ -7313,49 +7546,6 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Neto</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={montoNeto}
-                onChange={(e) => setMontoNeto(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">IVA</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={iva}
-                onChange={() => {}}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
-                placeholder="Calculado automaticamente"
-                disabled
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Total</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={total}
-                onChange={() => {}}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
-                placeholder="Calculado automaticamente"
-                disabled
-              />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            IVA y Total se calculan automaticamente desde el neto.
-          </p>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
             <select
@@ -7382,9 +7572,6 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 tipoDoc,
                 numero: numero.trim(),
                 fecha,
-                montoNeto,
-                iva,
-                total,
                 estado
               })
             }
@@ -9482,11 +9669,12 @@ const [showNewModal, setShowNewModal] = useState(false);
       return;
     }
     try {
-      const { total } = calcularTotalesItems(itemsSeleccionados);
+      const { subtotal } = calcularTotalesItems(itemsSeleccionados);
       await updateCotizacion(cotizacionGanada.id, {
         estado: 'ganada',
         items: itemsSeleccionados,
-        monto: total
+        neto: subtotal,
+        monto: subtotal
       });
       await loadCotizaciones();
       setShowGanadaModal(false);
@@ -10077,14 +10265,15 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const { total } = calcularTotales();
+    const { subtotal } = calcularTotales();
     onSave({
       fecha: formData.fecha,
       nombre_proyecto: formData.nombreProyecto,
       unidad_negocio: formData.unidadNegocio,
       condiciones_pago: formData.condicionesPago,
       cotizado_por: formData.cotizadoPor,
-      monto: total,
+      neto: subtotal,
+      monto: subtotal,
       estado: formData.estado,
       items: (formData.items || []).map(item => ({
         ...item,
@@ -10500,12 +10689,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
       ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 5540))
       : 5540;
     
-    const { total } = calcularTotales();
+    const { subtotal } = calcularTotales();
     const nuevaCotizacion = {
       numero: `${ultimoNumero + 1}`,
       ...formData,
       clienteId,
-      monto: total,
+      neto: subtotal,
+      monto: subtotal,
       estado: 'emitida',
       items: (formData.items || []).map(item => ({
         ...item,
@@ -10921,6 +11111,27 @@ const Dashboard = ({ user, onLogout }) => {
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
 
+  const calcularNetoCotizacion = (cot) => {
+    // Si ya tiene neto, usarlo directamente
+    if (cot?.neto !== undefined && cot?.neto !== null) {
+      return parseFloat(cot.neto);
+    }
+    // Si tiene items, calcular desde items
+    const items = cot?.items || [];
+    if (items.length > 0) {
+      return items.reduce((sum, item) => {
+        const cantidad = item.cantidad || 0;
+        const valorUnitario = item.valorUnitario ?? item.valor_unitario ?? 0;
+        const descuento = item.descuento || 0;
+        const subtotal = cantidad * valorUnitario;
+        return sum + (subtotal - (subtotal * (descuento / 100)));
+      }, 0);
+    }
+    // Fallback: asumir que monto es neto (datos antiguos)
+    if (!cot?.monto) return 0;
+    return parseFloat(cot.monto);
+  };
+
   useEffect(() => {
     let facturasByProtocolo = {};
     const mapCotizacion = (cot) => ({
@@ -10934,7 +11145,7 @@ const Dashboard = ({ user, onLogout }) => {
       direccionCliente: cot.clientes?.direccion || cot.direccion || '',
       contactoCliente: cot.clientes?.persona_encargada || cot.contacto || '',
       unidadNegocio: cot.unidad_negocio,
-      monto: parseFloat(cot.monto) || 0,
+      monto: parseFloat(cot.neto || cot.monto) || 0,
       estado: cot.estado,
       cotizadoPor: cot.cotizado_por,
       condicionesPago: cot.condiciones_pago,
@@ -10942,7 +11153,7 @@ const Dashboard = ({ user, onLogout }) => {
       adjudicada_a_protocolo: cot.adjudicada_a_protocolo
     });
 
-    const mapProtocolo = (p) => ({
+    const mapProtocolo = (p, cotizacionesByNumero, cotizacionesByFolio) => ({
       id: p.id,
       folio: p.folio,
       numeroCotizacion: p.numero_cotizacion || '',
@@ -10955,6 +11166,12 @@ const Dashboard = ({ user, onLogout }) => {
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
       montoTotal: parseFloat(p.monto_total) || 0,
+      montoNeto: parseFloat(p.monto_neto) || undefined,
+      montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (
+        cotizacionesByFolio.get(String(p.folio)) ??
+        cotizacionesByNumero.get(normalizarNumero(p.numero_cotizacion)) ??
+        0
+      ),
       items: p.items || [],
       facturas: (() => {
         const facturas = facturasByProtocolo[p.id] || [];
@@ -11050,9 +11267,23 @@ const Dashboard = ({ user, onLogout }) => {
         const proveedoresById = new Map(
           (proveedoresData || []).map((p) => [String(p.id), p])
         );
+        const cotizacionesByNumero = new Map(
+          (cotData || []).map((cot) => [normalizarNumero(cot.numero), calcularNetoCotizacion({
+            items: cot.items || [],
+            monto: parseFloat(cot.monto) || 0
+          })])
+        );
+        const cotizacionesByFolio = new Map(
+          (cotData || [])
+            .filter((cot) => cot.adjudicada_a_protocolo)
+            .map((cot) => [String(cot.adjudicada_a_protocolo), calcularNetoCotizacion({
+              items: cot.items || [],
+              monto: parseFloat(cot.monto) || 0
+            })])
+        );
 
         setSharedCotizaciones(cotData.map(mapCotizacion));
-        setSharedProtocolos(protData.map(mapProtocolo));
+        setSharedProtocolos(protData.map((p) => mapProtocolo(p, cotizacionesByNumero, cotizacionesByFolio)));
         setSharedOrdenesCompra(ocData.map((o) => mapOrdenCompra(o, proveedoresById)));
       } catch (error) {
         console.error('Error cargando datos del dashboard:', error);
@@ -11088,6 +11319,10 @@ const Dashboard = ({ user, onLogout }) => {
           }))
         : 30649;
 
+      // Calcular neto desde la cotización
+      const netoCalculado = cotizacion.monto || 0; // Ya es neto después de las correcciones
+      const totalCalculado = netoCalculado * 1.19; // Total con IVA
+
       const nuevoProtocolo = {
         folio: `${ultimoFolio + 1}`,
         numero_cotizacion: cotizacion.numero,
@@ -11098,7 +11333,8 @@ const Dashboard = ({ user, onLogout }) => {
         estado: 'Abierto',
         unidad_negocio: cotizacion.unidadNegocio,
         fecha_creacion: new Date().toISOString().split('T')[0],
-        monto_total: cotizacion.monto,
+        monto_neto: netoCalculado,
+        monto_total: totalCalculado,
         items: []
       };
 
@@ -11140,7 +11376,7 @@ const Dashboard = ({ user, onLogout }) => {
         nombreProyecto: cot.nombre_proyecto,
         rut: cot.clientes?.rut || '',
         unidadNegocio: cot.unidad_negocio,
-        monto: parseFloat(cot.monto) || 0,
+        monto: parseFloat(cot.neto || cot.monto) || 0,
         estado: cot.estado,
         cotizadoPor: cot.cotizado_por,
         condicionesPago: cot.condiciones_pago,
@@ -11160,6 +11396,7 @@ const Dashboard = ({ user, onLogout }) => {
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
         montoTotal: parseFloat(p.monto_total) || 0,
+        montoNeto: parseFloat(p.monto_neto) || undefined,
         items: p.items || [],
         facturas: (() => {
           const facturas = facturasByProtocolo[p.id] || [];
@@ -11444,7 +11681,8 @@ const Dashboard = ({ user, onLogout }) => {
 
                   const netoPorUnidad = sharedProtocolos.reduce((acc, protocolo) => {
                     const unidad = normalizarUnidad(protocolo.unidadNegocio);
-                    acc[unidad] = (acc[unidad] || 0) + (protocolo.montoTotal || 0);
+                    const neto = protocolo.montoNetoCotizacion ?? protocolo.montoTotal ?? 0;
+                    acc[unidad] = (acc[unidad] || 0) + neto;
                     return acc;
                   }, {});
 
@@ -11632,24 +11870,65 @@ const Dashboard = ({ user, onLogout }) => {
 // App Principal
 export default function App() {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay una sesión guardada
-    const savedUser = localStorage.getItem('kurion_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Verificar sesión existente con Supabase Auth
+    const initSession = async () => {
+      try {
+        const profile = await obtenerSesionActual();
+        if (profile) {
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            username: profile.email,
+            name: profile.nombre,
+            role: profile.rol
+          });
+        }
+      } catch (e) {
+        console.error('Error verificando sesión:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initSession();
+
+    // Escuchar cambios de estado de auth (logout, expiración de token, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogin = (userData) => {
     setUser(userData);
-    localStorage.setItem('kurion_user', JSON.stringify(userData));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await cerrarSesion();
+    } catch (e) {
+      console.error('Error cerrando sesión:', e);
+    }
     setUser(null);
-    localStorage.removeItem('kurion_user');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/80 text-lg font-medium">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
