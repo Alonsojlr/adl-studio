@@ -44,7 +44,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
   const M = 18;
   const TOTAL_W = W - M * 2;
 
-  const GREEN_DARK = [63, 169, 151];
+  const BLUE = [30, 58, 138];
   const BORDER = [200, 200, 200];
   const TEXT_DARK = [40, 40, 40];
 
@@ -84,8 +84,8 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
 
   if (loadImageAsDataUrl) {
     try {
-      const logoDataUrl = await loadImageAsDataUrl('/logo-adl-studio.png');
-      doc.addImage(logoDataUrl, getImageFormat(logoDataUrl), topX + 6, topY + 7, 43, 16);
+      const logoDataUrl = await loadImageAsDataUrl('/logoazul.png');
+      doc.addImage(logoDataUrl, getImageFormat(logoDataUrl), topX + 6, topY + 5, 28, 18);
     } catch (error) {
       console.warn('No se pudo cargar el logo para el PDF:', error);
     }
@@ -177,7 +177,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     theme: 'grid',
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
-    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255] },
     styles: { fontSize: tableFont, cellPadding: tablePadding, overflow: 'ellipsize' },
     pageBreak: 'avoid',
     rowPageBreak: 'avoid',
@@ -201,7 +201,7 @@ export const renderProtocoloPDF = async (protocolo, items = [], ordenesCompra = 
     theme: 'grid',
     margin: { left: M, right: M },
     tableWidth: TOTAL_W,
-    headStyles: { fillColor: GREEN_DARK, textColor: [255, 255, 255] },
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255] },
     styles: { fontSize: tableFont, cellPadding: tablePadding, overflow: 'ellipsize' },
     pageBreak: 'avoid',
     rowPageBreak: 'avoid',

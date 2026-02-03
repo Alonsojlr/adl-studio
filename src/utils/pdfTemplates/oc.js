@@ -37,11 +37,10 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   const H = doc.internal.pageSize.getHeight();
   const M = 18;
 
-  // 🎨 Colores (tu verde exacto)
-  const GREEN = hexToRgb("#3FA997");
+  // Colores azul principal
+  const BLUE = [30, 58, 138];
   const GRAY_TEXT = [155, 155, 155];
   const BORDER_GRAY = [190, 190, 190];
-  const RED = [220, 60, 60];
   const DARK = [90, 90, 90];
 
   // Datos (mantengo tu lógica)
@@ -58,13 +57,13 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   // Logo + datos empresa (izq)
   // =========================
   try {
-    const logoDataUrl = await fetchImageAsDataURL("/logo-adl-studio.png");
-    doc.addImage(logoDataUrl, "PNG", M, 12, 56, 18);
+    const logoDataUrl = await fetchImageAsDataURL("/logoazul.png");
+    doc.addImage(logoDataUrl, "PNG", M, 10, 32, 20);
   } catch {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(26);
-    doc.setTextColor(...GREEN);
-    doc.text("Building Me", M, 24);
+    doc.setTextColor(...BLUE);
+    doc.text("ADL Studio", M, 24);
   }
 
   doc.setFont("helvetica", "normal");
@@ -86,12 +85,12 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   const boxX = W - M - boxW;
   const boxY = 12;
 
-  doc.setDrawColor(...RED);
+  doc.setDrawColor(...BLUE);
   doc.setLineWidth(1.2);
   doc.rect(boxX, boxY, boxW, boxH);
 
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...RED);
+  doc.setTextColor(...BLUE);
   doc.setFontSize(18);
   doc.text("ORDEN DE COMPRA", boxX + boxW / 2, boxY + 12, { align: "center" });
 
@@ -167,7 +166,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
   doc.text(doc.splitTextToSize(paragraph, W - 2 * M), M, paragraphY);
 
   // =========================
-  // Tabla (header con #3FA997, igual maqueta)
+  // Tabla
   // =========================
   const tableData = (items || []).length
     ? (items || []).map((item) => {
@@ -190,7 +189,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
     head: [["Cant.", "Descripción", "Valor Unit", "Descuento", "Subtotal"]],
     body: tableData,
     theme: "grid",
-    headStyles: { fillColor: GREEN, textColor: 255, fontStyle: "bold" },
+    headStyles: { fillColor: BLUE, textColor: 255, fontStyle: "bold" },
     styles: { fontSize: 9, cellPadding: 2.2 },
     columnStyles: {
       0: { cellWidth: 16 },
@@ -236,7 +235,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
       ["Total", formatCurrency(total)],
     ],
     columnStyles: {
-      0: { cellWidth: 25, fontStyle: "bold", textColor: GREEN },
+      0: { cellWidth: 25, fontStyle: "bold", textColor: BLUE },
       1: { cellWidth: 45, halign: "right" },
     },
   });
@@ -250,7 +249,7 @@ export const renderOCPDF = async (ordenCompra, proveedor, protocolo, items) => {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(...GREEN);
+  doc.setTextColor(...BLUE);
   doc.text("Terminos y Condiciones", M, termsTitleY);
 
   doc.setFont("helvetica", "normal");
