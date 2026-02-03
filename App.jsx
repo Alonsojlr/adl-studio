@@ -3458,9 +3458,9 @@ const OrdenesCompraModule = ({
               const ultimoNumero = ordenesExistentes.length > 0
                 ? Math.max(...ordenesExistentes.map(o => {
                     const num = parseInt(o.numero.replace('OC-', ''));
-                    return isNaN(num) ? 17403 : num;
+                    return isNaN(num) ? 3999 : num;
                   }))
-                : 17402;
+                : 3999;
 
               const ocData = {
                 numero: `OC-${ultimoNumero + 1}`,
@@ -6342,9 +6342,9 @@ const ProtocolosModule = ({
               const ultimoFolio = protocolosExistentes.length > 0
                 ? Math.max(...protocolosExistentes.map(p => {
                     const num = parseInt(p.folio);
-                    return isNaN(num) ? 30650 : num;
+                    return isNaN(num) ? 4999 : num;
                   }))
-                : 30649;
+                : 4999;
 
               const protocoloData = {
                 folio: `${ultimoFolio + 1}`,
@@ -10686,8 +10686,8 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     // Obtener todas las cotizaciones para calcular el siguiente número
     const cotizaciones = await getCotizaciones();
     const ultimoNumero = cotizaciones.length > 0
-      ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 5540))
-      : 5540;
+      ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 1999))
+      : 1999;
     
     const { subtotal } = calcularTotales();
     const nuevaCotizacion = {
@@ -11315,9 +11315,9 @@ const Dashboard = ({ user, onLogout }) => {
       const ultimoFolio = protocolosExistentes.length > 0
         ? Math.max(...protocolosExistentes.map(p => {
             const num = parseInt(p.folio);
-            return isNaN(num) ? 30650 : num;
+            return isNaN(num) ? 4999 : num;
           }))
-        : 30649;
+        : 4999;
 
       // Calcular neto desde la cotización
       const netoCalculado = cotizacion.monto || 0; // Ya es neto después de las correcciones
