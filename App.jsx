@@ -2795,9 +2795,9 @@ const OrdenesCompraModule = ({
   const [filterEstado, setFilterEstado] = useState('todos');
 
   const ordenesFiltradas = ordenes.filter(orden => {
-    const matchSearch = orden.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       orden.proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       orden.codigoProtocolo.includes(searchTerm);
+    const matchSearch = (orden.numero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       (orden.proveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       (orden.codigoProtocolo || '').includes(searchTerm);
     const matchEstado = filterEstado === 'todos' || orden.estado === filterEstado;
     return matchSearch && matchEstado;
   });
@@ -3288,7 +3288,16 @@ const OrdenesCompraModule = ({
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevaOC) => {
             try {
+              const ordenesExistentes = await getOrdenesCompra();
+              const ultimoNumero = ordenesExistentes.length > 0
+                ? Math.max(...ordenesExistentes.map(o => {
+                    const num = parseInt((o.numero || '').replace('OC-', ''));
+                    return isNaN(num) ? 3999 : num;
+                  }))
+                : 3999;
+
               const ocData = {
+                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: nuevaOC.codigoProtocolo || '',
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
@@ -3457,7 +3466,7 @@ const OrdenesCompraModule = ({
               const ordenesExistentes = await getOrdenesCompra();
               const ultimoNumero = ordenesExistentes.length > 0
                 ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt(o.numero.replace('OC-', ''));
+                    const num = parseInt((o.numero || '').replace('OC-', ''));
                     return isNaN(num) ? 3999 : num;
                   }))
                 : 3999;
@@ -6229,7 +6238,16 @@ const ProtocolosModule = ({
             }}
             onGuardar={async (nuevaOC) => {
               try {
+                const ordenesExistentes = await getOrdenesCompra();
+                const ultimoNumero = ordenesExistentes.length > 0
+                  ? Math.max(...ordenesExistentes.map(o => {
+                      const num = parseInt((o.numero || '').replace('OC-', ''));
+                      return isNaN(num) ? 3999 : num;
+                    }))
+                  : 3999;
+
                 const ocData = {
+                  numero: `OC-${ultimoNumero + 1}`,
                   codigo_protocolo: datosPreOC.codigoProtocolo,
                   fecha: new Date().toISOString().split('T')[0],
                   proveedor_id: nuevaOC.proveedorId || null,
@@ -6300,7 +6318,16 @@ const ProtocolosModule = ({
           }}
           onGuardar={async (nuevaOC) => {
             try {
+              const ordenesExistentes = await getOrdenesCompra();
+              const ultimoNumero = ordenesExistentes.length > 0
+                ? Math.max(...ordenesExistentes.map(o => {
+                    const num = parseInt((o.numero || '').replace('OC-', ''));
+                    return isNaN(num) ? 3999 : num;
+                  }))
+                : 3999;
+
               const ocData = {
+                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: datosPreOC.codigoProtocolo,
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
