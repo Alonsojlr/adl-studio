@@ -7502,35 +7502,14 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
   const [fecha, setFecha] = useState(
     factura?.fecha || new Date().toISOString().split('T')[0]
   );
-  const [montoNeto, setMontoNeto] = useState(
-    factura?.montoNeto !== undefined && factura?.montoNeto !== null ? factura.montoNeto : ''
-  );
-  const [iva, setIva] = useState(
-    factura?.iva !== undefined && factura?.iva !== null ? factura.iva : ''
-  );
-  const [total, setTotal] = useState(
-    factura?.total !== undefined && factura?.total !== null ? factura.total : ''
-  );
   const [estado, setEstado] = useState(factura?.estado || 'Emitida');
-
-  useEffect(() => {
-    const neto = Number(montoNeto);
-    if (Number.isFinite(neto)) {
-      const nextIva = Math.round(neto * 0.19);
-      setIva(nextIva);
-      setTotal(neto + nextIva);
-    } else {
-      setIva('');
-      setTotal('');
-    }
-  }, [montoNeto]);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
         <div className="p-6 border-b">
           <h4 className="text-xl font-bold text-gray-800">
-            {factura ? 'Editar Factura' : 'Agregar Factura'}
+            {factura ? 'Editar Documento' : 'Agregar Documento'}
           </h4>
         </div>
         <div className="p-6 space-y-4">
@@ -7567,49 +7546,6 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Monto Neto</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={montoNeto}
-                onChange={(e) => setMontoNeto(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">IVA</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={iva}
-                onChange={() => {}}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
-                placeholder="Calculado automaticamente"
-                disabled
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Total</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={total}
-                onChange={() => {}}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500 cursor-not-allowed"
-                placeholder="Calculado automaticamente"
-                disabled
-              />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            IVA y Total se calculan automaticamente desde el neto.
-          </p>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
             <select
@@ -7636,9 +7572,6 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 tipoDoc,
                 numero: numero.trim(),
                 fecha,
-                montoNeto,
-                iva,
-                total,
                 estado
               })
             }
