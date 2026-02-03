@@ -7,9 +7,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        'kurion-dark': '#235250',
-        'kurion-green': '#45ad98',
-        'kurion-blue': '#33b4e9',
+        'kurion-dark': '#0B1F3B',
+        'kurion-green': '#1E3A8A',
+        'kurion-blue': '#3B82F6',
       },
       fontFamily: {
         'sans': ['Outfit', 'ui-sans-serif', 'system-ui'],

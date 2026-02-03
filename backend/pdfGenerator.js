@@ -10,8 +10,8 @@ export const generarPDFCotizacion = async (cotizacion) => {
   const pageHeight = doc.internal.pageSize.getHeight();
   
   // Colores Building Me
-  const colorVerde = [69, 173, 152]; // #45ad98
-  const colorVerdeOscuro = [35, 82, 80]; // #235250
+  const colorVerde = [30, 58, 138]; // #1E3A8A
+  const colorVerdeOscuro = [11, 31, 59]; // #0B1F3B
   const colorRojo = [220, 53, 69]; // Para el borde de COTIZACIÓN
   
   // Logo (necesitaremos convertirlo a base64)

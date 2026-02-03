@@ -333,7 +333,7 @@ const LoginPage = ({ onLogin }) => {
               className="w-full py-4 rounded-2xl font-bold text-lg shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl"
               style={{
                 background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)',
-                color: '#235250'
+                color: '#0B1F3B'
               }}
             >
               Iniciar Sesión
@@ -487,7 +487,7 @@ const InventarioModule = ({ activeModule }) => {
         <button
           onClick={() => setShowNewModal(true)}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
         >
           <Package className="w-5 h-5" />
           <span>Nuevo Item</span>
@@ -567,13 +567,13 @@ const InventarioModule = ({ activeModule }) => {
               placeholder="Buscar por código, nombre o descripción..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <select
             value={filterCategoria}
             onChange={(e) => setFilterCategoria(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
           >
             <option value="todas">Todas las categorías</option>
             {categorias.map(cat => (
@@ -669,7 +669,7 @@ const InventarioModule = ({ activeModule }) => {
                       setShowFichaModal(true);
                     }}
                     className="w-full py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                    style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
                   >
                     Ver Ficha Completa
                   </button>
@@ -782,7 +782,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nuevo Item de Inventario</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -800,7 +800,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.nombre}
                 onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: TV Samsung 50 pulgadas"
               />
             </div>
@@ -812,7 +812,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 value={formData.descripcion}
                 onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
                 rows="2"
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Descripción detallada del item"
               />
             </div>
@@ -824,7 +824,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.categoria}
                 onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: Electrónica, Mobiliario"
               />
             </div>
@@ -835,7 +835,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 type="text"
                 value={formData.especificaciones}
                 onChange={(e) => setFormData({...formData, especificaciones: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: 50 pulgadas, 4K, Smart TV"
               />
             </div>
@@ -846,7 +846,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.unidadMedida}
                 onChange={(e) => setFormData({...formData, unidadMedida: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
               >
                 <option value="Unidad">Unidad</option>
                 <option value="Metro">Metro</option>
@@ -865,7 +865,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 min="0"
                 value={formData.stockTotal}
                 onChange={(e) => setFormData({...formData, stockTotal: parseInt(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
 
@@ -877,7 +877,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.ubicacion}
                 onChange={(e) => setFormData({...formData, ubicacion: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: Bodega A - Estante 3"
               />
             </div>
@@ -888,7 +888,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 type="text"
                 value={formData.proveedorPrincipal}
                 onChange={(e) => setFormData({...formData, proveedorPrincipal: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
 
@@ -899,7 +899,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 min="0"
                 value={formData.precioCosto}
                 onChange={(e) => setFormData({...formData, precioCosto: parseFloat(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
 
@@ -918,7 +918,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                     reader.readAsDataURL(e.target.files[0]);
                   }
                 }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
               <p className="text-xs text-gray-500 mt-1">Sube una imagen del producto (opcional)</p>
             </div>
@@ -935,7 +935,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Item
             </button>
@@ -989,7 +989,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">{item.nombre}</h3>
@@ -1066,7 +1066,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                   <h4 className="font-bold text-gray-800">Calendario de Reservas</h4>
                   <button
                     onClick={() => setShowReservaModal(true)}
-                    className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors text-sm"
+                    className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors text-sm"
                   >
                     + Nueva Reserva
                   </button>
@@ -1136,7 +1136,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             Cerrar Ficha
           </button>
@@ -1195,7 +1195,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="text"
               value={formData.protocolo}
               onChange={(e) => setFormData({...formData, protocolo: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               placeholder="Ej: 30650"
             />
           </div>
@@ -1207,7 +1207,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               max={disponible}
               value={formData.cantidad}
               onChange={(e) => setFormData({...formData, cantidad: parseInt(e.target.value) || 1})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <div>
@@ -1216,7 +1216,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="date"
               value={formData.fechaDesde}
               onChange={(e) => setFormData({...formData, fechaDesde: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <div>
@@ -1225,7 +1225,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="date"
               value={formData.fechaHasta}
               onChange={(e) => setFormData({...formData, fechaHasta: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
         </div>
@@ -1238,7 +1238,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
           </button>
           <button
             onClick={() => onSave(formData)}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
             disabled={!formData.protocolo || !formData.fechaDesde || !formData.fechaHasta || formData.cantidad > disponible}
           >
             Crear Reserva
@@ -1503,7 +1503,7 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
           </button>
           <button
             onClick={agregarYReservar}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
             disabled={seleccionados.length === 0}
           >
             Agregar a OC
@@ -1730,7 +1730,7 @@ const AdministracionModule = ({ activeModule }) => {
         <button
           onClick={openNew}
           className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
         >
           + Registrar gasto
         </button>
@@ -1743,7 +1743,7 @@ const AdministracionModule = ({ activeModule }) => {
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="all">Todos</option>
               {months.map((mes) => (
@@ -1756,7 +1756,7 @@ const AdministracionModule = ({ activeModule }) => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="all">Todos</option>
               {yearsDisponibles.map((year) => (
@@ -1797,7 +1797,7 @@ const AdministracionModule = ({ activeModule }) => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Gasto</th>
@@ -1866,7 +1866,7 @@ const AdministracionModule = ({ activeModule }) => {
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
-            <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+            <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-2xl font-bold text-white">
@@ -1895,7 +1895,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.fecha}
                     onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -1905,7 +1905,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.nombreGasto}
                     onChange={(e) => setFormData({ ...formData, nombreGasto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -1915,7 +1915,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.proveedor}
                     onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -1925,7 +1925,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.numeroDocumento}
                     onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                     placeholder="Factura / Boleta / Contrato"
                   />
                 </div>
@@ -1935,7 +1935,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.medioPago}
                     onChange={(e) => setFormData({ ...formData, medioPago: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                   >
                     <option value="">Seleccione...</option>
                     {MEDIOS_PAGO.map((medio) => (
@@ -1951,7 +1951,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.montoNeto}
                     onChange={(e) => setFormData({ ...formData, montoNeto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -1987,7 +1987,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.tipoCosto}
                     onChange={(e) => setFormData({ ...formData, tipoCosto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                   >
                     <option value="">Seleccione tipo...</option>
                     {ADMIN_TIPOS_COSTO.map((tipo) => (
@@ -2001,7 +2001,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.actividadUso}
                     onChange={(e) => setFormData({ ...formData, actividadUso: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                   >
                     <option value="">Seleccione actividad...</option>
                     {ADMIN_ACTIVIDADES_USO.map((actividad) => (
@@ -2016,7 +2016,7 @@ const AdministracionModule = ({ activeModule }) => {
                   rows={3}
                   value={formData.observaciones}
                   onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div className="flex justify-end space-x-3 pt-2">
@@ -2032,7 +2032,7 @@ const AdministracionModule = ({ activeModule }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
                 >
                   {editingGasto ? 'Guardar cambios' : 'Registrar gasto'}
                 </button>
@@ -2237,7 +2237,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('dashboard')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'dashboard' 
-                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2247,7 +2247,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('tipo-costo')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'tipo-costo' 
-                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2257,7 +2257,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('margenes')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'margenes' 
-                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2267,7 +2267,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('unidad-negocio')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'unidad-negocio' 
-                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2284,7 +2284,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="all">Todos</option>
               {months.map((mes) => (
@@ -2297,7 +2297,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="all">Todos</option>
               {yearsDisponibles.map((year) => (
@@ -2327,7 +2327,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <p className="text-sm text-gray-500 mb-2">Total Gastos (Mes)</p>
-              <p className="text-3xl font-bold" style={{ color: '#235250' }}>{formatCurrency(totalGastos)}</p>
+              <p className="text-3xl font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(totalGastos)}</p>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <p className="text-sm text-gray-500 mb-2">Total OC</p>
@@ -2379,15 +2379,15 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                         style={{ 
                           width: `${porcentaje}%`,
                           background: `linear-gradient(90deg, ${
-                            index === 0 ? '#235250' :
-                            index === 1 ? '#45ad98' :
-                            index === 2 ? '#33b4e9' :
+                            index === 0 ? '#0B1F3B' :
+                            index === 1 ? '#1E3A8A' :
+                            index === 2 ? '#3B82F6' :
                             index === 3 ? '#f59e0b' :
                             '#8b5cf6'
                           } 0%, ${
-                            index === 0 ? '#45ad98' :
-                            index === 1 ? '#33b4e9' :
-                            index === 2 ? '#45ad98' :
+                            index === 0 ? '#1E3A8A' :
+                            index === 1 ? '#3B82F6' :
+                            index === 2 ? '#1E3A8A' :
                             index === 3 ? '#fbbf24' :
                             '#a78bfa'
                           } 100%)`
@@ -2448,7 +2448,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <h3 className="text-xl font-bold text-gray-800 mb-4">Análisis Detallado por Tipo de Costo</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead style={{ backgroundColor: '#45ad98' }}>
+                <thead style={{ backgroundColor: '#1E3A8A' }}>
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo de Costo</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cantidad OC</th>
@@ -2465,13 +2465,13 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                       <tr key={tipo.tipo} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-semibold text-gray-800">{tipo.tipo}</td>
                         <td className="px-6 py-4">{tipo.cantidad}</td>
-                        <td className="px-6 py-4 font-bold" style={{ color: '#235250' }}>{formatCurrency(tipo.total)}</td>
+                        <td className="px-6 py-4 font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(tipo.total)}</td>
                         <td className="px-6 py-4 text-gray-600">{formatCurrency(promedio)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-[#235250] to-[#45ad98]"
+                                className="h-2 rounded-full bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A]"
                                 style={{ width: `${porcentaje}%` }}
                               ></div>
                             </div>
@@ -2555,7 +2555,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gastos por Unidad de Negocio</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead style={{ backgroundColor: '#45ad98' }}>
+                <thead style={{ backgroundColor: '#1E3A8A' }}>
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Unidad de Negocio</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cantidad OC</th>
@@ -2570,12 +2570,12 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                       <tr key={un.unidad} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-semibold text-gray-800">{un.unidad}</td>
                         <td className="px-6 py-4">{un.cantidad}</td>
-                        <td className="px-6 py-4 font-bold" style={{ color: '#235250' }}>{formatCurrency(un.total)}</td>
+                        <td className="px-6 py-4 font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(un.total)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-[#235250] to-[#45ad98]"
+                                className="h-2 rounded-full bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A]"
                                 style={{ width: `${porcentaje}%` }}
                               ></div>
                             </div>
@@ -2602,7 +2602,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Buscar Protocolo</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -2619,7 +2619,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
             type="text"
             value={codigoProtocolo}
             onChange={(e) => setCodigoProtocolo(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] font-mono text-lg"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] font-mono text-lg"
             placeholder="Ej: 30650"
             autoFocus
           />
@@ -2643,7 +2643,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
               }}
               disabled={!codigoProtocolo}
               className="px-6 py-3 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Buscar
             </button>
@@ -2846,7 +2846,7 @@ const OrdenesCompraModule = ({
             <button
               onClick={() => setShowNewModal(true)}
               className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-              style={{ borderColor: '#45ad98', color: '#45ad98' }}
+              style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
             >
               <ShoppingCart className="w-5 h-5" />
               <span>OC Manual</span>
@@ -2855,7 +2855,7 @@ const OrdenesCompraModule = ({
           <button
             onClick={() => setShowBuscarProtocolo(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             <Package className="w-5 h-5" />
             <span>Desde Protocolo</span>
@@ -2936,13 +2936,13 @@ const OrdenesCompraModule = ({
               placeholder="Buscar por número OC, proveedor o protocolo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
           >
             <option value="todos">Todos los estados</option>
             <option value="Emitida">Emitida</option>
@@ -2958,7 +2958,7 @@ const OrdenesCompraModule = ({
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° OC</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Protocolo</th>
@@ -3003,7 +3003,7 @@ const OrdenesCompraModule = ({
                 return (
                 <tr key={orden.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{orden.numero}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{orden.numero}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-mono text-gray-600">{orden.codigoProtocolo}</span>
@@ -3557,7 +3557,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra (Manual)</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -3611,7 +3611,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                     }}
                     onFocus={() => setShowProveedorAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                   {showProveedorAutocomplete && formData.proveedor && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -3642,7 +3642,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.rutProveedor}
                   onChange={(e) => setFormData({...formData, rutProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -3651,7 +3651,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.contactoProveedor}
                   onChange={(e) => setFormData({...formData, contactoProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -3660,7 +3660,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.telefonoProveedor}
                   onChange={(e) => setFormData({...formData, telefonoProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -3676,7 +3676,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.codigoProtocolo}
                   onChange={(e) => setFormData({...formData, codigoProtocolo: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="Ej: 30650 (Opcional)"
                 />
               </div>
@@ -3686,7 +3686,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="date"
                   value={formData.fechaProtocolo}
                   onChange={(e) => setFormData({...formData, fechaProtocolo: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -3695,7 +3695,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.cotizacionProveedor}
                   onChange={(e) => setFormData({...formData, cotizacionProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="Ref. del proveedor"
                 />
               </div>
@@ -3708,7 +3708,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.centroCosto}
                   onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                 >
                   <option value="">Seleccione centro...</option>
                   {CENTROS_COSTO.map((grupo) => (
@@ -3729,7 +3729,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.tipoCosto}
                   onChange={(e) => setFormData({...formData, tipoCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
                   {TIPOS_COSTO.map((tipo) => (
@@ -3745,7 +3745,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                 <select
                   value={formData.actividadUso}
                   onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="">Seleccione actividad...</option>
                   {ACTIVIDADES_USO.map((actividad) => (
@@ -3759,7 +3759,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.formaPago}
                   onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado Efectivo">Contado Efectivo</option>
@@ -3776,7 +3776,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.tipoDocumento}
                   onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="Factura">Factura</option>
                   <option value="Factura Exenta">Factura Exenta</option>
@@ -3792,7 +3792,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.responsableCompra}
                   onChange={(e) => setFormData({...formData, responsableCompra: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -3813,7 +3813,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                 <button
                   type="button"
                   onClick={agregarItem}
-                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
                 >
                   + Agregar Item
                 </button>
@@ -3830,7 +3830,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -3840,7 +3840,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -3859,7 +3859,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -3870,7 +3870,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div className="flex items-end">
@@ -3888,7 +3888,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                   </div>
@@ -3919,7 +3919,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -3937,7 +3937,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
 
@@ -3953,7 +3953,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Orden de Compra
             </button>
@@ -4126,7 +4126,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">Orden de Compra {orden.numero}</h3>
@@ -4277,13 +4277,13 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setIsEditing(prev => !prev)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               {isEditing ? 'Cancelar Edición' : 'Editar'}
             </button>
             <button
               onClick={() => setShowFacturaModal(true)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               disabled={orden.numeroFactura}
             >
               {orden.numeroFactura ? `Documento: ${orden.numeroFactura}` : 'Asignar Documento'}
@@ -4299,7 +4299,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
             <select
               value={orden.estado}
               onChange={(e) => cambiarEstado(e.target.value)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100"
               disabled={!isEditing}
             >
               <option value="Emitida">Emitida</option>
@@ -4321,7 +4321,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 };
                 await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
               }}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100"
             >
               Generar PDF
             </button>
@@ -4337,7 +4337,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 <button
                   type="button"
                   onClick={agregarItem}
-                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
                 >
                   + Agregar Item
                 </button>
@@ -4354,7 +4354,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.item || ''}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
@@ -4365,7 +4365,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
@@ -4385,7 +4385,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
@@ -4397,7 +4397,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
                     {isEditing && (
@@ -4418,7 +4418,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
                       />
                     </div>
                   </div>
@@ -4453,7 +4453,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold">TOTAL:</span>
-                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(totales.total)}</span>
+                  <span className="font-bold text-xl" style={{ color: '#0B1F3B' }}>{formatCurrency(totales.total)}</span>
                 </div>
               </div>
             </div>
@@ -4476,7 +4476,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 onSave && onSave({ ...orden, items: itemsLimpios, subtotal: totales.subtotal, iva: totales.iva, total: totales.total });
               }}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -4484,7 +4484,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             Cerrar
           </button>
@@ -4522,7 +4522,7 @@ const FacturaModal = ({ onClose, onSave }) => {
             <select
               value={tipoDocumento}
               onChange={(e) => setTipoDocumento(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="Factura">Factura</option>
               <option value="Factura Exenta">Factura Exenta</option>
@@ -4537,7 +4537,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               type="text"
               value={numeroFactura}
               onChange={(e) => setNumeroFactura(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               placeholder="Ej: 12345"
             />
           </div>
@@ -4547,7 +4547,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               type="date"
               value={fechaFactura}
               onChange={(e) => setFechaFactura(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
         </div>
@@ -4563,7 +4563,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               numeroFactura: `${tipoDocumento} ${numeroFactura}`.trim(),
               fechaFactura
             })}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
             disabled={!numeroFactura || !fechaFactura}
           >
             Guardar
@@ -4742,7 +4742,7 @@ const ProveedoresModule = () => {
           <button
             onClick={exportarExcel}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ borderColor: '#45ad98', color: '#45ad98' }}
+            style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
           >
             <Download className="w-5 h-5" />
             <span>Exportar Excel</span>
@@ -4750,7 +4750,7 @@ const ProveedoresModule = () => {
           <button
             onClick={() => setShowNewModal(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             <Building2 className="w-5 h-5" />
             <span>Nuevo Proveedor</span>
@@ -4791,13 +4791,13 @@ const ProveedoresModule = () => {
               placeholder="Buscar por código, razón social o RUT..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <select
             value={filterPendientes}
             onChange={(e) => setFilterPendientes(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
           >
             <option value="todos">Todos los proveedores</option>
             <option value="pendientes">Solo con pagos pendientes</option>
@@ -4809,7 +4809,7 @@ const ProveedoresModule = () => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Código</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Razón Social</th>
@@ -4831,7 +4831,7 @@ const ProveedoresModule = () => {
               ) : proveedoresFiltrados.map((proveedor) => (
                 <tr key={proveedor.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{proveedor.codigo}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{proveedor.codigo}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
@@ -5048,7 +5048,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nuevo Proveedor</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -5069,7 +5069,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5079,7 +5079,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -5090,7 +5090,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -5106,7 +5106,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5116,7 +5116,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5126,7 +5126,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5136,7 +5136,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -5153,7 +5153,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.contacto}
                   onChange={(e) => setFormData({...formData, contacto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5163,7 +5163,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="+56 2 1234 5678"
                 />
               </div>
@@ -5174,7 +5174,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="contacto@proveedor.cl"
                 />
               </div>
@@ -5191,7 +5191,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.condicionesPago}
                   onChange={(e) => setFormData({...formData, condicionesPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="Ej: 30 días, 60 días, contado"
                 />
               </div>
@@ -5201,7 +5201,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.banco}
                   onChange={(e) => setFormData({...formData, banco: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div className="md:col-span-2">
@@ -5210,7 +5210,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.numeroCuenta}
                   onChange={(e) => setFormData({...formData, numeroCuenta: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -5223,7 +5223,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               placeholder="Notas adicionales sobre el proveedor..."
             />
           </div>
@@ -5240,7 +5240,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Proveedor
             </button>
@@ -5263,7 +5263,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Editar Proveedor</h3>
@@ -5287,7 +5287,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5297,7 +5297,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -5307,7 +5307,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -5324,7 +5324,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -5381,7 +5381,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Historial de Órdenes de Compra</h3>
@@ -5404,7 +5404,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
                 <div key={oc.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-mono font-bold text-lg" style={{ color: '#235250' }}>
+                      <p className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>
                         OC #{oc.numero}
                       </p>
                       <p className="text-sm text-gray-600">
@@ -5474,7 +5474,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Cerrar
             </button>
@@ -5498,7 +5498,7 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Estado de Cuenta</h3>
@@ -5552,7 +5552,7 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Cerrar
             </button>
@@ -5576,7 +5576,7 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Seleccionar Cotización Ganada</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -5597,13 +5597,13 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
               {cotizaciones.map(cotizacion => (
                 <div 
                   key={cotizacion.id}
-                  className="border-2 border-gray-200 rounded-xl p-6 hover:border-[#45ad98] hover:shadow-lg transition-all cursor-pointer"
+                  className="border-2 border-gray-200 rounded-xl p-6 hover:border-[#1E3A8A] hover:shadow-lg transition-all cursor-pointer"
                   onClick={() => onSeleccionar(cotizacion)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
-                        <span className="font-mono font-bold text-2xl" style={{ color: '#235250' }}>
+                        <span className="font-mono font-bold text-2xl" style={{ color: '#0B1F3B' }}>
                           #{cotizacion.numero}
                         </span>
                         <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
@@ -5623,10 +5623,10 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500 mb-1">Monto Total</p>
-                      <p className="text-3xl font-bold" style={{ color: '#235250' }}>
+                      <p className="text-3xl font-bold" style={{ color: '#0B1F3B' }}>
                         {formatCurrency(cotizacion.total)}
                       </p>
-                      <div className="mt-3 px-6 py-2 bg-[#45ad98] text-white rounded-lg font-semibold text-center">
+                      <div className="mt-3 px-6 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold text-center">
                         Seleccionar →
                       </div>
                     </div>
@@ -6214,7 +6214,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
         <button
           onClick={onNuevoProtocolo}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
         >
           <Package className="w-5 h-5" />
           <span>Adjudicar Venta</span>
@@ -6254,13 +6254,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
               placeholder="Buscar por folio, cliente o cotización..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
           >
             <option value="todos">Todos los estados</option>
             <option value="Abierto">Abierto</option>
@@ -6274,7 +6274,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Folio</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
@@ -6310,7 +6310,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-xl" style={{ color: '#235250' }}>{protocolo.folio}</span>
+                    <span className="font-mono font-bold text-xl" style={{ color: '#0B1F3B' }}>{protocolo.folio}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-mono text-gray-600">#{protocolo.numeroCotizacion}</span>
@@ -6364,7 +6364,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                   <td className="px-6 py-4">
                     <button
                       onClick={() => onVerDetalle(protocolo)}
-                      className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold"
+                      className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors font-semibold"
                     >
                       Abrir Tablero
                     </button>
@@ -6673,7 +6673,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <select
                     value={protocolo.estado}
                     onChange={(e) => cambiarEstado(e.target.value)}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                   >
                     {estadosSelect.map((estado) => (
                       <option key={estado} value={estado}>
@@ -6750,7 +6750,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             <button
               onClick={onAdjudicarCompra}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               <ShoppingCart className="w-5 h-5 inline mr-2" />
               Adjudicar Compra (Crear OC)
@@ -6761,7 +6761,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 setShowFacturaModal(true);
               }}
               className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#45ad98', color: '#235250' }}
+              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
             >
               <FileText className="w-5 h-5 inline mr-2" />
               Agregar Factura
@@ -6780,7 +6780,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 }
               }}
               className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#45ad98', color: '#235250' }}
+              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
             >
               📄 Ingresar OC Cliente
             </button>
@@ -6808,7 +6808,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
           <h3 className="text-xl font-bold text-gray-800">Items del Proyecto</h3>
           <button
             onClick={() => setShowAddItemModal(true)}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
           >
             Agregar Item
           </button>
@@ -6964,7 +6964,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => onVerDetalleOC && onVerDetalleOC(oc, false)}
-                          className="px-3 py-1 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-xs font-semibold"
+                          className="px-3 py-1 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-xs font-semibold"
                         >
                           Ver
                         </button>
@@ -7198,7 +7198,7 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
               value={precioVenta}
               onChange={(e) => setPrecioVenta(e.target.value)}
               placeholder="Ingresa el precio final"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               min="1"
               required
             />
@@ -7230,7 +7230,7 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
             <button
               type="submit"
               className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Cerrar y Actualizar
             </button>
@@ -7285,7 +7285,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
             <select
               value={tipoDoc}
               onChange={(e) => setTipoDoc(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="Factura">Factura</option>
               <option value="Boleta">Boleta</option>
@@ -7299,7 +7299,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 type="text"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: 12345"
               />
             </div>
@@ -7309,7 +7309,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
           </div>
@@ -7322,7 +7322,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 step="1"
                 value={montoNeto}
                 onChange={(e) => setMontoNeto(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="0"
               />
             </div>
@@ -7361,7 +7361,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
             <select
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="Emitida">Emitida</option>
               <option value="Pagada">Pagada</option>
@@ -7388,7 +7388,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 estado
               })
             }
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
             disabled={!numero || !fecha}
           >
             Guardar
@@ -7618,7 +7618,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra</h3>
@@ -7694,7 +7694,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                     }}
                     onFocus={() => setShowProveedorAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                   {showProveedorAutocomplete && formData.proveedor && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -7725,7 +7725,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.rutProveedor}
                   onChange={(e) => setFormData({...formData, rutProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -7741,7 +7741,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   type="text"
                   value={formData.cotizacionProveedor}
                   onChange={(e) => setFormData({...formData, cotizacionProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="Ref. del proveedor"
                 />
               </div>
@@ -7754,7 +7754,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.centroCosto}
                   onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                 >
                   <option value="">Seleccione centro...</option>
                   {CENTROS_COSTO.map((grupo) => (
@@ -7775,7 +7775,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.tipoCosto}
                   onChange={(e) => setFormData({...formData, tipoCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
                   {TIPOS_COSTO.map((tipo) => (
@@ -7791,7 +7791,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                 <select
                   value={formData.actividadUso}
                   onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="">Seleccione actividad...</option>
                   {ACTIVIDADES_USO.map((actividad) => (
@@ -7805,7 +7805,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.formaPago}
                   onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado Efectivo">Contado Efectivo</option>
@@ -7822,7 +7822,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.tipoDocumento}
                   onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="Factura">Factura</option>
                   <option value="Factura Exenta">Factura Exenta</option>
@@ -7838,7 +7838,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.responsableCompra}
                   onChange={(e) => setFormData({...formData, responsableCompra: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -7859,7 +7859,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                 <button
                   type="button"
                   onClick={agregarItem}
-                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
                 >
                   + Agregar Item
                 </button>
@@ -7876,7 +7876,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -7886,7 +7886,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -7905,7 +7905,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div>
@@ -7916,7 +7916,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                     <div className="flex items-end">
@@ -7934,7 +7934,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
                       />
                     </div>
                   </div>
@@ -7965,7 +7965,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -7988,7 +7988,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Orden de Compra
             </button>
@@ -8071,7 +8071,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Adjudicar Venta - Crear Protocolo</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -8089,7 +8089,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
               required
               value={selectedCotizacion}
               onChange={(e) => setSelectedCotizacion(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
             >
               <option value="">Seleccione una cotización...</option>
               {cotizacionesGanadas.map((cot) => (
@@ -8114,7 +8114,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Protocolo
             </button>
@@ -8149,7 +8149,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl my-8">
         {/* Header del Protocolo */}
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">Protocolo {protocolo.folio}</h3>
@@ -8181,7 +8181,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowOCClienteModal(true)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
             >
               <FileText className="w-4 h-4" />
               <span>OC Cliente</span>
@@ -8189,18 +8189,18 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
             </button>
             <button
               onClick={() => setShowAddItemModal(true)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
             >
               <Package className="w-4 h-4" />
               <span>Adjudicar Compra</span>
             </button>
-            <button className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            <button className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors">
               PDF
             </button>
             <select
               value={protocolo.estado}
               onChange={(e) => cambiarEstado(e.target.value)}
-              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               <option value="Abierto">Abierto</option>
               <option value="En Proceso">En Proceso</option>
@@ -8266,7 +8266,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <span className="font-bold text-[#45ad98]">{item.porcentaje}%</span>
+                      <span className="font-bold text-[#1E3A8A]">{item.porcentaje}%</span>
                     </td>
                   </tr>
                 ))}
@@ -8280,7 +8280,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
               <p className="text-gray-500 mb-4">No hay items en este protocolo</p>
               <button
                 onClick={() => setShowAddItemModal(true)}
-                className="px-6 py-3 bg-[#45ad98] text-white rounded-xl font-semibold hover:bg-[#235250] transition-colors"
+                className="px-6 py-3 bg-[#1E3A8A] text-white rounded-xl font-semibold hover:bg-[#0B1F3B] transition-colors"
               >
                 Agregar Primer Item
               </button>
@@ -8298,7 +8298,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             Cerrar Tablero
           </button>
@@ -8350,7 +8350,7 @@ const OCClienteModal = ({ onClose, onSave }) => {
             type="text"
             value={numeroOC}
             onChange={(e) => setNumeroOC(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             placeholder="Ej: OC-2025-001"
           />
         </div>
@@ -8363,7 +8363,7 @@ const OCClienteModal = ({ onClose, onSave }) => {
           </button>
           <button
             onClick={() => onSave(numeroOC)}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
           >
             Guardar
           </button>
@@ -8409,7 +8409,7 @@ const AddItemModal = ({
                 type="text"
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: Letrero, Instalación, Transporte"
               />
             </div>
@@ -8422,7 +8422,7 @@ const AddItemModal = ({
                   const next = Number(e.target.value);
                   setFormData({ ...formData, cantidad: Number.isFinite(next) ? next : 0 });
                 }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
             <div>
@@ -8431,7 +8431,7 @@ const AddItemModal = ({
                 type="text"
                 value={formData.descripcion}
                 onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
           </div>
@@ -8446,7 +8446,7 @@ const AddItemModal = ({
                     type="text"
                     value={formData.proveedor1.nombre}
                     onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, nombre: e.target.value}})}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -8464,7 +8464,7 @@ const AddItemModal = ({
                         }
                       });
                     }}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
                 <div>
@@ -8473,7 +8473,7 @@ const AddItemModal = ({
                     type="text"
                     value={formData.proveedor1.oc}
                     onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, oc: e.target.value}})}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                 </div>
               </div>
@@ -8489,7 +8489,7 @@ const AddItemModal = ({
           </button>
           <button
             onClick={() => onSave(formData)}
-            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
           >
             {submitLabel}
           </button>
@@ -8610,7 +8610,7 @@ const ClientesModule = () => {
           <button
             onClick={exportarExcel}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ borderColor: '#45ad98', color: '#45ad98' }}
+            style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
           >
             <Download className="w-5 h-5" />
             <span>Exportar Excel</span>
@@ -8618,7 +8618,7 @@ const ClientesModule = () => {
           <button
             onClick={() => setShowNewModal(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
           >
             <Users className="w-5 h-5" />
             <span>Nuevo Cliente</span>
@@ -8655,7 +8655,7 @@ const ClientesModule = () => {
           placeholder="Buscar por código, razón social, RUT o email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
         />
       </div>
 
@@ -8663,7 +8663,7 @@ const ClientesModule = () => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Código</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Razón Social</th>
@@ -8684,7 +8684,7 @@ const ClientesModule = () => {
               ) : clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{cliente.codigo}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{cliente.codigo}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
@@ -8859,7 +8859,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nuevo Cliente</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -8880,7 +8880,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -8890,7 +8890,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -8901,7 +8901,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -8917,7 +8917,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -8927,7 +8927,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -8937,7 +8937,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -8947,7 +8947,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -8964,7 +8964,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.personaEncargada}
                   onChange={(e) => setFormData({...formData, personaEncargada: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -8974,7 +8974,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="+56 9 1234 5678"
                 />
               </div>
@@ -8985,7 +8985,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="contacto@empresa.cl"
                 />
               </div>
@@ -8999,7 +8999,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               placeholder="Notas adicionales sobre el cliente..."
             />
           </div>
@@ -9016,7 +9016,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Cliente
             </button>
@@ -9039,7 +9039,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Editar Cliente</h3>
@@ -9063,7 +9063,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9073,7 +9073,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9083,7 +9083,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -9098,7 +9098,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9108,7 +9108,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9118,7 +9118,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9128,7 +9128,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -9144,7 +9144,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.personaEncargada}
                   onChange={(e) => setFormData({...formData, personaEncargada: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -9154,7 +9154,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div className="md:col-span-2">
@@ -9164,7 +9164,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
             </div>
@@ -9176,7 +9176,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
 
@@ -9191,7 +9191,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -9253,7 +9253,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Historial de Cotizaciones</h3>
@@ -9276,7 +9276,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
                 <div key={cot.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-mono font-bold text-lg" style={{ color: '#235250' }}>
+                      <p className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>
                         Cotización #{cot.numero}
                       </p>
                       <p className="text-sm text-gray-600">{cot.fecha}</p>
@@ -9308,7 +9308,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Cerrar
             </button>
@@ -9506,7 +9506,7 @@ const [showNewModal, setShowNewModal] = useState(false);
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45ad98] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando cotizaciones...</p>
         </div>
       </div>
@@ -9524,7 +9524,7 @@ const [showNewModal, setShowNewModal] = useState(false);
         <button
           onClick={() => setShowNewModal(true)}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
         >
           <FileText className="w-5 h-5" />
           <span>Nueva Cotización</span>
@@ -9568,13 +9568,13 @@ const [showNewModal, setShowNewModal] = useState(false);
               placeholder="Buscar por número o cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
           >
             <option value="todas">Todos los estados</option>
             <option value="emitida">Emitidas</option>
@@ -9589,7 +9589,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#45ad98' }}>
+            <thead style={{ backgroundColor: '#1E3A8A' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
@@ -9789,7 +9789,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       {showDetalleModal && cotizacionSeleccionada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">Detalle Cotización #{cotizacionSeleccionada.numero}</h3>
                 <button onClick={() => setShowDetalleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg">
@@ -9821,7 +9821,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Monto</p>
-                  <p className="font-bold text-2xl" style={{color: '#235250'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
+                  <p className="font-bold text-2xl" style={{color: '#0B1F3B'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
                 </div>
               </div>
 
@@ -9911,7 +9911,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       {showGanadaModal && cotizacionGanada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">
                   Items ganados - Cotización #{cotizacionGanada.numero}
@@ -9981,7 +9981,7 @@ const [showNewModal, setShowNewModal] = useState(false);
               <button
                 onClick={confirmarGanada}
                 className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
               >
                 Confirmar Ganada
               </button>
@@ -10100,7 +10100,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Editar Cotización #{cotizacion.numero}</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg">
@@ -10117,7 +10117,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="date"
                 value={formData.fecha}
                 onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
             <div>
@@ -10125,7 +10125,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               <select
                 value={formData.estado}
                 onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
               >
                 <option value="emitida">Emitida</option>
                 <option value="ganada">Ganada</option>
@@ -10141,7 +10141,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               type="text"
               value={formData.nombreProyecto}
               onChange={(e) => setFormData({ ...formData, nombreProyecto: e.target.value })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
             />
           </div>
 
@@ -10151,7 +10151,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               <select
                 value={formData.unidadNegocio}
                 onChange={(e) => setFormData({ ...formData, unidadNegocio: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
               >
                 <option value="">Seleccione...</option>
                 {BUSINESS_UNITS.map(unit => (
@@ -10166,7 +10166,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 min="0"
                 value={totales.total}
                 readOnly
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
           </div>
@@ -10178,7 +10178,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="text"
                 value={formData.condicionesPago}
                 onChange={(e) => setFormData({ ...formData, condicionesPago: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
             <div>
@@ -10187,7 +10187,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="text"
                 value={formData.cotizadoPor}
                 onChange={(e) => setFormData({ ...formData, cotizadoPor: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               />
             </div>
           </div>
@@ -10196,13 +10196,13 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Package className="w-5 h-5 mr-2 text-[#45ad98]" />
+                <Package className="w-5 h-5 mr-2 text-[#1E3A8A]" />
                 Items
               </h4>
               <button
                 type="button"
                 onClick={agregarItem}
-                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-sm font-semibold"
               >
                 + Agregar Item
               </button>
@@ -10230,7 +10230,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10240,7 +10240,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -10249,7 +10249,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10268,7 +10268,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10279,7 +10279,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                   </div>
@@ -10309,7 +10309,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -10326,7 +10326,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -10527,7 +10527,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nueva Cotización</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -10540,7 +10540,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           {/* Datos del Cliente */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <Users className="w-5 h-5 mr-2 text-[#45ad98]" />
+              <Users className="w-5 h-5 mr-2 text-[#1E3A8A]" />
               Datos del Cliente
             </h4>
             
@@ -10588,7 +10588,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                     }}
                     onFocus={() => setShowClienteAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowClienteAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   />
                   {showClienteAutocomplete && formData.razonSocial && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -10619,7 +10619,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -10635,7 +10635,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                 required
                 value={formData.nombreProyecto}
                 onChange={(e) => setFormData({...formData, nombreProyecto: e.target.value})}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 placeholder="Ej: Stand Feria Inmobiliaria 2025"
               />
             </div>
@@ -10647,7 +10647,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -10656,7 +10656,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.contacto}
                   onChange={(e) => setFormData({...formData, contacto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -10665,7 +10665,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                   placeholder="+56 9 1234 5678"
                 />
               </div>
@@ -10675,7 +10675,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           {/* Datos de la Cotización */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-[#45ad98]" />
+              <FileText className="w-5 h-5 mr-2 text-[#1E3A8A]" />
               Datos de la Cotización
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -10685,7 +10685,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.unidadNegocio}
                   onChange={(e) => setFormData({...formData, unidadNegocio: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                   style={{ fontWeight: '600' }}
                 >
                   <option value="">Seleccione...</option>
@@ -10702,7 +10702,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.fecha}
                   onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div>
@@ -10712,7 +10712,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.cotizadoPor}
                   onChange={(e) => setFormData({...formData, cotizadoPor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
                 />
               </div>
               <div className="md:col-span-3">
@@ -10721,7 +10721,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.condicionesPago}
                   onChange={(e) => setFormData({...formData, condicionesPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado">Contado</option>
@@ -10738,13 +10738,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Package className="w-5 h-5 mr-2 text-[#45ad98]" />
+                <Package className="w-5 h-5 mr-2 text-[#1E3A8A]" />
                 Items
               </h4>
               <button
                 type="button"
                 onClick={agregarItem}
-                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-sm font-semibold"
               >
                 + Agregar Item
               </button>
@@ -10772,7 +10772,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10782,7 +10782,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         min="1"
                         value={item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -10791,7 +10791,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10810,7 +10810,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                     <div>
@@ -10821,7 +10821,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
                       />
                     </div>
                   </div>
@@ -10842,7 +10842,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
               placeholder="Información adicional..."
             />
           </div>
@@ -10863,7 +10863,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
+              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -10890,7 +10890,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                 generarPDFCotizacion(cotizacion);
               }}
               className="px-6 py-3 border-2 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center space-x-2"
-              style={{ borderColor: '#45ad98', color: '#45ad98' }}
+              style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
             >
               <Download className="w-5 h-5" />
               <span>Vista Previa PDF</span>
@@ -10898,7 +10898,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
             >
               Crear Cotización
             </button>
@@ -11306,7 +11306,7 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="shadow-md" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+      <header className="shadow-md" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between relative">
             {/* Logo KODIAK a la izquierda */}
@@ -11363,7 +11363,7 @@ const Dashboard = ({ user, onLogout }) => {
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                     style={activeModule === item.id ? {
-                      background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)'
+                      background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)'
                     } : {}}
                   >
                     <Icon className="w-5 h-5" />
@@ -11392,7 +11392,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <select
                   value={selectedUnit}
                   onChange={(e) => setSelectedUnit(e.target.value)}
-                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
                 >
                   <option>Todas</option>
                   {BUSINESS_UNITS.map(unit => (
@@ -11407,13 +11407,13 @@ const Dashboard = ({ user, onLogout }) => {
                   title="Cotizaciones Emitidas"
                   value={stats.cotizacionesEmitidas}
                   icon={FileText}
-                  color="#33b4e9"
+                  color="#3B82F6"
                 />
                 <StatCard
                   title="Cotizaciones Ganadas"
                   value={stats.cotizacionesGanadas}
                   icon={CheckCircle}
-                  color="#45ad98"
+                  color="#1E3A8A"
                   subtitle={stats.cotizacionesEmitidas > 0 ? `${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito` : '0% tasa de éxito'}
                 />
                 <StatCard
@@ -11477,7 +11477,7 @@ const Dashboard = ({ user, onLogout }) => {
                       title={`Monto Neto ${item.label}`}
                       value={formatMonto(netoPorUnidad[item.key] || 0)}
                       icon={DollarSign}
-                      color={index % 2 === 0 ? '#235250' : '#45ad98'}
+                      color={index % 2 === 0 ? '#0B1F3B' : '#1E3A8A'}
                       subtitle="CLP"
                     />
                   ));
@@ -11492,7 +11492,7 @@ const Dashboard = ({ user, onLogout }) => {
                     title="Protocolos Abiertos"
                     value={stats.protocolosAbiertos}
                     icon={Package}
-                    color="#45ad98"
+                    color="#1E3A8A"
                   />
                   <StatCard
                     title="Protocolos En Proceso"

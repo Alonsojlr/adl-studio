@@ -126,9 +126,9 @@ FACTURACIÓN AL CLIENTE
 
 ## 🎨 Paleta de Colores
 
-- **Primary Dark**: `#235250`
-- **Primary Green**: `#45ad98`
-- **Primary Blue**: `#33b4e9`
+- **Primary Dark**: `#0B1F3B`
+- **Primary Green**: `#1E3A8A`
+- **Primary Blue**: `#3B82F6`
 
 ## 📱 Módulos
 

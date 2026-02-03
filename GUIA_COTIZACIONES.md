@@ -105,7 +105,7 @@ El PDF generado incluye:
 **Cuerpo:**
 - Sección CLIENTE con todos los datos
 - Fecha, Condiciones de Pago, Cotizado por
-- Tabla de items con fondo verde (#45ad98):
+- Tabla de items con fondo verde (#1E3A8A):
   - N° | Cant | Descripción | V. Unitario | % Dscto | Sub total
 - Observaciones (si existen)
 
@@ -180,9 +180,9 @@ Ejemplo: `Cotizacion_000123_Empresa_Demo_SA.pdf`
 ## 🎨 Personalización
 
 Los colores corporales de Building Me están definidos en:
-- **Verde Principal**: `#45ad98`
-- **Verde Oscuro**: `#235250`
-- **Azul**: `#33b4e9`
+- **Verde Principal**: `#1E3A8A`
+- **Verde Oscuro**: `#0B1F3B`
+- **Azul**: `#3B82F6`
 
 Estos colores se usan consistentemente en:
 - Badges de estado
