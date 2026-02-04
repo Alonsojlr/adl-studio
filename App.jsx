@@ -17,7 +17,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 const TOAST_EVENT = 'app-toast';
@@ -5965,6 +5965,8 @@ const ProtocolosModule = ({
           estado: p.estado,
           unidadNegocio: p.unidad_negocio,
           fechaCreacion: p.fecha_creacion,
+          fechaInicioProduccion: p.fecha_inicio_produccion || null,
+          fechaEntrega: p.fecha_entrega || null,
           montoTotal: parseFloat(p.monto_total),
           montoNeto: parseFloat(p.monto_neto) || undefined,
           montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
@@ -6696,6 +6698,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [itemsComprados, setItemsComprados] = useState({});
+  const [editingFechas, setEditingFechas] = useState(false);
+  const [tempFechaInicio, setTempFechaInicio] = useState(protocolo.fechaInicioProduccion || '');
+  const [tempFechaEntrega, setTempFechaEntrega] = useState(protocolo.fechaEntrega || '');
   const itemsCompradosKey = `protocolos.itemsComprados.${protocolo.id ?? protocolo.folio ?? 'default'}`;
   const itemsCompradosHydratingRef = useRef(true);
 
@@ -7039,6 +7044,14 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
               📄 Ingresar OC Cliente
             </button>
             <button
+              onClick={() => setEditingFechas(!editingFechas)}
+              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              style={{ borderColor: '#45ad98', color: '#235250' }}
+            >
+              <Calendar className="w-5 h-5 inline mr-2" />
+              Fechas Produccion
+            </button>
+            <button
               onClick={async () => {
                 try {
                   await generarProtocoloPDF(protocolo, protocolo.items || [], ocVinculadas);
@@ -7053,6 +7066,66 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
               Generar PDF
             </button>
           </div>
+
+          {/* Editor de fechas de producción */}
+          {editingFechas && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl border-2 border-[#45ad98]/30">
+              <div className="flex items-end space-x-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Inicio Produccion</label>
+                  <input
+                    type="date"
+                    value={tempFechaInicio}
+                    onChange={(e) => setTempFechaInicio(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Entrega</label>
+                  <input
+                    type="date"
+                    value={tempFechaEntrega}
+                    onChange={(e) => setTempFechaEntrega(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateProtocolo(protocolo.id, {
+                        fecha_inicio_produccion: tempFechaInicio || null,
+                        fecha_entrega: tempFechaEntrega || null
+                      });
+                      onActualizar({
+                        ...protocolo,
+                        fechaInicioProduccion: tempFechaInicio || null,
+                        fechaEntrega: tempFechaEntrega || null
+                      });
+                      setEditingFechas(false);
+                      alert('Fechas de produccion actualizadas');
+                    } catch (error) {
+                      console.error('Error guardando fechas:', error);
+                      alert('Error al guardar las fechas');
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                >
+                  Guardar
+                </button>
+                <button
+                  onClick={() => setEditingFechas(false)}
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {protocolo.fechaInicioProduccion && protocolo.fechaEntrega && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Actual: {protocolo.fechaInicioProduccion} a {protocolo.fechaEntrega}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -11099,6 +11172,243 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   );
 };
 
+// Componente Carta Gantt
+const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [filterEstado, setFilterEstado] = useState('todos');
+
+  if (activeModule !== 'gantt') return null;
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const monthName = currentDate.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+
+  const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  // Calcular semanas del mes
+  const getWeeksOfMonth = () => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const weeks = [];
+    // Empezar desde el lunes de la semana del primer día
+    let start = new Date(firstDay);
+    const dayOfWeek = start.getDay();
+    start.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
+
+    while (start <= lastDay || weeks.length === 0) {
+      const weekStart = new Date(start);
+      const weekEnd = new Date(start);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weeks.push({ start: weekStart, end: weekEnd });
+      start.setDate(start.getDate() + 7);
+    }
+    return weeks;
+  };
+
+  const weeks = getWeeksOfMonth();
+  const totalDays = weeks.length * 7;
+  const firstDate = weeks[0].start;
+  const lastDate = new Date(weeks[weeks.length - 1].end);
+
+  const getWeekDays = (week) => {
+    const days = [];
+    const letras = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(week.start);
+      d.setDate(d.getDate() + i);
+      days.push({ letra: letras[i], num: d.getDate(), date: d, isCurrentMonth: d.getMonth() === month });
+    }
+    return days;
+  };
+
+  // Colores por estado
+  const getEstadoBarColor = (estado) => {
+    switch (estado) {
+      case 'Abierto': return 'bg-blue-300';
+      case 'En Proceso': return 'bg-blue-500';
+      case 'Despachado Parcial': return 'bg-yellow-400';
+      case 'Cerrado': return 'bg-green-500';
+      case 'Anulado': return 'bg-gray-400';
+      default: return 'bg-gray-300';
+    }
+  };
+
+  const getEstadoDotColor = (estado) => {
+    switch (estado) {
+      case 'Abierto': return 'bg-blue-300';
+      case 'En Proceso': return 'bg-blue-500';
+      case 'Despachado Parcial': return 'bg-yellow-400';
+      case 'Cerrado': return 'bg-green-500';
+      case 'Anulado': return 'bg-gray-400';
+      default: return 'bg-gray-300';
+    }
+  };
+
+  // Filtrar protocolos con fechas y que se solapen con el mes visible
+  const protocolosConFechas = sharedProtocolos.filter(p => {
+    if (!p.fechaInicioProduccion || !p.fechaEntrega) return false;
+    if (filterEstado !== 'todos' && p.estado !== filterEstado) return false;
+    const inicio = new Date(p.fechaInicioProduccion);
+    const fin = new Date(p.fechaEntrega);
+    return inicio <= lastDate && fin >= firstDate;
+  });
+
+  // Calcular posición de la barra
+  const calculateBarPosition = (protocolo) => {
+    const inicio = new Date(protocolo.fechaInicioProduccion);
+    const fin = new Date(protocolo.fechaEntrega);
+    const clampedStart = inicio < firstDate ? firstDate : inicio;
+    const clampedEnd = fin > lastDate ? lastDate : fin;
+    const totalMs = lastDate.getTime() - firstDate.getTime();
+    if (totalMs <= 0) return { left: 0, width: 0 };
+    const left = ((clampedStart.getTime() - firstDate.getTime()) / totalMs) * 100;
+    const width = ((clampedEnd.getTime() - clampedStart.getTime()) / totalMs) * 100;
+    return { left: Math.max(0, left), width: Math.max(1, Math.min(width, 100 - left)) };
+  };
+
+  // Posición de "hoy"
+  const today = new Date();
+  const todayPosition = (() => {
+    if (today < firstDate || today > lastDate) return null;
+    const totalMs = lastDate.getTime() - firstDate.getTime();
+    if (totalMs <= 0) return null;
+    return ((today.getTime() - firstDate.getTime()) / totalMs) * 100;
+  })();
+
+  const estados = ['todos', 'Abierto', 'En Proceso', 'Despachado Parcial', 'Cerrado', 'Anulado'];
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Carta Gantt</h2>
+            <p className="text-gray-500">Timeline de produccion por protocolo</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Filtro estado */}
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#45ad98]"
+            >
+              {estados.map(e => (
+                <option key={e} value={e}>{e === 'todos' ? 'Todos los estados' : e}</option>
+              ))}
+            </select>
+            {/* Navegación */}
+            <button onClick={goToPrevMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <button onClick={goToToday} className="px-3 py-2 bg-[#45ad98] text-white rounded-lg text-sm font-semibold hover:bg-[#235250] transition-colors">
+              Hoy
+            </button>
+            <button onClick={goToNextMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+            <span className="text-lg font-bold text-gray-800 capitalize min-w-[180px] text-center">{monthName}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Leyenda */}
+      <div className="flex items-center space-x-4 mb-4 px-2">
+        {['Abierto', 'En Proceso', 'Despachado Parcial', 'Cerrado', 'Anulado'].map(e => (
+          <div key={e} className="flex items-center space-x-1">
+            <div className={`w-3 h-3 rounded-full ${getEstadoDotColor(e)}`}></div>
+            <span className="text-xs text-gray-600">{e}</span>
+          </div>
+        ))}
+        <div className="flex items-center space-x-1">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className="text-xs text-gray-600">Hoy</span>
+        </div>
+      </div>
+
+      {protocolosConFechas.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 shadow-lg text-center">
+          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-400 mb-2">Sin protocolos con fechas</h3>
+          <p className="text-gray-400">Asigna fechas de produccion desde el detalle del protocolo</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Header de semanas */}
+          <div className="flex border-b-2 border-gray-200">
+            {/* Columna fija izquierda */}
+            <div className="w-[260px] min-w-[260px] p-3 border-r-2 border-gray-200 bg-gray-50">
+              <span className="text-sm font-bold text-gray-600">Protocolo</span>
+            </div>
+            {/* Semanas */}
+            <div className="flex-1">
+              <div className="flex">
+                {weeks.map((week, wi) => (
+                  <div key={wi} className="flex-1 border-r border-gray-100">
+                    <div className="text-center text-xs font-bold text-gray-500 py-1 bg-gray-50 border-b border-gray-100">
+                      Sem {wi + 1}
+                    </div>
+                    <div className="flex">
+                      {getWeekDays(week).map((day, di) => (
+                        <div
+                          key={di}
+                          className={`flex-1 text-center py-1 border-r border-gray-50 ${!day.isCurrentMonth ? 'opacity-30' : ''} ${day.date.toDateString() === today.toDateString() ? 'bg-red-50' : ''}`}
+                        >
+                          <div className="text-[10px] text-gray-400">{day.letra}</div>
+                          <div className={`text-[10px] font-semibold ${day.date.toDateString() === today.toDateString() ? 'text-red-500' : 'text-gray-600'}`}>
+                            {day.num}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Filas de protocolos */}
+          {protocolosConFechas.map((protocolo, idx) => {
+            const bar = calculateBarPosition(protocolo);
+            return (
+              <div key={protocolo.id || idx} className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                {/* Info del protocolo */}
+                <div className="w-[260px] min-w-[260px] p-3 border-r-2 border-gray-200">
+                  <p className="text-sm font-bold text-gray-800">PT-{protocolo.folio}</p>
+                  <p className="text-xs text-gray-500 truncate">{protocolo.nombreProyecto || protocolo.nombre || ''}</p>
+                  <p className="text-xs text-gray-400 truncate">{protocolo.cliente}</p>
+                </div>
+                {/* Barra del Gantt */}
+                <div className="flex-1 relative" style={{ minHeight: '48px' }}>
+                  {/* Línea de hoy */}
+                  {todayPosition !== null && (
+                    <div
+                      className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-10"
+                      style={{ left: `${todayPosition}%` }}
+                    />
+                  )}
+                  {/* Barra del protocolo */}
+                  <div
+                    className={`absolute top-2 bottom-2 rounded-md ${getEstadoBarColor(protocolo.estado)} opacity-80 hover:opacity-100 transition-opacity cursor-pointer`}
+                    style={{ left: `${bar.left}%`, width: `${bar.width}%`, minWidth: '4px' }}
+                    title={`${protocolo.folio}: ${protocolo.fechaInicioProduccion} a ${protocolo.fechaEntrega} (${protocolo.estado})`}
+                  >
+                    <span className="text-[10px] text-white font-semibold px-1 truncate block leading-[32px]">
+                      {protocolo.folio}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Componente de Dashboard
 const Dashboard = ({ user, onLogout }) => {
   const [activeModule, setActiveModule] = useState('dashboard');
@@ -11165,6 +11475,8 @@ const Dashboard = ({ user, onLogout }) => {
       estado: p.estado,
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
+      fechaInicioProduccion: p.fecha_inicio_produccion || null,
+      fechaEntrega: p.fecha_entrega || null,
       montoTotal: parseFloat(p.monto_total) || 0,
       montoNeto: parseFloat(p.monto_neto) || undefined,
       montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (
@@ -11395,6 +11707,8 @@ const Dashboard = ({ user, onLogout }) => {
         estado: p.estado,
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
+        fechaInicioProduccion: p.fecha_inicio_produccion || null,
+        fechaEntrega: p.fecha_entrega || null,
         montoTotal: parseFloat(p.monto_total) || 0,
         montoNeto: parseFloat(p.monto_neto) || undefined,
         items: p.items || [],
@@ -11515,6 +11829,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'gantt', name: 'Carta Gantt', icon: Calendar, roles: ['admin', 'comercial'] },
     { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'comercial', 'compras'] },
     { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'comercial', 'compras'] },
     { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
@@ -11828,6 +12143,8 @@ const Dashboard = ({ user, onLogout }) => {
               user={user}
             />
           )}
+
+          <CartaGanttModule activeModule={activeModule} sharedProtocolos={sharedProtocolos} />
 
           {activeModule === 'ordenes' && hasAccess('ordenes') && (
   <OrdenesCompraModule 
