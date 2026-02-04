@@ -11295,13 +11295,16 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
 
   const todayPos = calculateTodayPosition();
 
-  const formatWeekLabel = (week) => {
-    const sd = week.start.getDate();
-    const ed = week.end.getDate();
-    const sm = week.start.getMonth();
-    const em = week.end.getMonth();
-    if (sm !== em) return `${sd}/${sm + 1} - ${ed}/${em + 1}`;
-    return `${sd} - ${ed}`;
+  const diasLetra = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];
+
+  const getWeekDays = (week) => {
+    const days = [];
+    const current = new Date(week.start);
+    for (let i = 0; i < 7; i++) {
+      days.push({ letra: diasLetra[current.getDay()], num: current.getDate() });
+      current.setDate(current.getDate() + 1);
+    }
+    return days;
   };
 
   return (
@@ -11374,13 +11377,25 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
               Protocolo / Proyecto
             </div>
             <div className="flex-1 flex">
-              {weeks.map((week, i) => (
-                <div key={i} className="flex-1 px-2 py-3 text-center text-xs font-medium text-gray-600 border-r border-gray-100">
-                  Sem {i + 1}
-                  <br />
-                  <span className="text-gray-400">{formatWeekLabel(week)}</span>
-                </div>
-              ))}
+              {weeks.map((week, i) => {
+                const days = getWeekDays(week);
+                return (
+                  <div key={i} className="flex-1 border-r border-gray-100">
+                    <div className="text-center text-xs font-semibold text-gray-600 py-1 border-b border-gray-100">
+                      Sem {i + 1}
+                    </div>
+                    <div className="flex">
+                      {days.map((day, j) => (
+                        <div key={j} className="flex-1 text-center py-1 text-[10px] text-gray-400 border-r border-gray-50 last:border-r-0">
+                          <span className="font-medium text-gray-500">{day.letra}</span>
+                          <br />
+                          {day.num}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -11403,7 +11418,11 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
                   <div className="flex-1 relative py-3 px-1" style={{ minHeight: '48px' }}>
                     <div className="absolute inset-0 flex">
                       {weeks.map((_, i) => (
-                        <div key={i} className="flex-1 border-r border-gray-100"></div>
+                        <div key={i} className="flex-1 border-r border-gray-100 flex">
+                          {[0,1,2,3,4,5,6].map(j => (
+                            <div key={j} className="flex-1 border-r border-gray-50 last:border-r-0"></div>
+                          ))}
+                        </div>
                       ))}
                     </div>
                     <div
