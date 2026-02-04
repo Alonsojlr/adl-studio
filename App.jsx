@@ -17,7 +17,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 const TOAST_EVENT = 'app-toast';
@@ -5974,6 +5974,8 @@ const ProtocolosModule = ({
           estado: p.estado,
           unidadNegocio: p.unidad_negocio,
           fechaCreacion: p.fecha_creacion,
+          fechaInicioProduccion: p.fecha_inicio_produccion || null,
+          fechaEntrega: p.fecha_entrega || null,
           montoTotal: parseFloat(p.monto_total),
           montoNeto: parseFloat(p.monto_neto) || undefined,
           montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
@@ -6720,6 +6722,9 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [facturaEnEdicion, setFacturaEnEdicion] = useState(null);
+  const [editingFechas, setEditingFechas] = useState(false);
+  const [tempFechaInicio, setTempFechaInicio] = useState(protocolo.fechaInicioProduccion || '');
+  const [tempFechaEntrega, setTempFechaEntrega] = useState(protocolo.fechaEntrega || '');
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [itemsComprados, setItemsComprados] = useState({});
@@ -7023,8 +7028,78 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   </p>
                 </div>
               </div>
+              <div>
+                <p className="text-gray-500">Inicio Producción:</p>
+                <p className="font-semibold text-gray-800">
+                  {protocolo.fechaInicioProduccion || <span className="text-gray-400">Sin fecha</span>}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-500">Fecha Entrega:</p>
+                <p className="font-semibold text-gray-800">
+                  {protocolo.fechaEntrega || <span className="text-gray-400">Sin fecha</span>}
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Editor de fechas de producción */}
+          {editingFechas && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <h4 className="font-semibold text-gray-800 mb-3">Fechas de Producción</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Inicio Producción</label>
+                  <input
+                    type="date"
+                    value={tempFechaInicio}
+                    onChange={(e) => setTempFechaInicio(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Entrega</label>
+                  <input
+                    type="date"
+                    value={tempFechaEntrega}
+                    onChange={(e) => setTempFechaEntrega(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateProtocolo(protocolo.id, {
+                        fecha_inicio_produccion: tempFechaInicio || null,
+                        fecha_entrega: tempFechaEntrega || null
+                      });
+                      onActualizar({
+                        ...protocolo,
+                        fechaInicioProduccion: tempFechaInicio || null,
+                        fechaEntrega: tempFechaEntrega || null
+                      });
+                      setEditingFechas(false);
+                    } catch (error) {
+                      console.error('Error:', error);
+                      alert('Error al guardar fechas');
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg text-white font-semibold"
+                  style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+                >
+                  Guardar Fechas
+                </button>
+                <button
+                  onClick={() => setEditingFechas(false)}
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Botón Adjudicar Compra */}
           <div className="flex space-x-3">
@@ -7046,6 +7121,18 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
             >
               <FileText className="w-5 h-5 inline mr-2" />
               Agregar Factura
+            </button>
+            <button
+              onClick={() => {
+                setTempFechaInicio(protocolo.fechaInicioProduccion || '');
+                setTempFechaEntrega(protocolo.fechaEntrega || '');
+                setEditingFechas(true);
+              }}
+              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
+            >
+              <Calendar className="w-5 h-5 inline mr-2" />
+              Fechas Producción
             </button>
             <button
               onClick={async () => {
@@ -11126,6 +11213,228 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   );
 };
 
+// Componente Carta Gantt
+const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
+  if (activeModule !== 'gantt') return null;
+
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [filterEstado, setFilterEstado] = useState('todos');
+
+  const mesesEspanol = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const getWeeksOfMonth = (year, month) => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const weeks = [];
+    let current = new Date(firstDay);
+    const dayOfWeek = current.getDay();
+    current.setDate(current.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    while (current <= lastDay || weeks.length < 4) {
+      const weekStart = new Date(current);
+      const weekEnd = new Date(current);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weeks.push({ start: weekStart, end: weekEnd });
+      current.setDate(current.getDate() + 7);
+      if (current > lastDay && weeks.length >= 4) break;
+    }
+    return weeks;
+  };
+
+  const getEstadoBarColor = (estado) => {
+    switch (estado) {
+      case 'Abierto': return 'bg-blue-300';
+      case 'En Proceso': return 'bg-blue-500';
+      case 'Despachado Parcial': return 'bg-yellow-400';
+      case 'Cerrado': return 'bg-green-500';
+      case 'Anulado': return 'bg-gray-400';
+      default: return 'bg-gray-300';
+    }
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const weeks = getWeeksOfMonth(year, month);
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+
+  const protocolosFiltrados = sharedProtocolos.filter(p => {
+    if (!p.fechaInicioProduccion || !p.fechaEntrega) return false;
+    if (filterEstado !== 'todos' && p.estado !== filterEstado) return false;
+    const pStart = new Date(p.fechaInicioProduccion);
+    const pEnd = new Date(p.fechaEntrega);
+    return pStart <= monthEnd && pEnd >= monthStart;
+  });
+
+  const calculateBarPosition = (protocolo) => {
+    const pStart = new Date(protocolo.fechaInicioProduccion);
+    const pEnd = new Date(protocolo.fechaEntrega);
+    const totalStart = weeks[0].start.getTime();
+    const totalEnd = weeks[weeks.length - 1].end.getTime();
+    const totalDuration = totalEnd - totalStart;
+    const barStart = Math.max(pStart.getTime(), totalStart);
+    const barEnd = Math.min(pEnd.getTime(), totalEnd);
+    const leftPercent = ((barStart - totalStart) / totalDuration) * 100;
+    const widthPercent = ((barEnd - barStart) / totalDuration) * 100;
+    return {
+      left: `${Math.max(0, leftPercent)}%`,
+      width: `${Math.max(1, widthPercent)}%`
+    };
+  };
+
+  const calculateTodayPosition = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const totalStart = weeks[0].start.getTime();
+    const totalEnd = weeks[weeks.length - 1].end.getTime();
+    if (today < weeks[0].start || today > weeks[weeks.length - 1].end) return null;
+    return `${((today.getTime() - totalStart) / (totalEnd - totalStart)) * 100}%`;
+  };
+
+  const todayPos = calculateTodayPosition();
+
+  const formatWeekLabel = (week) => {
+    const sd = week.start.getDate();
+    const ed = week.end.getDate();
+    const sm = week.start.getMonth();
+    const em = week.end.getMonth();
+    if (sm !== em) return `${sd}/${sm + 1} - ${ed}/${em + 1}`;
+    return `${sd} - ${ed}`;
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800 mb-2">Carta Gantt</h2>
+        <p className="text-gray-600">Timeline de producción de protocolos</p>
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h3 className="text-xl font-bold text-gray-800 min-w-[200px] text-center">
+              {mesesEspanol[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h3>
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              className="px-4 py-2 text-sm font-semibold rounded-lg text-white"
+              style={{ background: '#1E3A8A' }}
+            >
+              Hoy
+            </button>
+          </div>
+          <select
+            value={filterEstado}
+            onChange={(e) => setFilterEstado(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="Abierto">Abierto</option>
+            <option value="En Proceso">En Proceso</option>
+            <option value="Despachado Parcial">Despachado Parcial</option>
+            <option value="Cerrado">Cerrado</option>
+            <option value="Anulado">Anulado</option>
+          </select>
+        </div>
+        <div className="flex items-center space-x-4 mt-4 text-sm flex-wrap">
+          <span className="text-gray-500 font-medium">Estado:</span>
+          {[
+            { estado: 'Abierto', color: 'bg-blue-300' },
+            { estado: 'En Proceso', color: 'bg-blue-500' },
+            { estado: 'Desp. Parcial', color: 'bg-yellow-400' },
+            { estado: 'Cerrado', color: 'bg-green-500' },
+            { estado: 'Anulado', color: 'bg-gray-400' }
+          ].map(item => (
+            <div key={item.estado} className="flex items-center space-x-1">
+              <div className={`w-3 h-3 rounded ${item.color}`}></div>
+              <span className="text-gray-600">{item.estado}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+            <div className="w-[260px] min-w-[260px] px-4 py-3 font-semibold text-gray-700 text-sm border-r border-gray-200">
+              Protocolo / Proyecto
+            </div>
+            <div className="flex-1 flex">
+              {weeks.map((week, i) => (
+                <div key={i} className="flex-1 px-2 py-3 text-center text-xs font-medium text-gray-600 border-r border-gray-100">
+                  Sem {i + 1}
+                  <br />
+                  <span className="text-gray-400">{formatWeekLabel(week)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {protocolosFiltrados.length === 0 ? (
+            <div className="px-8 py-12 text-center text-gray-500">
+              <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p className="font-semibold">No hay protocolos con fechas de producción para este mes</p>
+              <p className="text-sm mt-1">Asigna fechas de inicio y entrega desde el detalle del protocolo</p>
+            </div>
+          ) : (
+            protocolosFiltrados.map((protocolo) => {
+              const barPos = calculateBarPosition(protocolo);
+              return (
+                <div key={protocolo.id} className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <div className="w-[260px] min-w-[260px] px-4 py-3 border-r border-gray-200">
+                    <p className="font-semibold text-gray-800 text-sm">PT-{protocolo.folio}</p>
+                    <p className="text-xs text-gray-600 truncate" title={protocolo.nombreProyecto}>{protocolo.nombreProyecto}</p>
+                    <p className="text-xs text-gray-400 truncate">{protocolo.cliente}</p>
+                  </div>
+                  <div className="flex-1 relative py-3 px-1" style={{ minHeight: '48px' }}>
+                    <div className="absolute inset-0 flex">
+                      {weeks.map((_, i) => (
+                        <div key={i} className="flex-1 border-r border-gray-100"></div>
+                      ))}
+                    </div>
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-md ${getEstadoBarColor(protocolo.estado)} opacity-90 shadow-sm cursor-default`}
+                      style={{ left: barPos.left, width: barPos.width, minWidth: '8px' }}
+                      title={`${protocolo.folio} - ${protocolo.nombreProyecto}\n${protocolo.fechaInicioProduccion} → ${protocolo.fechaEntrega}\nEstado: ${protocolo.estado}`}
+                    >
+                      <span className="text-xs text-white font-medium px-2 truncate block leading-7">
+                        PT-{protocolo.folio}
+                      </span>
+                    </div>
+                    {todayPos && (
+                      <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: todayPos }}>
+                        <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 text-sm text-gray-500">
+        Mostrando {protocolosFiltrados.length} protocolo{protocolosFiltrados.length !== 1 ? 's' : ''} con fechas de producción asignadas
+      </div>
+    </div>
+  );
+};
+
 // Componente de Dashboard
 const Dashboard = ({ user, onLogout }) => {
   const [activeModule, setActiveModule] = useState('dashboard');
@@ -11192,6 +11501,8 @@ const Dashboard = ({ user, onLogout }) => {
       estado: p.estado,
       unidadNegocio: p.unidad_negocio,
       fechaCreacion: p.fecha_creacion,
+      fechaInicioProduccion: p.fecha_inicio_produccion || null,
+      fechaEntrega: p.fecha_entrega || null,
       montoTotal: parseFloat(p.monto_total) || 0,
       montoNeto: parseFloat(p.monto_neto) || undefined,
       montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (
@@ -11422,6 +11733,8 @@ const Dashboard = ({ user, onLogout }) => {
         estado: p.estado,
         unidadNegocio: p.unidad_negocio,
         fechaCreacion: p.fecha_creacion,
+        fechaInicioProduccion: p.fecha_inicio_produccion || null,
+        fechaEntrega: p.fecha_entrega || null,
         montoTotal: parseFloat(p.monto_total) || 0,
         montoNeto: parseFloat(p.monto_neto) || undefined,
         items: p.items || [],
@@ -11542,6 +11855,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'comercial', 'compras'] },
+    { id: 'gantt', name: 'Carta Gantt', icon: Calendar, roles: ['admin', 'comercial'] },
     { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'comercial', 'compras'] },
     { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'comercial', 'compras'] },
     { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
@@ -11856,8 +12170,10 @@ const Dashboard = ({ user, onLogout }) => {
             />
           )}
 
+          <CartaGanttModule activeModule={activeModule} sharedProtocolos={sharedProtocolos} />
+
           {activeModule === 'ordenes' && hasAccess('ordenes') && (
-  <OrdenesCompraModule 
+  <OrdenesCompraModule
     user={user}
     sharedOrdenesCompra={sharedOrdenesCompra}
     setSharedOrdenesCompra={setSharedOrdenesCompra}
