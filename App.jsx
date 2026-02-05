@@ -10347,8 +10347,8 @@ const [showNewModal, setShowNewModal] = useState(false);
 
       {showGanadaModal && cotizacionGanada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex-shrink-0" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">
                   Items ganados - Cotización #{cotizacionGanada.numero}
@@ -10364,7 +10364,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </button>
               </div>
             </div>
-            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               {cotizacionGanada.items && cotizacionGanada.items.length > 0 ? (
                 <div className="space-y-3">
                   {cotizacionGanada.items.map((item, index) => {
@@ -10405,7 +10405,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </div>
               )}
             </div>
-            <div className="p-6 border-t flex justify-end space-x-3">
+            <div className="p-6 border-t flex justify-end space-x-3 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowGanadaModal(false);
