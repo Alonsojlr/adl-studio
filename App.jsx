@@ -11815,7 +11815,7 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="shadow-md" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+      <header className="shadow-md sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between relative">
             {/* Logo KODIAK a la izquierda */}
@@ -11856,7 +11856,7 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       {/* Navegación horizontal de módulos */}
-      <nav className="bg-white shadow-md border-b border-gray-200">
+      <nav className="bg-white shadow-md border-b border-gray-200 sticky top-[72px] z-40">
         <div className="px-8 py-3">
           <div className="flex items-center justify-center space-x-2 overflow-x-auto">
             {menuItems.map((item) => {
