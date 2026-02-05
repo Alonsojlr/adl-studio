@@ -17,7 +17,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Star } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 const TOAST_EVENT = 'app-toast';
