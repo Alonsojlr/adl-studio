@@ -12,7 +12,7 @@ import {
   deleteProtocoloFactura
 } from './src/api/protocolos';
 import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
-import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
+import { getClientes, createCliente, updateCliente, deleteCliente, getContactosByCliente, createContacto, updateContacto, deleteContacto, getAllContactos } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
@@ -9227,13 +9227,104 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
   );
 };
 
-// Modal Editar Cliente (similar al de crear)
+// Modal Editar Cliente (con gestión de contactos)
 const EditarClienteModal = ({ cliente, onClose, onSave }) => {
   const [formData, setFormData] = useState(cliente);
+  const [contactos, setContactos] = useState([]);
+  const [loadingContactos, setLoadingContactos] = useState(true);
+  const [nuevoContacto, setNuevoContacto] = useState({ nombre: '', cargo: '', email: '', telefono: '' });
+  const [showNuevoContacto, setShowNuevoContacto] = useState(false);
+  const [editandoContacto, setEditandoContacto] = useState(null);
+
+  useEffect(() => {
+    const loadContactos = async () => {
+      try {
+        setLoadingContactos(true);
+        const data = await getContactosByCliente(cliente.id);
+        setContactos(data || []);
+      } catch (error) {
+        console.error('Error cargando contactos:', error);
+        setContactos([]);
+      } finally {
+        setLoadingContactos(false);
+      }
+    };
+    loadContactos();
+  }, [cliente.id]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
+  };
+
+  const handleAgregarContacto = async () => {
+    if (!nuevoContacto.nombre.trim()) {
+      alert('El nombre del contacto es requerido');
+      return;
+    }
+    try {
+      const contactoCreado = await createContacto({
+        cliente_id: cliente.id,
+        nombre: nuevoContacto.nombre,
+        cargo: nuevoContacto.cargo || null,
+        email: nuevoContacto.email || null,
+        telefono: nuevoContacto.telefono || null,
+        es_principal: contactos.length === 0
+      });
+      setContactos([...contactos, contactoCreado]);
+      setNuevoContacto({ nombre: '', cargo: '', email: '', telefono: '' });
+      setShowNuevoContacto(false);
+    } catch (error) {
+      console.error('Error creando contacto:', error);
+      alert('Error al crear contacto');
+    }
+  };
+
+  const handleEliminarContacto = async (contactoId) => {
+    if (!confirm('¿Eliminar este contacto?')) return;
+    try {
+      await deleteContacto(contactoId);
+      setContactos(contactos.filter(c => c.id !== contactoId));
+    } catch (error) {
+      console.error('Error eliminando contacto:', error);
+      alert('Error al eliminar contacto');
+    }
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!editandoContacto.nombre.trim()) {
+      alert('El nombre del contacto es requerido');
+      return;
+    }
+    try {
+      await updateContacto(editandoContacto.id, {
+        nombre: editandoContacto.nombre,
+        cargo: editandoContacto.cargo || null,
+        email: editandoContacto.email || null,
+        telefono: editandoContacto.telefono || null
+      });
+      setContactos(contactos.map(c => c.id === editandoContacto.id ? editandoContacto : c));
+      setEditandoContacto(null);
+    } catch (error) {
+      console.error('Error actualizando contacto:', error);
+      alert('Error al actualizar contacto');
+    }
+  };
+
+  const handleMarcarPrincipal = async (contactoId) => {
+    try {
+      // Primero quitar principal de todos
+      for (const c of contactos) {
+        if (c.es_principal) {
+          await updateContacto(c.id, { es_principal: false });
+        }
+      }
+      // Marcar el nuevo como principal
+      await updateContacto(contactoId, { es_principal: true });
+      setContactos(contactos.map(c => ({ ...c, es_principal: c.id === contactoId })));
+    } catch (error) {
+      console.error('Error marcando contacto principal:', error);
+    }
   };
 
   return (
@@ -9252,7 +9343,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          {/* Mismo formulario que NuevoClienteModal pero con datos precargados */}
+          {/* Información Básica */}
           <div className="mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Información Básica</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -9289,6 +9380,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
             </div>
           </div>
 
+          {/* Ubicación */}
           <div className="mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Ubicación</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -9334,42 +9426,168 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
             </div>
           </div>
 
+          {/* Contactos */}
           <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Contacto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Persona Encargada *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.personaEncargada}
-                  onChange={(e) => setFormData({...formData, personaEncargada: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Teléfono *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-800">Contactos</h4>
+              <button
+                type="button"
+                onClick={() => setShowNuevoContacto(!showNuevoContacto)}
+                className="flex items-center space-x-1 px-3 py-1.5 bg-[#45ad98] text-white rounded-lg text-sm hover:bg-[#3a9482] transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Contacto</span>
+              </button>
             </div>
+
+            {/* Formulario nuevo contacto */}
+            {showNuevoContacto && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-4 border-2 border-dashed border-gray-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Nombre *"
+                    value={nuevoContacto.nombre}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, nombre: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cargo"
+                    value={nuevoContacto.cargo}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, cargo: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={nuevoContacto.email}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, email: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Teléfono"
+                    value={nuevoContacto.telefono}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, telefono: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowNuevoContacto(false); setNuevoContacto({ nombre: '', cargo: '', email: '', telefono: '' }); }}
+                    className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 rounded-lg text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAgregarContacto}
+                    className="px-3 py-1.5 bg-[#45ad98] text-white rounded-lg text-sm hover:bg-[#3a9482]"
+                  >
+                    Guardar Contacto
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lista de contactos */}
+            {loadingContactos ? (
+              <p className="text-gray-500 text-sm">Cargando contactos...</p>
+            ) : contactos.length === 0 ? (
+              <p className="text-gray-500 text-sm">No hay contactos registrados</p>
+            ) : (
+              <div className="space-y-2">
+                {contactos.map((contacto) => (
+                  <div key={contacto.id} className="bg-white border border-gray-200 rounded-xl p-3">
+                    {editandoContacto?.id === contacto.id ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={editandoContacto.nombre}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, nombre: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Nombre"
+                        />
+                        <input
+                          type="text"
+                          value={editandoContacto.cargo || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, cargo: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Cargo"
+                        />
+                        <input
+                          type="email"
+                          value={editandoContacto.email || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, email: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Email"
+                        />
+                        <input
+                          type="text"
+                          value={editandoContacto.telefono || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, telefono: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Teléfono"
+                        />
+                        <div className="md:col-span-2 flex justify-end space-x-2">
+                          <button type="button" onClick={() => setEditandoContacto(null)} className="px-2 py-1 text-gray-600 text-sm">Cancelar</button>
+                          <button type="button" onClick={handleGuardarEdicion} className="px-2 py-1 bg-[#45ad98] text-white rounded text-sm">Guardar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-semibold text-gray-800">{contacto.nombre}</span>
+                            {contacto.es_principal && (
+                              <span className="px-2 py-0.5 bg-[#45ad98] text-white text-xs rounded-full">Principal</span>
+                            )}
+                            {contacto.cargo && <span className="text-gray-500 text-sm">• {contacto.cargo}</span>}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {contacto.email && <span className="mr-3">{contacto.email}</span>}
+                            {contacto.telefono && <span>{contacto.telefono}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {!contacto.es_principal && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarcarPrincipal(contacto.id)}
+                              className="p-1.5 text-gray-400 hover:text-[#45ad98] hover:bg-gray-100 rounded"
+                              title="Marcar como principal"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditandoContacto(contacto)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
+                            title="Editar"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarContacto(contacto.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Observaciones */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones</label>
             <textarea
@@ -9380,6 +9598,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
             />
           </div>
 
+          {/* Botones */}
           <div className="flex justify-end space-x-4">
             <button
               type="button"
@@ -10567,6 +10786,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     rut: '',
     direccion: '',
     contacto: '',
+    contactoId: null,
     telefono: '',
     fecha: new Date().toISOString().split('T')[0],
     condicionesPago: '',
@@ -10586,6 +10806,8 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   const [clientes, setClientes] = useState([]);
   const [clientesError, setClientesError] = useState('');
   const [showClienteAutocomplete, setShowClienteAutocomplete] = useState(false);
+  const [contactosCliente, setContactosCliente] = useState([]);
+  const [loadingContactos, setLoadingContactos] = useState(false);
 
   useEffect(() => {
     const loadClientes = async () => {
@@ -10611,6 +10833,33 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     loadClientes();
   }, []);
 
+  const cargarContactosCliente = async (clienteId) => {
+    if (!clienteId) {
+      setContactosCliente([]);
+      return;
+    }
+    try {
+      setLoadingContactos(true);
+      const contactos = await getContactosByCliente(clienteId);
+      setContactosCliente(contactos || []);
+      // Si hay un contacto principal, seleccionarlo automáticamente
+      const principal = contactos?.find(c => c.es_principal);
+      if (principal) {
+        setFormData(prev => ({
+          ...prev,
+          contacto: principal.nombre,
+          contactoId: principal.id,
+          telefono: principal.telefono || prev.telefono
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando contactos:', error);
+      setContactosCliente([]);
+    } finally {
+      setLoadingContactos(false);
+    }
+  };
+
   const buscarCliente = (codigo) => {
     const codigoNormalizado = codigo.trim();
     if (!codigoNormalizado) return;
@@ -10625,8 +10874,10 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
         rut: cliente.rut,
         direccion: cliente.direccion,
         contacto: cliente.contacto,
+        contactoId: null,
         telefono: cliente.telefono
       }));
+      cargarContactosCliente(cliente.id);
     }
   };
 
@@ -10640,9 +10891,27 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
       rut: cliente.rut,
       direccion: cliente.direccion,
       contacto: cliente.contacto,
+      contactoId: null,
       telefono: cliente.telefono
     }));
     setShowClienteAutocomplete(false);
+    cargarContactosCliente(cliente.id);
+  };
+
+  const seleccionarContacto = (contactoId) => {
+    if (!contactoId) {
+      setFormData(prev => ({ ...prev, contacto: '', contactoId: null, telefono: '' }));
+      return;
+    }
+    const contacto = contactosCliente.find(c => c.id === contactoId);
+    if (contacto) {
+      setFormData(prev => ({
+        ...prev,
+        contacto: contacto.nombre,
+        contactoId: contacto.id,
+        telefono: contacto.telefono || prev.telefono
+      }));
+    }
   };
 
   const agregarItem = () => {
@@ -10872,12 +11141,32 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Contacto</label>
-                <input
-                  type="text"
-                  value={formData.contacto}
-                  onChange={(e) => setFormData({...formData, contacto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-                />
+                {loadingContactos ? (
+                  <div className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-sm">
+                    Cargando contactos...
+                  </div>
+                ) : contactosCliente.length > 0 ? (
+                  <select
+                    value={formData.contactoId || ''}
+                    onChange={(e) => seleccionarContacto(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  >
+                    <option value="">Seleccionar contacto...</option>
+                    {contactosCliente.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}{c.cargo ? ` - ${c.cargo}` : ''}{c.es_principal ? ' (Principal)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.contacto}
+                    onChange={(e) => setFormData({...formData, contacto: e.target.value})}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    placeholder="Nombre del contacto"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">N° Contacto</label>
@@ -10887,6 +11176,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="+56 9 1234 5678"
+                  readOnly={formData.contactoId && contactosCliente.length > 0}
                 />
               </div>
             </div>
