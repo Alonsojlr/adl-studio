@@ -9520,7 +9520,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 };
 
 // Componente de Módulo de Cotizaciones
-const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {}, currentUserName }) => {
+const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {}, sharedProtocolos = [], currentUserName }) => {
 const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -9663,6 +9663,12 @@ const [showNewModal, setShowNewModal] = useState(false);
     return { subtotal, iva, total };
   };
 
+  const getOCClienteDeCotizacion = (cot) => {
+    if (!cot.adjudicada_a_protocolo) return null;
+    const protocolo = sharedProtocolos.find(p => p.folio === cot.adjudicada_a_protocolo);
+    return protocolo?.ocCliente || null;
+  };
+
   const abrirModalGanada = (cotizacion) => {
     const seleccionInicial = {};
     (cotizacion.items || []).forEach((_, index) => {
@@ -9800,6 +9806,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Responsable</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -9808,7 +9815,7 @@ const [showNewModal, setShowNewModal] = useState(false);
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={12} className="px-6 py-8 text-center text-gray-500">
                     Cargando cotizaciones...
                   </td>
                 </tr>
@@ -9840,6 +9847,16 @@ const [showNewModal, setShowNewModal] = useState(false);
                       </>
                     );
                   })()}
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const ocCliente = getOCClienteDeCotizacion(cot);
+                      return ocCliente ? (
+                        <span className="font-medium text-gray-700">{ocCliente}</span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-6 py-4 text-gray-700">
                     {cot.cotizadoPor || '—'}
                   </td>
@@ -12061,9 +12078,10 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeModule === 'cotizaciones' && (
-            <CotizacionesModule 
+            <CotizacionesModule
               sharedCotizaciones={sharedCotizaciones}
               setSharedCotizaciones={setSharedCotizaciones}
+              sharedProtocolos={sharedProtocolos}
               onAdjudicarVenta={handleAdjudicarVentaDesdeCotizacion}
               currentUserName={user?.name}
             />
