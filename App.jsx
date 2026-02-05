@@ -10256,7 +10256,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
       items: [...prev.items, {
         id: prev.items.length + 1,
         item: '',
-        cantidad: 1,
+        cantidad: 0,
         descripcion: '',
         valorUnitario: 0,
         descuento: 0
@@ -10456,9 +10456,9 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
@@ -10574,7 +10574,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     unidadNegocio: '',
     observaciones: '',
     items: [
-      { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
+      { id: 1, item: '', cantidad: 0, descripcion: '', valorUnitario: 0, descuento: 0 }
     ]
   });
 
@@ -10648,13 +10648,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        id: prev.items.length + 1, 
-        item: '', 
-        cantidad: 1, 
-        descripcion: '', 
-        valorUnitario: 0, 
-        descuento: 0 
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 0,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
       }]
     }));
   };
@@ -10999,9 +10999,9 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
