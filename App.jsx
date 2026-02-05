@@ -7441,28 +7441,15 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
           protocolo={protocolo}
           costoReal={costoRealNeto}
           onClose={() => setShowCerrarModal(false)}
-          onConfirmar={async (precioVenta) => {
+          onConfirmar={async () => {
             try {
-              // Buscar la cotización por número
-              const cotizaciones = await getCotizaciones();
-              const cotizacion = cotizaciones.find(c => c.numero === protocolo.numeroCotizacion);
-              
-              if (cotizacion) {
-                // Actualizar cotización con el nuevo precio
-                await updateCotizacion(cotizacion.id, { monto: precioVenta });
-              }
-              
-              // Actualizar estado y monto del protocolo
-              await updateProtocolo(protocolo.id, { estado: 'Cerrado', monto_total: precioVenta });
-              
-              // Actualizar en la interfaz
-              onActualizar({ ...protocolo, estado: 'Cerrado', montoTotal: precioVenta });
-              
+              await updateProtocolo(protocolo.id, { estado: 'Cerrado' });
+              onActualizar({ ...protocolo, estado: 'Cerrado' });
               setShowCerrarModal(false);
-              alert('Protocolo cerrado y cotización actualizada exitosamente');
+              alert('Protocolo cerrado exitosamente');
             } catch (error) {
               console.error('Error:', error);
-              alert('Error al actualizar: ' + error.message);
+              alert('Error al cerrar protocolo: ' + error.message);
             }
           }}
         />
@@ -7472,10 +7459,8 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   );
 };
 
-// Modal para Cerrar Protocolo y Actualizar Cotización
+// Modal para Cerrar Protocolo
 const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) => {
-  const [precioVenta, setPrecioVenta] = useState('');
-
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -7484,29 +7469,15 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
     }).format(value);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!precioVenta || parseFloat(precioVenta) <= 0) {
-      alert('Ingresa un precio válido');
-      return;
-    }
-    onConfirmar(parseFloat(precioVenta));
-  };
-
-  const margen = precioVenta ? parseFloat(precioVenta) - costoReal : 0;
-  const porcentajeMargen = precioVenta && costoReal > 0 
-    ? ((margen / costoReal) * 100).toFixed(1) 
-    : 0;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
         <h3 className="text-2xl font-bold text-gray-800 mb-4">Cerrar Protocolo</h3>
-        
+
         <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
           <p className="text-sm text-gray-600 mb-2">Protocolo #{protocolo.folio}</p>
-          <p className="text-sm text-gray-600 mb-4">Cotización #{protocolo.numeroCotizacion}</p>
-          
+          <p className="text-sm text-gray-600 mb-4">Cotizacion #{protocolo.numeroCotizacion}</p>
+
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Costo Real (OC):</span>
@@ -7515,54 +7486,23 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Precio Venta al Cliente
-            </label>
-            <input
-              type="number"
-              value={precioVenta}
-              onChange={(e) => setPrecioVenta(e.target.value)}
-              placeholder="Ingresa el precio final"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
-              min="1"
-              required
-            />
-          </div>
+        <p className="text-gray-600 mb-6">Estas seguro de que deseas cerrar este protocolo?</p>
 
-          {precioVenta && (
-            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Margen:</span>
-                  <span className="font-bold text-green-600">{formatCurrency(margen)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">% Margen:</span>
-                  <span className="font-bold text-green-600">{porcentajeMargen}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
-            >
-              Cerrar y Actualizar
-            </button>
-          </div>
-        </form>
+        <div className="flex space-x-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirmar}
+            className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          >
+            Cerrar Protocolo
+          </button>
+        </div>
       </div>
     </div>
   );
