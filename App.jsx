@@ -1288,7 +1288,7 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
           item_id: item.id,
           item: item.nombre,
           descripcion: item.descripcion,
-          cantidad: 1,
+          cantidad: 0,
           valorUnitario: parseFloat(item.precio_costo) || 0,
           descuento: 0
         }
@@ -3518,7 +3518,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
     centroCosto: '',
     actividadUso: '',
     items: [
-      { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
+      { id: 1, item: '', cantidad: 0, descripcion: '', valorUnitario: 0, descuento: 0 }
     ],
     observaciones: ''
   });
@@ -3594,13 +3594,13 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        id: prev.items.length + 1, 
-        item: '', 
-        cantidad: 1, 
-        descripcion: '', 
-        valorUnitario: 0, 
-        descuento: 0 
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 0,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
       }]
     }));
   };
@@ -3981,9 +3981,9 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -4245,7 +4245,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     const nuevo = {
       id: Date.now(),
       item: '',
-      cantidad: 1,
+      cantidad: 0,
       descripcion: '',
       valorUnitario: 0,
       descuento: 0
@@ -4504,9 +4504,9 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         disabled
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
@@ -7707,7 +7707,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
       items: [...prev.items, {
         id: prev.items.length + 1,
         item: '',
-        cantidad: 1,
+        cantidad: 0,
         descripcion: '',
         valorUnitario: 0,
         descuento: 0
@@ -8083,9 +8083,9 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
@@ -8584,7 +8584,7 @@ const AddItemModal = ({
 }) => {
   const baseData = {
     item: '',
-    cantidad: 1,
+    cantidad: 0,
     descripcion: '',
     proveedor1: { nombre: '', cantidad: 0, oc: '', factura: '', estadoPago: 'Pendiente' },
     porcentaje: 0
@@ -10457,7 +10457,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                       <input
                         type="number"
                         min="0"
-                        value={item.cantidad}
+                        value={item.cantidad === 0 ? '' : item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
@@ -11000,7 +11000,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                       <input
                         type="number"
                         min="0"
-                        value={item.cantidad}
+                        value={item.cantidad === 0 ? '' : item.cantidad}
                         onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
