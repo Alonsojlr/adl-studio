@@ -151,14 +151,6 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const kpis = useMemo(() => computeKPIs(stores, hideFinancialInfo), [stores, hideFinancialInfo])
 
   const groupedPhotos = useMemo(() => groupPhotosByDateAndType(photos), [photos])
-  const showFallbackMap = useMemo(() => {
-    return Boolean(mapError) || mapStores.length === 0
-  }, [mapError, mapStores.length])
-  const fallbackMapUrl = useMemo(() => {
-    const [lng, lat] = DEFAULT_CENTER
-    const bbox = `${lng - 0.8},${lat - 0.5},${lng + 0.8},${lat + 0.5}`
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat}%2C${lng}`
-  }, [])
 
   useEffect(() => {
     if (!mapboxToken || !mapContainerRef.current || mapRef.current) return
@@ -638,15 +630,8 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             </div>
           )}
 
-          {mapboxToken && !showFallbackMap ? (
+          {mapboxToken ? (
             <div ref={mapContainerRef} className="absolute inset-0" />
-          ) : mapboxToken && showFallbackMap ? (
-            <iframe
-              title="Mapa de respaldo"
-              src={fallbackMapUrl}
-              className="absolute inset-0 w-full h-full border-0"
-              loading="lazy"
-            />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500 px-6 text-center">
               Configura `VITE_MAPBOX_TOKEN` para visualizar el mapa.
