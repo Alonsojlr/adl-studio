@@ -83,9 +83,9 @@ const AuditoriasModule = ({ user }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-6">
+    <div>
       {/* Sub-navegación del módulo */}
-      <div className="flex items-center space-x-1 mb-6 bg-white rounded-xl shadow-sm p-1.5 overflow-x-auto">
+      <div className="flex items-center space-x-2 mb-8 bg-white rounded-xl shadow-sm p-2 overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -95,7 +95,7 @@ const AuditoriasModule = ({ user }) => {
                 setActiveTab(tab.id);
                 if (tab.id !== 'tiendas') setTiendaSeleccionada(null);
               }}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap text-sm font-medium ${
+              className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg transition-all whitespace-nowrap font-medium ${
                 activeTab === tab.id
                   ? 'text-white shadow-md'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -104,7 +104,7 @@ const AuditoriasModule = ({ user }) => {
                 background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)'
               } : {}}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-5 h-5" />
               <span>{tab.name}</span>
             </button>
           );

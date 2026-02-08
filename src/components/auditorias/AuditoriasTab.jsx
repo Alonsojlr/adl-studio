@@ -112,8 +112,11 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-gray-800">Auditorías</h2>
+    <div className="space-y-6">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800 mb-2">Auditorías</h2>
+        <p className="text-gray-600">Historial de auditorías realizadas</p>
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">

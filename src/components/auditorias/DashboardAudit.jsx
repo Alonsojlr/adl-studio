@@ -30,29 +30,39 @@ const DashboardAudit = ({ tiendas, auditorias, implementaciones, tareas, formatC
     : 0;
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle }) => (
-    <div className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all">
-      <div className="flex items-center justify-between mb-3">
-        <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${color}15` }}>
-          <Icon className="w-5 h-5" style={{ color }} />
+    <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-3 rounded-xl" style={{ backgroundColor: `${color}20` }}>
+          <Icon className="w-6 h-6" style={{ color }} />
+        </div>
+        <div className="text-right">
+          <p className="text-gray-500 text-sm font-medium">{title}</p>
         </div>
       </div>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-      <p className="text-sm text-gray-500 mt-1">{title}</p>
-      {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      <div>
+        <p className="text-3xl font-bold text-gray-800">{value}</p>
+        {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+      </div>
     </div>
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800 mb-2">Dashboard Auditorías</h2>
+        <p className="text-gray-600">Vista general de tiendas, implementaciones y auditorías</p>
+      </div>
+
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Tiendas Activas" value={tiendasActivas.length} icon={Store} color="#235250" subtitle={`${implActivas.length} implementaciones`} />
         <StatCard title="Inversión Activa" value={formatCurrency(inversionActiva)} icon={DollarSign} color="#16a34a" />
         <StatCard title="Auditorías (30d)" value={auditoriasUltimoMes.length} icon={ClipboardCheck} color="#2563eb" subtitle={`Score promedio: ${scorePromedio}%`} />
         <StatCard title="% Tiendas OK" value={`${pctTiendasOK}%`} icon={CheckCircle} color="#45ad98" subtitle={`${tiendasOK.length} de ${tiendasActivas.length}`} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="En Riesgo" value={tiendasEnRiesgo.length} icon={AlertTriangle} color="#dc2626" subtitle="Auditoría vencida" />
         <StatCard title="Observadas" value={tiendasObservadas.length} icon={Clock} color="#f59e0b" subtitle="Score 60-79" />
         <StatCard title="Críticas" value={tiendasCriticas.length} icon={XCircle} color="#dc2626" subtitle="Score < 60" />
