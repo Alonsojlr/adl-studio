@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Store, Wrench, ClipboardCheck, ListTodo, Map, Settings, Plus, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { BarChart3, Store, Wrench, ClipboardCheck, ListTodo, Map, Settings } from 'lucide-react';
 import { getTiendas } from '../../api/audit-tiendas';
 import { getAuditorias, getPlantillas } from '../../api/audit-auditorias';
 import { getImplementaciones } from '../../api/audit-implementaciones';
@@ -10,6 +10,8 @@ import ImplementacionesTab from './ImplementacionesTab';
 import AuditoriasTab from './AuditoriasTab';
 import TareasTab from './TareasTab';
 import ConfigTab from './ConfigTab';
+
+const MapaTab = lazy(() => import('./MapaTab'));
 
 const AuditoriasModule = ({ user }) => {
   const [activeTab, setActiveTab] = useState(user?.role === 'auditor' ? 'tiendas' : 'dashboard');
@@ -52,7 +54,7 @@ const AuditoriasModule = ({ user }) => {
   const canManageConfig = ['admin', 'comercial', 'trade_marketing'].includes(user?.role);
 
   useEffect(() => {
-    if (isAuditorTiendasOnly && activeTab !== 'tiendas') {
+    if (isAuditorTiendasOnly && !['tiendas', 'mapa'].includes(activeTab)) {
       setActiveTab('tiendas');
       setTiendaSeleccionada(null);
     }
@@ -65,13 +67,27 @@ const AuditoriasModule = ({ user }) => {
         { id: 'implementaciones', name: 'Implementaciones', icon: Wrench },
         { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck },
         { id: 'tareas', name: 'Tareas', icon: ListTodo },
+        { id: 'mapa', name: 'Mapa', icon: Map },
         ...(canManageConfig ? [{ id: 'config', name: 'Config', icon: Settings }] : [])
       ]
-    : [{ id: 'tiendas', name: 'Tiendas', icon: Store }];
+    : [
+        { id: 'tiendas', name: 'Tiendas', icon: Store },
+        { id: 'mapa', name: 'Mapa', icon: Map }
+      ];
 
   const handleVerDetalleTienda = (tienda) => {
     setTiendaSeleccionada(tienda);
     setActiveTab('tiendas');
+  };
+
+  const handleOpenStoreFromMap = (storeId) => {
+    const tienda = tiendas.find((item) => item.id === storeId);
+    if (tienda) {
+      handleVerDetalleTienda(tienda);
+      return;
+    }
+    setActiveTab('tiendas');
+    setTiendaSeleccionada(null);
   };
 
   const formatCurrency = (value) => {
@@ -182,6 +198,25 @@ const AuditoriasModule = ({ user }) => {
           user={user}
           onReload={loadData}
         />
+      )}
+
+      {activeTab === 'mapa' && (
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="w-10 h-10 border-4 border-[#45ad98]/30 border-t-[#45ad98] rounded-full animate-spin mx-auto mb-3"></div>
+                <p className="text-gray-500">Cargando mapa...</p>
+              </div>
+            </div>
+          }
+        >
+          <MapaTab
+            user={user}
+            hideFinancialInfo={isAuditorTiendasOnly}
+            onOpenStore={handleOpenStoreFromMap}
+          />
+        </Suspense>
       )}
 
       {activeTab === 'config' && canManageConfig && (
