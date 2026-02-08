@@ -104,7 +104,14 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
           </div>
 
           {/* Acciones rápidas */}
-          <div className="flex space-x-3 mt-5">
+          <div className="flex flex-wrap gap-3 mt-5">
+            <button
+              onClick={onVolver}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/25 hover:bg-white/35 rounded-xl text-white text-sm font-medium transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Volver al listado</span>
+            </button>
             <button
               onClick={() => setShowAuditoria(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-white text-sm font-medium transition-colors"

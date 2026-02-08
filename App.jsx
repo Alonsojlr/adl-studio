@@ -180,7 +180,7 @@ const LOGIN_PORTALS = [
   {
     id: 'buildingme',
     title: 'Building Me',
-    subtitle: 'Acceso general a los módulos de operación',
+    subtitle: 'Acceso General',
     allowedRoles: ['admin', 'comercial', 'compras', 'finanzas'],
     buttonLabel: 'Entrar a Building Me'
   },

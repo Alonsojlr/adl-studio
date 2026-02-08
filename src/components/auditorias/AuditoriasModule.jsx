@@ -104,7 +104,10 @@ const AuditoriasModule = ({ user }) => {
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id);
-                if (tab.id !== 'tiendas') setTiendaSeleccionada(null);
+                // Always allow returning to the store list from detail view.
+                if (tab.id !== 'tiendas' || tiendaSeleccionada) {
+                  setTiendaSeleccionada(null);
+                }
               }}
               className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg transition-all whitespace-nowrap font-medium ${
                 activeTab === tab.id
