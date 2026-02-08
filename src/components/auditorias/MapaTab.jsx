@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import mapboxgl from 'mapbox-gl'
+import L from 'leaflet'
 import { AlertTriangle, Camera, Calendar, CheckCircle2, Filter, Loader2, MapPin, Search, Store, XCircle } from 'lucide-react'
 import { getStoreStatusSnapshot, getTiendaFotos, uploadTiendaFotosBatch } from '../../api/audit-mapa'
 import {
   PHOTO_TYPE_LABELS,
   STATE_META,
-  buildGeoJSON,
   computeKPIs,
   formatDate,
   groupPhotosByDateAndType,
@@ -14,10 +13,11 @@ import {
   toNumber
 } from './mapaUtils'
 
-const MAP_STYLE = 'mapbox://styles/mapbox/streets-v12'
 const DEFAULT_CENTER = [-70.6693, -33.4489]
 const DEFAULT_ZOOM = 5
 const PHOTO_TYPES = ['visita_inicial', 'implementacion', 'seguimiento', 'otra']
+const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-CL', {
@@ -37,13 +37,32 @@ const formatStateColor = (state) => {
   return meta?.color || '#64748b'
 }
 
+const buildStorePinIcon = (store, isSelected = false) => {
+  const pinColor = formatStateColor(store?.last_state)
+  const pinSize = isSelected ? 22 : 16
+  const border = isSelected ? 3 : 2
+  const overdueHalo = Boolean(store?.audit_overdue)
+  const haloSize = isSelected ? 34 : 28
+
+  return L.divIcon({
+    className: '',
+    html: `
+      <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:${haloSize}px;height:${haloSize}px;">
+        ${overdueHalo ? `<span style="position:absolute;width:${haloSize}px;height:${haloSize}px;border-radius:9999px;background:#ef4444;opacity:0.25;"></span>` : ''}
+        <span style="position:relative;display:inline-block;width:${pinSize}px;height:${pinSize}px;border-radius:9999px;background:${pinColor};border:${border}px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.35);"></span>
+      </span>
+    `,
+    iconSize: [haloSize, haloSize],
+    iconAnchor: [haloSize / 2, haloSize / 2]
+  })
+}
+
 const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
-  const mapLoadedRef = useRef(false)
+  const markersLayerRef = useRef(null)
+  const markerRefsById = useRef(new Map())
   const storesByIdRef = useRef(new Map())
-
-  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN
 
   const [loading, setLoading] = useState(true)
   const [dataError, setDataError] = useState('')
@@ -141,8 +160,6 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     }
   }, [stores])
 
-  const geojson = useMemo(() => buildGeoJSON(stores), [stores])
-
   const mapStores = useMemo(() => {
     return stores.filter((store) => hasValidLatLng(store))
   }, [stores])
@@ -152,228 +169,106 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const groupedPhotos = useMemo(() => groupPhotosByDateAndType(photos), [photos])
 
   useEffect(() => {
-    if (!mapboxToken || !mapContainerRef.current || mapRef.current) return
+    if (!mapContainerRef.current || mapRef.current) return
 
-    mapboxgl.accessToken = mapboxToken
     setMapError('')
     setMapReady(false)
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
-      center: DEFAULT_CENTER,
-      zoom: DEFAULT_ZOOM
-    })
-
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      preferCanvas: true,
+      worldCopyJump: true
+    }).setView([DEFAULT_CENTER[1], DEFAULT_CENTER[0]], DEFAULT_ZOOM)
     mapRef.current = map
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-    const initLayers = () => {
-      if (mapLoadedRef.current) return
-      mapLoadedRef.current = true
-      setMapReady(true)
-      setMapError('')
-      map.resize()
+    L.control.zoom({ position: 'topright' }).addTo(map)
 
-      map.addSource('stores', {
-        type: 'geojson',
-        data: buildGeoJSON([]),
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 45
-      })
-
-      map.addLayer({
-        id: 'clusters',
-        type: 'circle',
-        source: 'stores',
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': [
-            'step',
-            ['get', 'point_count'],
-            '#7dd3fc',
-            20,
-            '#38bdf8',
-            80,
-            '#0284c7'
-          ],
-          'circle-radius': [
-            'step',
-            ['get', 'point_count'],
-            16,
-            20,
-            22,
-            80,
-            28
-          ],
-          'circle-opacity': 0.85
-        }
-      })
-
-      map.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'stores',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-size': 12
-        },
-        paint: {
-          'text-color': '#ffffff'
-        }
-      })
-
-      map.addLayer({
-        id: 'overdue-halo',
-        type: 'circle',
-        source: 'stores',
-        filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'audit_overdue'], true]],
-        paint: {
-          'circle-radius': 18,
-          'circle-color': '#ef4444',
-          'circle-opacity': 0.2,
-          'circle-blur': 0.6
-        }
-      })
-
-      map.addLayer({
-        id: 'unclustered-point',
-        type: 'circle',
-        source: 'stores',
-        filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': [
-            'match',
-            ['get', 'last_state'],
-            'ok',
-            '#16a34a',
-            'observada',
-            '#f59e0b',
-            'critica',
-            '#dc2626',
-            '#64748b'
-          ],
-          'circle-radius': 7,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      })
-
-      map.addLayer({
-        id: 'selected-point',
-        type: 'circle',
-        source: 'stores',
-        filter: ['==', ['get', 'store_id'], ''],
-        paint: {
-          'circle-radius': 11,
-          'circle-color': '#111827',
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff'
-        }
-      })
-
-      map.on('click', 'clusters', (event) => {
-        const feature = map.queryRenderedFeatures(event.point, { layers: ['clusters'] })[0]
-        if (!feature) return
-        const clusterId = feature.properties?.cluster_id
-        const source = map.getSource('stores')
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return
-          map.easeTo({
-            center: feature.geometry.coordinates,
-            zoom
-          })
-        })
-      })
-
-      map.on('click', 'unclustered-point', (event) => {
-        const feature = event.features?.[0]
-        const storeId = feature?.properties?.store_id
-        if (!storeId) return
-        const targetStore = storesByIdRef.current.get(storeId)
-        if (!targetStore) return
-        setSelectedStore(targetStore)
-      })
-
-      ;['clusters', 'unclustered-point'].forEach((layerId) => {
-        map.on('mouseenter', layerId, () => {
-          map.getCanvas().style.cursor = 'pointer'
-        })
-        map.on('mouseleave', layerId, () => {
-          map.getCanvas().style.cursor = ''
-        })
-      })
-    }
-
-    map.on('load', initLayers)
-    map.on('style.load', initLayers)
-    map.on('idle', initLayers)
-    requestAnimationFrame(() => map.resize())
-
-    map.on('error', (event) => {
-      const message = event?.error?.message || 'Error cargando capa de mapa'
-      const normalized = String(message || '')
-      let friendlyMessage = `No se pudo cargar el mapa: ${normalized}`
-
-      if (/401|403|Unauthorized|Forbidden|access token|styles:read|API key|Not Authorized/i.test(normalized)) {
-        friendlyMessage = 'Token Mapbox inválido o restringido para este dominio. Agrega localhost/tu dominio en restricciones del token.'
-      } else if (/WebGL|Failed to initialize/i.test(normalized)) {
-        friendlyMessage = 'Tu navegador no pudo inicializar WebGL. Activa aceleración por hardware.'
-      }
-
-      console.error('Mapbox error:', event?.error || event)
-      setMapError(friendlyMessage)
+    let tileErrors = 0
+    const tileLayer = L.tileLayer(OSM_TILE_URL, {
+      maxZoom: 19,
+      attribution: OSM_ATTRIBUTION
     })
+
+    tileLayer.on('tileerror', () => {
+      tileErrors += 1
+      if (tileErrors > 3) {
+        setMapError('No se pudo cargar correctamente el mapa base. Revisa tu conexión de red.')
+      }
+    })
+
+    tileLayer.addTo(map)
+    markersLayerRef.current = L.layerGroup().addTo(map)
+    setMapReady(true)
+    requestAnimationFrame(() => map.invalidateSize())
+    const resizeTimeout = setTimeout(() => map.invalidateSize(), 180)
 
     return () => {
-      mapLoadedRef.current = false
+      clearTimeout(resizeTimeout)
       setMapReady(false)
-      map.off('load', initLayers)
-      map.off('style.load', initLayers)
-      map.off('idle', initLayers)
       map.remove()
       mapRef.current = null
+      markersLayerRef.current = null
+      markerRefsById.current.clear()
     }
-  }, [mapboxToken])
+  }, [])
 
   useEffect(() => {
-    if (!mapRef.current || !mapLoadedRef.current) return
+    if (!mapRef.current) return
     const timeout = setTimeout(() => {
-      mapRef.current?.resize()
+      mapRef.current?.invalidateSize()
     }, 120)
     return () => clearTimeout(timeout)
   }, [stores.length, selectedStore?.store_id])
 
   useEffect(() => {
-    if (!mapRef.current || !mapLoadedRef.current) return
-    const source = mapRef.current.getSource('stores')
-    if (source) source.setData(geojson)
-  }, [geojson])
+    if (!mapRef.current || !markersLayerRef.current) return
+
+    const markersLayer = markersLayerRef.current
+    markersLayer.clearLayers()
+    markerRefsById.current.clear()
+
+    mapStores.forEach((store) => {
+      const lat = toNumber(store.lat)
+      const lng = toNumber(store.lng)
+      const isSelected = selectedStore?.store_id === store.store_id
+      const marker = L.marker([lat, lng], {
+        icon: buildStorePinIcon(store, isSelected),
+        title: store.store_name || 'Tienda',
+        keyboard: true
+      })
+      marker.on('click', () => {
+        const targetStore = storesByIdRef.current.get(store.store_id) || store
+        setSelectedStore(targetStore)
+      })
+      marker.addTo(markersLayer)
+      markerRefsById.current.set(store.store_id, marker)
+    })
+  }, [mapStores, selectedStore?.store_id])
 
   useEffect(() => {
-    if (!mapRef.current || !mapLoadedRef.current) return
-    if (mapStores.length === 0) return
+    if (!mapRef.current) return
+    if (mapStores.length === 0) {
+      mapRef.current.setView([DEFAULT_CENTER[1], DEFAULT_CENTER[0]], DEFAULT_ZOOM, { animate: false })
+      return
+    }
 
-    const bounds = new mapboxgl.LngLatBounds()
-    mapStores.forEach((store) => {
-      bounds.extend([toNumber(store.lng, 0), toNumber(store.lat, 0)])
+    const bounds = L.latLngBounds(
+      mapStores.map((store) => [toNumber(store.lat, DEFAULT_CENTER[1]), toNumber(store.lng, DEFAULT_CENTER[0])])
+    )
+    mapRef.current.fitBounds(bounds, {
+      padding: [60, 60],
+      maxZoom: 12,
+      animate: true
     })
-    mapRef.current.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: 600 })
   }, [mapStores])
 
   useEffect(() => {
-    if (!mapRef.current || !mapLoadedRef.current) return
-    const filterValue = selectedStore?.store_id || ''
-    if (mapRef.current.getLayer('selected-point')) {
-      mapRef.current.setFilter('selected-point', ['==', ['get', 'store_id'], filterValue])
-    }
+    if (!mapRef.current) return
     if (selectedStore?.lng != null && selectedStore?.lat != null) {
-      mapRef.current.flyTo({
-        center: [toNumber(selectedStore.lng), toNumber(selectedStore.lat)],
-        zoom: Math.max(mapRef.current.getZoom(), 11),
-        duration: 650
-      })
+      mapRef.current.flyTo(
+        [toNumber(selectedStore.lat, DEFAULT_CENTER[1]), toNumber(selectedStore.lng, DEFAULT_CENTER[0])],
+        Math.max(mapRef.current.getZoom(), 12),
+        { animate: true, duration: 0.6 }
+      )
     }
   }, [selectedStore])
 
@@ -442,12 +337,6 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
         <h2 className="text-3xl font-bold text-gray-800 mb-2">Mapa</h2>
         <p className="text-gray-600">Visualiza tiendas por ubicación y estado operacional</p>
       </div>
-
-      {!mapboxToken && (
-        <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-yellow-900">
-          Falta configurar `VITE_MAPBOX_TOKEN` para habilitar el mapa.
-        </div>
-      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         <aside className="order-2 lg:order-1 lg:w-[360px] xl:w-[390px] shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5 h-fit">
@@ -627,21 +516,15 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             </div>
           )}
 
-          {mapboxToken ? (
-            <div ref={mapContainerRef} className="absolute inset-0" />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 px-6 text-center">
-              Configura `VITE_MAPBOX_TOKEN` para visualizar el mapa.
-            </div>
-          )}
+          <div ref={mapContainerRef} className="absolute inset-0" />
 
-          {mapboxToken && !mapReady && !mapError && (
+          {!mapReady && !mapError && (
             <div className="absolute top-4 left-4 z-20 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-blue-800 text-sm">
               Cargando vista del mapa...
             </div>
           )}
 
-          {mapboxToken && mapStores.length === 0 && (
+          {mapStores.length === 0 && (
             <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
               No hay tiendas con coordenadas válidas (lat/lng) para mostrar pins en el mapa.
             </div>
