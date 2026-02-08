@@ -151,6 +151,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const kpis = useMemo(() => computeKPIs(stores, hideFinancialInfo), [stores, hideFinancialInfo])
 
   const groupedPhotos = useMemo(() => groupPhotosByDateAndType(photos), [photos])
+  const showFallbackMap = useMemo(() => {
+    return Boolean(mapError) || mapStores.length === 0
+  }, [mapError, mapStores.length])
   const fallbackMapUrl = useMemo(() => {
     const [lng, lat] = DEFAULT_CENTER
     const bbox = `${lng - 0.8},${lat - 0.5},${lng + 0.8},${lat + 0.5}`
@@ -635,9 +638,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             </div>
           )}
 
-          {mapboxToken && !mapError ? (
+          {mapboxToken && !showFallbackMap ? (
             <div ref={mapContainerRef} className="absolute inset-0" />
-          ) : mapboxToken && mapError ? (
+          ) : mapboxToken && showFallbackMap ? (
             <iframe
               title="Mapa de respaldo"
               src={fallbackMapUrl}
