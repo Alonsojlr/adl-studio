@@ -263,14 +263,41 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
     notas: tienda?.notas || ''
   });
 
+  const normalizeCoordinate = (value, fieldLabel, min, max) => {
+    if (value == null || value === '') return undefined;
+
+    const normalizedValue = String(value).trim().replace(',', '.');
+    if (!normalizedValue) return undefined;
+
+    const parsed = Number(normalizedValue);
+    if (!Number.isFinite(parsed)) {
+      throw new Error(`${fieldLabel} debe ser un número válido`);
+    }
+    if (parsed < min || parsed > max) {
+      throw new Error(`${fieldLabel} debe estar entre ${min} y ${max}`);
+    }
+
+    return Math.round(parsed * 1e7) / 1e7;
+  };
+
+  const buildDataToSave = () => {
+    const dataToSave = { ...formData };
+    dataToSave.lat = normalizeCoordinate(dataToSave.lat, 'Latitud', -90, 90);
+    dataToSave.lng = normalizeCoordinate(dataToSave.lng, 'Longitud', -180, 180);
+
+    if (dataToSave.lat === undefined) delete dataToSave.lat;
+    if (dataToSave.lng === undefined) delete dataToSave.lng;
+
+    return dataToSave;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    const dataToSave = { ...formData };
-    if (dataToSave.lat) dataToSave.lat = parseFloat(dataToSave.lat);
-    else delete dataToSave.lat;
-    if (dataToSave.lng) dataToSave.lng = parseFloat(dataToSave.lng);
-    else delete dataToSave.lng;
-    onSave(dataToSave);
+    try {
+      onSave(buildDataToSave());
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   return (
@@ -400,6 +427,8 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
                   <input
                     type="number"
                     step="any"
+                    min="-90"
+                    max="90"
                     value={formData.lat}
                     onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
@@ -411,6 +440,8 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
                   <input
                     type="number"
                     step="any"
+                    min="-180"
+                    max="180"
                     value={formData.lng}
                     onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
                     className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
@@ -442,7 +473,6 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
           <button
             onClick={(e) => {
               e.preventDefault();
-              const form = e.target.closest('.flex').previousElementSibling.previousElementSibling;
               const nombre = formData.nombre.trim();
               const ciudad = formData.ciudad.trim();
               const region = formData.region.trim();
@@ -450,12 +480,11 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
                 alert('Completa los campos obligatorios: Nombre, Ciudad, Región');
                 return;
               }
-              const dataToSave = { ...formData };
-              if (dataToSave.lat) dataToSave.lat = parseFloat(dataToSave.lat);
-              else delete dataToSave.lat;
-              if (dataToSave.lng) dataToSave.lng = parseFloat(dataToSave.lng);
-              else delete dataToSave.lng;
-              onSave(dataToSave);
+              try {
+                onSave(buildDataToSave());
+              } catch (error) {
+                alert(error.message);
+              }
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
             style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
