@@ -17,8 +17,9 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
+import AuditoriasModule from './src/components/auditorias/AuditoriasModule';
 
 const TOAST_EVENT = 'app-toast';
 
@@ -11658,7 +11659,7 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
 
 // Componente de Dashboard
 const Dashboard = ({ user, onLogout }) => {
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState(user?.role === 'auditor' ? 'auditorias' : 'dashboard');
   const [selectedUnit, setSelectedUnit] = useState('Todas');
 
   // ===== ESTADOS COMPARTIDOS ENTRE MÓDULOS =====
@@ -12069,6 +12070,7 @@ const Dashboard = ({ user, onLogout }) => {
     if (isAdminLike) return true;
     if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
     if (user.role === 'finanzas' && ['cotizaciones', 'clientes', 'facturacion'].includes(module)) return true;
+    if (user.role === 'auditor' && module === 'auditorias') return true;
     return false;
   };
 
@@ -12082,6 +12084,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
     { id: 'clientes', name: 'Clientes', icon: Users, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'informes', name: 'Informes', icon: TrendingUp, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck, roles: ['admin', 'comercial', 'auditor'] },
     { id: 'administracion', name: 'Administración', icon: Settings, roles: ['admin', 'comercial'] }
   ];
 
@@ -12427,6 +12430,11 @@ const Dashboard = ({ user, onLogout }) => {
             sharedProtocolos={sharedProtocolos}
             selectedUnit={selectedUnit}
           />
+
+          {/* Módulo de Auditorías */}
+          {activeModule === 'auditorias' && hasAccess('auditorias') && (
+            <AuditoriasModule user={user} />
+          )}
         </main>
     </div>
   );
