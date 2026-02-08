@@ -10,6 +10,7 @@ import {
   computeKPIs,
   formatDate,
   groupPhotosByDateAndType,
+  hasValidLatLng,
   normalizeState,
   toNumber
 } from './mapaUtils'
@@ -46,7 +47,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [dataError, setDataError] = useState('')
+  const [mapError, setMapError] = useState('')
+  const [mapReady, setMapReady] = useState(false)
   const [stores, setStores] = useState([])
   const [regions, setRegions] = useState([])
   const [selectedStore, setSelectedStore] = useState(null)
@@ -100,7 +103,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
     const loadStores = async () => {
       setLoading(true)
-      setError('')
+      setDataError('')
       try {
         const data = await getStoreStatusSnapshot({
           search: debouncedSearch || undefined,
@@ -116,7 +119,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       } catch (e) {
         if (cancelled) return
         console.error('Error cargando snapshot del mapa:', e)
-        setError('No se pudo cargar el mapa de tiendas')
+        setDataError('No se pudo cargar el mapa de tiendas')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -142,7 +145,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const geojson = useMemo(() => buildGeoJSON(stores), [stores])
 
   const mapStores = useMemo(() => {
-    return stores.filter((store) => store.lat != null && store.lng != null)
+    return stores.filter((store) => hasValidLatLng(store))
   }, [stores])
 
   const kpis = useMemo(() => computeKPIs(stores, hideFinancialInfo), [stores, hideFinancialInfo])
@@ -153,6 +156,8 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     if (!mapboxToken || !mapContainerRef.current || mapRef.current) return
 
     mapboxgl.accessToken = mapboxToken
+    setMapError('')
+    setMapReady(false)
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -166,6 +171,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
     map.on('load', () => {
       mapLoadedRef.current = true
+      setMapReady(true)
+      setMapError('')
+      map.resize()
 
       map.addSource('stores', {
         type: 'geojson',
@@ -299,12 +307,46 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       })
     })
 
+    map.on('error', (event) => {
+      const message = event?.error?.message || 'Error cargando capa de mapa'
+      const normalized = String(message || '')
+      let friendlyMessage = `No se pudo cargar el mapa: ${normalized}`
+
+      if (/401|403|Unauthorized|Forbidden|access token|styles:read|API key|Not Authorized/i.test(normalized)) {
+        friendlyMessage = 'Token Mapbox inválido o restringido para este dominio. Agrega localhost/tu dominio en restricciones del token.'
+      } else if (/WebGL|Failed to initialize/i.test(normalized)) {
+        friendlyMessage = 'Tu navegador no pudo inicializar WebGL. Activa aceleración por hardware.'
+      }
+
+      console.error('Mapbox error:', event?.error || event)
+      setMapError(friendlyMessage)
+    })
+
     return () => {
       mapLoadedRef.current = false
+      setMapReady(false)
       map.remove()
       mapRef.current = null
     }
   }, [mapboxToken])
+
+  useEffect(() => {
+    if (!mapboxToken || mapReady || mapError) return
+    const timeout = setTimeout(() => {
+      if (!mapReady) {
+        setMapError('El mapa no logró cargar. Revisa el token Mapbox, bloqueadores de contenido o restricciones de red.')
+      }
+    }, 7000)
+    return () => clearTimeout(timeout)
+  }, [mapboxToken, mapReady, mapError])
+
+  useEffect(() => {
+    if (!mapRef.current || !mapLoadedRef.current) return
+    const timeout = setTimeout(() => {
+      mapRef.current?.resize()
+    }, 120)
+    return () => clearTimeout(timeout)
+  }, [stores.length, selectedStore?.store_id])
 
   useEffect(() => {
     if (!mapRef.current || !mapLoadedRef.current) return
@@ -317,7 +359,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     if (mapStores.length === 0) return
 
     const bounds = new mapboxgl.LngLatBounds()
-    mapStores.forEach((store) => bounds.extend([toNumber(store.lng), toNumber(store.lat)]))
+    mapStores.forEach((store) => {
+      bounds.extend([toNumber(store.lng, 0), toNumber(store.lat, 0)])
+    })
     mapRef.current.fitBounds(bounds, { padding: 60, maxZoom: 12, duration: 600 })
   }, [mapStores])
 
@@ -408,8 +452,8 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-6">
-        <aside className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5 h-fit">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <aside className="order-2 lg:order-1 lg:w-[360px] xl:w-[390px] shrink-0 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5 h-fit">
           <div className="grid grid-cols-2 gap-3">
             <KpiCard title="Tiendas" value={kpis.visibleStores} icon={Store} color="#235250" />
             <KpiCard title="Críticas" value={kpis.criticalStores} icon={XCircle} color="#dc2626" />
@@ -573,10 +617,16 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
           </div>
         </aside>
 
-        <section className="relative bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[760px] overflow-hidden">
-          {error && (
+        <section className="order-1 lg:order-2 relative bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[560px] lg:min-h-[760px] lg:flex-1 overflow-hidden">
+          {dataError && (
             <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
-              {error}
+              {dataError}
+            </div>
+          )}
+
+          {mapError && (
+            <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-800 text-sm">
+              {mapError}
             </div>
           )}
 
@@ -585,6 +635,18 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500 px-6 text-center">
               Configura `VITE_MAPBOX_TOKEN` para visualizar el mapa.
+            </div>
+          )}
+
+          {mapboxToken && !mapReady && !mapError && (
+            <div className="absolute top-4 left-4 z-20 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-blue-800 text-sm">
+              Cargando vista del mapa...
+            </div>
+          )}
+
+          {mapboxToken && mapStores.length === 0 && (
+            <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+              No hay tiendas con coordenadas válidas (lat/lng) para mostrar pins en el mapa.
             </div>
           )}
 

@@ -12,9 +12,21 @@ export const PHOTO_TYPE_LABELS = {
   otra: 'Otra'
 }
 
-export const toNumber = (value) => {
+export const toNumber = (value, fallback = 0) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(/\s+/g, '').replace(',', '.')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
   const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+export const hasValidLatLng = (store) => {
+  const lat = toNumber(store?.lat, Number.NaN)
+  const lng = toNumber(store?.lng, Number.NaN)
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
 }
 
 export const normalizeState = (stateValue) => {
@@ -39,26 +51,30 @@ export const buildGeoJSON = (stores) => {
   return {
     type: 'FeatureCollection',
     features: (stores || [])
-      .filter((store) => store?.lat != null && store?.lng != null)
-      .map((store) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [toNumber(store.lng), toNumber(store.lat)]
-        },
-        properties: {
-          store_id: store.store_id,
-          store_name: store.store_name,
-          city: store.city || '',
-          region: store.region || '',
-          last_state: normalizeState(store.last_state),
-          last_score: store.last_score == null ? null : toNumber(store.last_score),
-          last_audit_at: store.last_audit_at || null,
-          audit_overdue: Boolean(store.audit_overdue),
-          overdue_days: store.overdue_days == null ? null : toNumber(store.overdue_days),
-          active_investment_total: toNumber(store.active_investment_total)
+      .filter((store) => hasValidLatLng(store))
+      .map((store) => {
+        const lat = toNumber(store.lat, 0)
+        const lng = toNumber(store.lng, 0)
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          },
+          properties: {
+            store_id: store.store_id,
+            store_name: store.store_name,
+            city: store.city || '',
+            region: store.region || '',
+            last_state: normalizeState(store.last_state),
+            last_score: store.last_score == null ? null : toNumber(store.last_score),
+            last_audit_at: store.last_audit_at || null,
+            audit_overdue: Boolean(store.audit_overdue),
+            overdue_days: store.overdue_days == null ? null : toNumber(store.overdue_days),
+            active_investment_total: toNumber(store.active_investment_total)
+          }
         }
-      }))
+      })
   }
 }
 
