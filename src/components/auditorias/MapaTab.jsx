@@ -167,9 +167,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
     mapRef.current = map
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-
-    map.on('style.load', () => {
+    const initLayers = () => {
       if (mapLoadedRef.current) return
+      if (!map.isStyleLoaded()) return
       mapLoadedRef.current = true
       setMapReady(true)
       setMapError('')
@@ -305,7 +305,12 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
           map.getCanvas().style.cursor = ''
         })
       })
-    })
+    }
+
+    map.on('load', initLayers)
+    map.on('style.load', initLayers)
+    map.on('idle', initLayers)
+    requestAnimationFrame(() => map.resize())
 
     map.on('error', (event) => {
       const message = event?.error?.message || 'Error cargando capa de mapa'
@@ -325,6 +330,9 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     return () => {
       mapLoadedRef.current = false
       setMapReady(false)
+      map.off('load', initLayers)
+      map.off('style.load', initLayers)
+      map.off('idle', initLayers)
       map.remove()
       mapRef.current = null
     }
