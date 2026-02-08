@@ -169,7 +169,6 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
     const initLayers = () => {
       if (mapLoadedRef.current) return
-      if (!map.isStyleLoaded()) return
       mapLoadedRef.current = true
       setMapReady(true)
       setMapError('')
