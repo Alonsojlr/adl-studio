@@ -6,7 +6,7 @@ import { getTareasByTienda } from '../../api/audit-tareas';
 import { getAjustesByTienda } from '../../api/audit-tareas';
 import EjecutarAuditoria from './EjecutarAuditoria';
 
-const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones: initialImpl, tareas: initialTareas, plantillas, formatCurrency, user, onVolver, onReload }) => {
+const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones: initialImpl, tareas: initialTareas, plantillas, formatCurrency, user, hideFinancialInfo = false, onVolver, onReload }) => {
   const [activeSubTab, setActiveSubTab] = useState('resumen');
   const [showAuditoria, setShowAuditoria] = useState(false);
   const [ajustes, setAjustes] = useState([]);
@@ -36,11 +36,17 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
 
   const subTabs = [
     { id: 'resumen', name: 'Resumen' },
-    { id: 'implementacion', name: 'Implementación' },
+    ...(!hideFinancialInfo ? [{ id: 'implementacion', name: 'Implementación' }] : []),
     { id: 'auditorias', name: 'Auditorías' },
     { id: 'ajustes', name: 'Ajustes' },
     { id: 'tareas', name: 'Tareas' }
   ];
+
+  useEffect(() => {
+    if (hideFinancialInfo && activeSubTab === 'implementacion') {
+      setActiveSubTab('resumen');
+    }
+  }, [hideFinancialInfo, activeSubTab]);
 
   if (showAuditoria) {
     return (
@@ -118,14 +124,18 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
               {vencida && <AlertTriangle className="w-3.5 h-3.5 inline ml-1 text-red-500" />}
             </span>
           </div>
-          <div>
-            <span className="text-gray-500">Implementaciones:</span>{' '}
-            <span className="font-semibold text-gray-700">{implActivas.length}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Inversión activa:</span>{' '}
-            <span className="font-semibold text-gray-700">{formatCurrency(inversionTotal)}</span>
-          </div>
+          {!hideFinancialInfo && (
+            <div>
+              <span className="text-gray-500">Implementaciones:</span>{' '}
+              <span className="font-semibold text-gray-700">{implActivas.length}</span>
+            </div>
+          )}
+          {!hideFinancialInfo && (
+            <div>
+              <span className="text-gray-500">Inversión activa:</span>{' '}
+              <span className="font-semibold text-gray-700">{formatCurrency(inversionTotal)}</span>
+            </div>
+          )}
           <div>
             <span className="text-gray-500">Tareas abiertas:</span>{' '}
             <span className="font-semibold text-gray-700">{tareasAbiertas.length}</span>
@@ -187,7 +197,7 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
         </div>
       )}
 
-      {activeSubTab === 'implementacion' && (
+      {!hideFinancialInfo && activeSubTab === 'implementacion' && (
         <div className="space-y-4">
           {implActivas.length > 0 ? implActivas.map(impl => (
             <div key={impl.id} className="bg-white rounded-xl shadow-sm p-5">
@@ -338,9 +348,11 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                   <p className="font-semibold text-gray-800 mt-2">{aj.descripcion || aj.motivo}</p>
                   <p className="text-sm text-gray-500">{new Date(aj.created_at).toLocaleDateString('es-CL')}</p>
                 </div>
-                <div className="text-right">
-                  {aj.costo > 0 && <p className="font-bold text-gray-800">{formatCurrency(aj.costo)}</p>}
-                </div>
+                {!hideFinancialInfo && (
+                  <div className="text-right">
+                    {aj.costo > 0 && <p className="font-bold text-gray-800">{formatCurrency(aj.costo)}</p>}
+                  </div>
+                )}
               </div>
             </div>
           )) : (

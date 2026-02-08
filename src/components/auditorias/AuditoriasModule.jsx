@@ -12,7 +12,7 @@ import TareasTab from './TareasTab';
 import ConfigTab from './ConfigTab';
 
 const AuditoriasModule = ({ user }) => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(user?.role === 'auditor' ? 'tiendas' : 'dashboard');
   const [tiendas, setTiendas] = useState([]);
   const [auditorias, setAuditorias] = useState([]);
   const [implementaciones, setImplementaciones] = useState([]);
@@ -47,16 +47,27 @@ const AuditoriasModule = ({ user }) => {
     loadData();
   }, []);
 
-  const isAdmin = ['admin', 'comercial'].includes(user?.role);
+  const isAuditorTiendasOnly = user?.role === 'auditor';
+  const hasFullAuditAccess = !isAuditorTiendasOnly;
+  const canManageConfig = ['admin', 'comercial', 'trade_marketing'].includes(user?.role);
 
-  const tabs = [
-    { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
-    { id: 'tiendas', name: 'Tiendas', icon: Store },
-    { id: 'implementaciones', name: 'Implementaciones', icon: Wrench },
-    { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck },
-    { id: 'tareas', name: 'Tareas', icon: ListTodo },
-    ...(isAdmin ? [{ id: 'config', name: 'Config', icon: Settings }] : [])
-  ];
+  useEffect(() => {
+    if (isAuditorTiendasOnly && activeTab !== 'tiendas') {
+      setActiveTab('tiendas');
+      setTiendaSeleccionada(null);
+    }
+  }, [isAuditorTiendasOnly, activeTab]);
+
+  const tabs = hasFullAuditAccess
+    ? [
+        { id: 'dashboard', name: 'Dashboard', icon: BarChart3 },
+        { id: 'tiendas', name: 'Tiendas', icon: Store },
+        { id: 'implementaciones', name: 'Implementaciones', icon: Wrench },
+        { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck },
+        { id: 'tareas', name: 'Tareas', icon: ListTodo },
+        ...(canManageConfig ? [{ id: 'config', name: 'Config', icon: Settings }] : [])
+      ]
+    : [{ id: 'tiendas', name: 'Tiendas', icon: Store }];
 
   const handleVerDetalleTienda = (tienda) => {
     setTiendaSeleccionada(tienda);
@@ -112,7 +123,7 @@ const AuditoriasModule = ({ user }) => {
       </div>
 
       {/* Contenido del tab activo */}
-      {activeTab === 'dashboard' && (
+      {activeTab === 'dashboard' && hasFullAuditAccess && (
         <DashboardAudit
           tiendas={tiendas}
           auditorias={auditorias}
@@ -135,11 +146,12 @@ const AuditoriasModule = ({ user }) => {
           setTiendaSeleccionada={setTiendaSeleccionada}
           formatCurrency={formatCurrency}
           user={user}
+          hideFinancialInfo={isAuditorTiendasOnly}
           onReload={loadData}
         />
       )}
 
-      {activeTab === 'implementaciones' && (
+      {activeTab === 'implementaciones' && hasFullAuditAccess && (
         <ImplementacionesTab
           implementaciones={implementaciones}
           tiendas={tiendas}
@@ -149,7 +161,7 @@ const AuditoriasModule = ({ user }) => {
         />
       )}
 
-      {activeTab === 'auditorias' && (
+      {activeTab === 'auditorias' && hasFullAuditAccess && (
         <AuditoriasTab
           auditorias={auditorias}
           tiendas={tiendas}
@@ -160,7 +172,7 @@ const AuditoriasModule = ({ user }) => {
         />
       )}
 
-      {activeTab === 'tareas' && (
+      {activeTab === 'tareas' && hasFullAuditAccess && (
         <TareasTab
           tareas={tareas}
           tiendas={tiendas}
@@ -169,7 +181,7 @@ const AuditoriasModule = ({ user }) => {
         />
       )}
 
-      {activeTab === 'config' && isAdmin && (
+      {activeTab === 'config' && canManageConfig && (
         <ConfigTab
           plantillas={plantillas}
           onReload={loadData}

@@ -3,7 +3,7 @@ import { Plus, Search, Edit2, Trash2, Eye, Store, MapPin, ClipboardCheck, Chevro
 import { createTienda, updateTienda, deleteTienda } from '../../api/audit-tiendas';
 import DetalleTienda from './DetalleTienda';
 
-const TiendasTab = ({ tiendas, setTiendas, auditorias, implementaciones, tareas, plantillas, tiendaSeleccionada, setTiendaSeleccionada, formatCurrency, user, onReload }) => {
+const TiendasTab = ({ tiendas, setTiendas, auditorias, implementaciones, tareas, plantillas, tiendaSeleccionada, setTiendaSeleccionada, formatCurrency, user, hideFinancialInfo = false, onReload }) => {
   const [showNuevaModal, setShowNuevaModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [tiendaEditando, setTiendaEditando] = useState(null);
@@ -55,6 +55,7 @@ const TiendasTab = ({ tiendas, setTiendas, auditorias, implementaciones, tareas,
         plantillas={plantillas}
         formatCurrency={formatCurrency}
         user={user}
+        hideFinancialInfo={hideFinancialInfo}
         onVolver={() => setTiendaSeleccionada(null)}
         onReload={onReload}
       />
@@ -152,7 +153,9 @@ const TiendasTab = ({ tiendas, setTiendas, auditorias, implementaciones, tareas,
                         </span>
                       </p>
                     )}
-                    <p className="text-gray-500">{implCount} implementación{implCount !== 1 ? 'es' : ''}</p>
+                    {!hideFinancialInfo && (
+                      <p className="text-gray-500">{implCount} implementación{implCount !== 1 ? 'es' : ''}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     {tienda.last_audit_at ? (
