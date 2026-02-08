@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
 import { AlertTriangle, Camera, Calendar, CheckCircle2, Filter, Loader2, MapPin, Search, Store, XCircle } from 'lucide-react'
 import { getStoreStatusSnapshot, getTiendaFotos, uploadTiendaFotosBatch } from '../../api/audit-mapa'
 import {
@@ -169,7 +168,8 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     mapRef.current = map
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
 
-    map.on('load', () => {
+    map.on('style.load', () => {
+      if (mapLoadedRef.current) return
       mapLoadedRef.current = true
       setMapReady(true)
       setMapError('')
@@ -329,16 +329,6 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       mapRef.current = null
     }
   }, [mapboxToken])
-
-  useEffect(() => {
-    if (!mapboxToken || mapReady || mapError) return
-    const timeout = setTimeout(() => {
-      if (!mapReady) {
-        setMapError('El mapa no logró cargar. Revisa el token Mapbox, bloqueadores de contenido o restricciones de red.')
-      }
-    }, 7000)
-    return () => clearTimeout(timeout)
-  }, [mapboxToken, mapReady, mapError])
 
   useEffect(() => {
     if (!mapRef.current || !mapLoadedRef.current) return
