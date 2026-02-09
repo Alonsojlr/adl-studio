@@ -12339,13 +12339,14 @@ const Dashboard = ({ user, onLogout }) => {
                   );
                   cotizacionesGanadas.forEach((cotizacion) => {
                     const unidad = normalizarUnidad(cotizacion.unidadNegocio);
-                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + (cotizacion.monto || 0);
+                    const neto = cotizacion.montoNeto ?? cotizacion.neto ?? cotizacion.monto ?? 0;
+                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + neto;
                   });
 
                   const resumen = [
                     { label: 'Trade Marketing', key: 'TradeMarketing' },
                     { label: 'Inmobiliaria', key: 'Inmobiliarias' },
-                    { label: 'Stand y Ferias', key: 'Stands' },
+                    { label: 'Stand y Ferias', key: 'Stand y Ferias' },
                     { label: 'Imprenta', key: 'Imprenta' },
                     { label: 'Varios', key: 'Varios' }
                   ];
