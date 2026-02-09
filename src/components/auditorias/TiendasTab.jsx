@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Eye, Store, MapPin, ClipboardCheck, ChevronLeft, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, Store, MapPin, ClipboardCheck, ChevronLeft, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { createTienda, updateTienda, deleteTienda } from '../../api/audit-tiendas';
 import DetalleTienda from './DetalleTienda';
 
@@ -265,6 +265,8 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
     contacto_email: tienda?.contacto_email || '',
     notas: tienda?.notas || ''
   });
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState({ type: '', message: '' });
 
   const normalizeCoordinate = (value, fieldLabel, min, max) => {
     if (value == null || value === '') return undefined;
@@ -292,6 +294,82 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
     if (dataToSave.lng === undefined) delete dataToSave.lng;
 
     return dataToSave;
+  };
+
+  const handleBuscarCoordenadas = async () => {
+    const direccion = formData.direccion.trim();
+    const comuna = formData.comuna.trim();
+    const ciudad = formData.ciudad.trim();
+    const region = formData.region.trim();
+
+    if (!ciudad || !region) {
+      alert('Para buscar coordenadas, completa al menos Ciudad y Región');
+      return;
+    }
+
+    const queryParts = [direccion, comuna, ciudad, region, 'Chile'].filter(Boolean);
+    const query = queryParts.join(', ');
+    if (!query) {
+      alert('Ingresa una dirección o datos de ubicación para buscar coordenadas');
+      return;
+    }
+
+    setGeocoding(true);
+    setGeocodeResult({ type: '', message: '' });
+
+    try {
+      const url = new URL('https://nominatim.openstreetmap.org/search');
+      url.searchParams.set('format', 'jsonv2');
+      url.searchParams.set('limit', '1');
+      url.searchParams.set('countrycodes', 'cl');
+      url.searchParams.set('addressdetails', '1');
+      url.searchParams.set('q', query);
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'es-CL,es;q=0.9,en;q=0.8'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error HTTP ${response.status}`);
+      }
+
+      const results = await response.json();
+      if (!Array.isArray(results) || results.length === 0) {
+        setGeocodeResult({
+          type: 'error',
+          message: 'No se encontraron coordenadas para esa dirección. Intenta con una dirección más específica.'
+        });
+        return;
+      }
+
+      const best = results[0];
+      const lat = Number(best.lat);
+      const lng = Number(best.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        throw new Error('Coordenadas inválidas');
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        lat: lat.toFixed(6),
+        lng: lng.toFixed(6)
+      }));
+      setGeocodeResult({
+        type: 'success',
+        message: 'Coordenadas actualizadas automáticamente desde la dirección.'
+      });
+    } catch (error) {
+      console.error('Error geocodificando dirección:', error);
+      setGeocodeResult({
+        type: 'error',
+        message: 'No se pudo geocodificar la dirección en este momento. Puedes ingresar lat/lng manualmente.'
+      });
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -424,6 +502,33 @@ const TiendaFormModal = ({ tienda, onClose, onSave }) => {
 
             <div className="md:col-span-2 border-t pt-4 mt-2">
               <h4 className="font-semibold text-gray-700 mb-3">Coordenadas (para mapa)</h4>
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleBuscarCoordenadas}
+                  disabled={geocoding}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${
+                    geocoding
+                      ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
+                      : 'bg-[#235250] text-white hover:bg-[#1f4442]'
+                  }`}
+                >
+                  {geocoding ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Buscando...
+                    </>
+                  ) : (
+                    'Buscar por dirección'
+                  )}
+                </button>
+                <p className="text-xs text-gray-500">Usa Dirección, Comuna, Ciudad y Región para encontrar lat/lng.</p>
+              </div>
+              {geocodeResult.message && (
+                <p className={`mb-3 text-xs ${geocodeResult.type === 'success' ? 'text-green-700' : 'text-amber-700'}`}>
+                  {geocodeResult.message}
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Latitud</label>
