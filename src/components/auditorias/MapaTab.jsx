@@ -83,6 +83,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
   const tileLayerRef = useRef(null)
+  const tileStyleRef = useRef(null)
   const markersLayerRef = useRef(null)
   const markerRefsById = useRef(new Map())
   const storesByIdRef = useRef(new Map())
@@ -94,7 +95,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const [stores, setStores] = useState([])
   const [regions, setRegions] = useState([])
   const [selectedStore, setSelectedStore] = useState(null)
-  const [mapStyle, setMapStyle] = useState('estandar')
+  const [mapStyle, setMapStyle] = useState('simple')
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -216,6 +217,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
     const tileLayer = buildTileLayer(mapStyle, handleTileError)
     tileLayerRef.current = tileLayer
+    tileStyleRef.current = mapStyle
     tileLayer.addTo(map)
     markersLayerRef.current = L.layerGroup().addTo(map)
     setMapReady(true)
@@ -228,6 +230,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       map.remove()
       mapRef.current = null
       tileLayerRef.current = null
+      tileStyleRef.current = null
       markersLayerRef.current = null
       markerRefsById.current.clear()
     }
@@ -235,6 +238,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
   useEffect(() => {
     if (!mapRef.current) return
+    if (tileStyleRef.current === mapStyle) return
     setMapError('')
 
     const map = mapRef.current
@@ -252,6 +256,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
 
     const layer = buildTileLayer(mapStyle, handleTileError)
     tileLayerRef.current = layer
+    tileStyleRef.current = mapStyle
     layer.addTo(map)
   }, [mapStyle])
 
@@ -603,7 +608,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             </div>
           )}
 
-          {mapStores.length === 0 && (
+          {!loading && mapReady && mapStores.length === 0 && (
             <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
               No hay tiendas con coordenadas válidas (lat/lng) para mostrar pins en el mapa.
             </div>
