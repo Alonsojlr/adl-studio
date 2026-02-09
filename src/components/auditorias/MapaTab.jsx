@@ -503,7 +503,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
           </div>
         </aside>
 
-        <section className="order-1 lg:order-2 relative bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[560px] lg:min-h-[760px] lg:flex-1 overflow-hidden">
+        <section className="order-1 lg:order-2 relative isolate bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[560px] lg:min-h-[760px] lg:flex-1 overflow-hidden">
           {dataError && (
             <div className="absolute top-4 left-4 right-4 z-20 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 text-sm">
               {dataError}
@@ -516,7 +516,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             </div>
           )}
 
-          <div ref={mapContainerRef} className="absolute inset-0" />
+          <div ref={mapContainerRef} className="absolute inset-0 z-0" />
 
           {!mapReady && !mapError && (
             <div className="absolute top-4 left-4 z-20 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-blue-800 text-sm">
@@ -531,7 +531,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
           )}
 
           {selectedStore && (
-            <div className="absolute top-4 right-4 bottom-4 w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-200 z-30 flex flex-col overflow-hidden">
+            <div className="absolute top-4 right-4 bottom-4 w-[380px] max-w-[calc(100%-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 z-[1200] flex flex-col overflow-hidden">
               <div className="px-5 py-4 border-b bg-gray-50">
                 <div className="flex items-start justify-between gap-3">
                   <div>
