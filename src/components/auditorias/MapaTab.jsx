@@ -37,25 +37,13 @@ const formatStateColor = (state) => {
   return meta?.color || '#64748b'
 }
 
-const buildStorePinIcon = (store, isSelected = false) => {
-  const pinColor = formatStateColor(store?.last_state)
-  const pinSize = isSelected ? 22 : 16
-  const border = isSelected ? 3 : 2
-  const overdueHalo = Boolean(store?.audit_overdue)
-  const haloSize = isSelected ? 34 : 28
-
-  return L.divIcon({
-    className: '',
-    html: `
-      <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:${haloSize}px;height:${haloSize}px;">
-        ${overdueHalo ? `<span style="position:absolute;width:${haloSize}px;height:${haloSize}px;border-radius:9999px;background:#ef4444;opacity:0.25;"></span>` : ''}
-        <span style="position:relative;display:inline-block;width:${pinSize}px;height:${pinSize}px;border-radius:9999px;background:${pinColor};border:${border}px solid #ffffff;box-shadow:0 2px 6px rgba(0,0,0,0.35);"></span>
-      </span>
-    `,
-    iconSize: [haloSize, haloSize],
-    iconAnchor: [haloSize / 2, haloSize / 2]
-  })
-}
+const getPinStyle = (store, isSelected = false) => ({
+  radius: isSelected ? 9 : 7,
+  color: '#ffffff',
+  weight: isSelected ? 3 : 2,
+  fillColor: formatStateColor(store?.last_state),
+  fillOpacity: 1
+})
 
 const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const mapContainerRef = useRef(null)
@@ -230,16 +218,31 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       const lat = toNumber(store.lat)
       const lng = toNumber(store.lng)
       const isSelected = selectedStore?.store_id === store.store_id
-      const marker = L.marker([lat, lng], {
-        icon: buildStorePinIcon(store, isSelected),
-        title: store.store_name || 'Tienda',
-        keyboard: true
-      })
+
+      // Halo para tiendas vencidas, independiente del pin principal.
+      if (store.audit_overdue) {
+        L.circleMarker([lat, lng], {
+          radius: isSelected ? 18 : 14,
+          color: 'transparent',
+          weight: 0,
+          fillColor: '#ef4444',
+          fillOpacity: 0.22,
+          interactive: false
+        }).addTo(markersLayer)
+      }
+
+      const marker = L.circleMarker([lat, lng], getPinStyle(store, isSelected))
       marker.on('click', () => {
         const targetStore = storesByIdRef.current.get(store.store_id) || store
         setSelectedStore(targetStore)
       })
+      marker.bindTooltip(store.store_name || 'Tienda', {
+        direction: 'top',
+        offset: [0, -8],
+        opacity: 0.9
+      })
       marker.addTo(markersLayer)
+      if (isSelected) marker.bringToFront()
       markerRefsById.current.set(store.store_id, marker)
     })
   }, [mapStores, selectedStore?.store_id])
@@ -269,6 +272,11 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
         Math.max(mapRef.current.getZoom(), 12),
         { animate: true, duration: 0.6 }
       )
+      const selectedMarker = markerRefsById.current.get(selectedStore.store_id)
+      if (selectedMarker) {
+        selectedMarker.openTooltip()
+        selectedMarker.bringToFront()
+      }
     }
   }, [selectedStore])
 
