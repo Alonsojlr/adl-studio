@@ -11566,17 +11566,17 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
   const getEstadoBarStyle = (estado) => {
     switch (estado) {
       case 'Abierto':
-        return { backgroundColor: '#93c5fd', color: '#1e3a8a' };
+        return { backgroundColor: '#8dc0d7', color: '#2f4ea3' };
       case 'En Proceso':
-        return { backgroundColor: '#2563eb', color: '#bae6fd' };
+        return { backgroundColor: '#3f79b8', color: '#98d9e7' };
       case 'Despachado Parcial':
-        return { backgroundColor: '#facc15', color: '#713f12' };
+        return { backgroundColor: '#f6d267', color: '#6d4b00' };
       case 'Cerrado':
-        return { backgroundColor: '#22c55e', color: '#14532d' };
+        return { backgroundColor: '#9bc798', color: '#008b3d' };
       case 'Anulado':
-        return { backgroundColor: '#9ca3af', color: '#374151' };
+        return { backgroundColor: '#c7ced7', color: '#425466' };
       default:
-        return { backgroundColor: '#d1d5db', color: '#374151' };
+        return { backgroundColor: '#d5dbe3', color: '#425466' };
     }
   };
 
@@ -11728,7 +11728,7 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
                   )}
                   {/* Barra del protocolo */}
                   <div
-                    className="absolute top-2 bottom-2 rounded-md opacity-90 hover:opacity-100 transition-opacity cursor-pointer shadow-sm"
+                    className="absolute top-2 bottom-2 rounded-md cursor-pointer shadow-sm opacity-90 hover:opacity-100 transition-opacity"
                     style={{ left: `${bar.left}%`, width: `${bar.width}%`, minWidth: '4px', ...barStyle }}
                     title={`${nombreProyecto} (PT-${protocolo.folio}): ${protocolo.fechaInicioProduccion} a ${protocolo.fechaEntrega} (${protocolo.estado})`}
                   >
