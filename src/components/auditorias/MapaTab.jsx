@@ -16,8 +16,35 @@ import {
 const DEFAULT_CENTER = [-70.6693, -33.4489]
 const DEFAULT_ZOOM = 5
 const PHOTO_TYPES = ['visita_inicial', 'implementacion', 'seguimiento', 'otra']
-const OSM_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const MAP_BASE_STYLES = {
+  simple: {
+    label: 'Simple',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    options: {
+      subdomains: 'abcd',
+      maxZoom: 20,
+      attribution:
+        '&copy; OpenStreetMap contributors &copy; CARTO'
+    }
+  },
+  estandar: {
+    label: 'Estandar',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    options: {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }
+  },
+  satelite: {
+    label: 'Satelite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    }
+  }
+}
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-CL', {
@@ -38,16 +65,24 @@ const formatStateColor = (state) => {
 }
 
 const getPinStyle = (store, isSelected = false) => ({
-  radius: isSelected ? 9 : 7,
+  radius: isSelected ? 15 : 12,
   color: '#ffffff',
-  weight: isSelected ? 3 : 2,
+  weight: isSelected ? 4 : 3,
   fillColor: formatStateColor(store?.last_state),
   fillOpacity: 1
 })
 
+const buildTileLayer = (styleKey, onTileError) => {
+  const styleConfig = MAP_BASE_STYLES[styleKey] || MAP_BASE_STYLES.estandar
+  const layer = L.tileLayer(styleConfig.url, styleConfig.options)
+  layer.on('tileerror', onTileError)
+  return layer
+}
+
 const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
+  const tileLayerRef = useRef(null)
   const markersLayerRef = useRef(null)
   const markerRefsById = useRef(new Map())
   const storesByIdRef = useRef(new Map())
@@ -59,6 +94,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
   const [stores, setStores] = useState([])
   const [regions, setRegions] = useState([])
   const [selectedStore, setSelectedStore] = useState(null)
+  const [mapStyle, setMapStyle] = useState('estandar')
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -171,18 +207,15 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
     L.control.zoom({ position: 'topright' }).addTo(map)
 
     let tileErrors = 0
-    const tileLayer = L.tileLayer(OSM_TILE_URL, {
-      maxZoom: 19,
-      attribution: OSM_ATTRIBUTION
-    })
-
-    tileLayer.on('tileerror', () => {
+    const handleTileError = () => {
       tileErrors += 1
       if (tileErrors > 3) {
         setMapError('No se pudo cargar correctamente el mapa base. Revisa tu conexión de red.')
       }
-    })
+    }
 
+    const tileLayer = buildTileLayer(mapStyle, handleTileError)
+    tileLayerRef.current = tileLayer
     tileLayer.addTo(map)
     markersLayerRef.current = L.layerGroup().addTo(map)
     setMapReady(true)
@@ -194,10 +227,33 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       setMapReady(false)
       map.remove()
       mapRef.current = null
+      tileLayerRef.current = null
       markersLayerRef.current = null
       markerRefsById.current.clear()
     }
   }, [])
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    setMapError('')
+
+    const map = mapRef.current
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current)
+    }
+
+    let tileErrors = 0
+    const handleTileError = () => {
+      tileErrors += 1
+      if (tileErrors > 3) {
+        setMapError('No se pudo cargar correctamente el mapa base. Revisa tu conexión de red.')
+      }
+    }
+
+    const layer = buildTileLayer(mapStyle, handleTileError)
+    tileLayerRef.current = layer
+    layer.addTo(map)
+  }, [mapStyle])
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -222,7 +278,7 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
       // Halo para tiendas vencidas, independiente del pin principal.
       if (store.audit_overdue) {
         L.circleMarker([lat, lng], {
-          radius: isSelected ? 18 : 14,
+          radius: isSelected ? 30 : 24,
           color: 'transparent',
           weight: 0,
           fillColor: '#ef4444',
@@ -361,6 +417,21 @@ const MapaTab = ({ user, hideFinancialInfo = false, onOpenStore }) => {
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
               <Filter className="w-4 h-4" />
               Filtros
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Vista mapa</label>
+              <select
+                value={mapStyle}
+                onChange={(e) => setMapStyle(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#45ad98]"
+              >
+                {Object.entries(MAP_BASE_STYLES).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="relative">
