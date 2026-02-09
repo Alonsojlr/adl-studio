@@ -11552,8 +11552,7 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
     return days;
   };
 
-  // Colores por estado
-  const getEstadoBarColor = (estado) => {
+  const getEstadoDotColor = (estado) => {
     switch (estado) {
       case 'Abierto': return 'bg-blue-300';
       case 'En Proceso': return 'bg-blue-500';
@@ -11564,14 +11563,20 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
     }
   };
 
-  const getEstadoDotColor = (estado) => {
+  const getEstadoBarStyle = (estado) => {
     switch (estado) {
-      case 'Abierto': return 'bg-blue-300';
-      case 'En Proceso': return 'bg-blue-500';
-      case 'Despachado Parcial': return 'bg-yellow-400';
-      case 'Cerrado': return 'bg-green-500';
-      case 'Anulado': return 'bg-gray-400';
-      default: return 'bg-gray-300';
+      case 'Abierto':
+        return { backgroundColor: '#93c5fd', color: '#1e3a8a' };
+      case 'En Proceso':
+        return { backgroundColor: '#2563eb', color: '#bae6fd' };
+      case 'Despachado Parcial':
+        return { backgroundColor: '#facc15', color: '#713f12' };
+      case 'Cerrado':
+        return { backgroundColor: '#22c55e', color: '#14532d' };
+      case 'Anulado':
+        return { backgroundColor: '#9ca3af', color: '#374151' };
+      default:
+        return { backgroundColor: '#d1d5db', color: '#374151' };
     }
   };
 
@@ -11701,6 +11706,9 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
           {/* Filas de protocolos */}
           {protocolosConFechas.map((protocolo, idx) => {
             const bar = calculateBarPosition(protocolo);
+            const barStyle = getEstadoBarStyle(protocolo.estado);
+            const nombreProyecto = protocolo.nombreProyecto || protocolo.nombre || `Protocolo ${protocolo.folio}`;
+            const mostrarNombreGrande = bar.width >= 10;
             return (
               <div key={protocolo.id || idx} className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors">
                 {/* Info del protocolo */}
@@ -11710,7 +11718,7 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
                   <p className="text-xs text-gray-400 truncate">{protocolo.cliente}</p>
                 </div>
                 {/* Barra del Gantt */}
-                <div className="flex-1 relative" style={{ minHeight: '48px' }}>
+                <div className="flex-1 relative" style={{ minHeight: '56px' }}>
                   {/* Línea de hoy */}
                   {todayPosition !== null && (
                     <div
@@ -11720,13 +11728,20 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
                   )}
                   {/* Barra del protocolo */}
                   <div
-                    className={`absolute top-2 bottom-2 rounded-md ${getEstadoBarColor(protocolo.estado)} opacity-80 hover:opacity-100 transition-opacity cursor-pointer`}
-                    style={{ left: `${bar.left}%`, width: `${bar.width}%`, minWidth: '4px' }}
-                    title={`${protocolo.folio}: ${protocolo.fechaInicioProduccion} a ${protocolo.fechaEntrega} (${protocolo.estado})`}
+                    className="absolute top-2 bottom-2 rounded-md opacity-90 hover:opacity-100 transition-opacity cursor-pointer shadow-sm"
+                    style={{ left: `${bar.left}%`, width: `${bar.width}%`, minWidth: '4px', ...barStyle }}
+                    title={`${nombreProyecto} (PT-${protocolo.folio}): ${protocolo.fechaInicioProduccion} a ${protocolo.fechaEntrega} (${protocolo.estado})`}
                   >
-                    <span className="text-[10px] text-white font-semibold px-1 truncate block leading-[32px]">
-                      {protocolo.folio}
-                    </span>
+                    <div className="h-full w-full px-2 flex items-center gap-2 overflow-hidden">
+                      <span className="text-[10px] font-semibold whitespace-nowrap opacity-90">
+                        PT-{protocolo.folio}
+                      </span>
+                      {mostrarNombreGrande && (
+                        <span className="text-base font-bold truncate tracking-wide">
+                          {nombreProyecto}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
