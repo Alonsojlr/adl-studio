@@ -58,6 +58,7 @@ const ImplementacionesTab = ({ implementaciones, tiendas, formatCurrency, user, 
         {implFiltradas.map(impl => {
           const tienda = tiendas.find(t => t.id === impl.tienda_id);
           const activos = impl.audit_activos || [];
+          const valorImplementacion = parseFloat(impl.costo_total) || (parseFloat(impl.costo_fabricacion) || 0);
           return (
             <div key={impl.id} className="bg-white rounded-xl shadow-sm p-5">
               <div className="flex items-start justify-between">
@@ -78,22 +79,14 @@ const ImplementacionesTab = ({ implementaciones, tiendas, formatCurrency, user, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3 mt-3 text-sm">
+              <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
                 <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Fabricación</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_fabricacion)}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Instalación</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_instalacion)}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Transporte</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_transporte)}</p>
+                  <p className="text-gray-500 text-xs">Valor Implementación</p>
+                  <p className="font-semibold">{formatCurrency(valorImplementacion)}</p>
                 </div>
                 <div className="rounded-lg p-2 text-center" style={{ backgroundColor: '#23525010' }}>
                   <p className="text-xs" style={{ color: '#235250' }}>Total</p>
-                  <p className="font-bold" style={{ color: '#235250' }}>{formatCurrency(impl.costo_total)}</p>
+                  <p className="font-bold" style={{ color: '#235250' }}>{formatCurrency(valorImplementacion)}</p>
                 </div>
               </div>
 
@@ -152,15 +145,13 @@ const ImplementacionFormModal = ({ implementacion, tiendas, formatCurrency, onCl
     nombre: implementacion?.nombre || '',
     fecha_instalacion: implementacion?.fecha_instalacion || new Date().toISOString().split('T')[0],
     estado: implementacion?.estado || 'activa',
-    costo_fabricacion: implementacion?.costo_fabricacion || 0,
-    costo_instalacion: implementacion?.costo_instalacion || 0,
-    costo_transporte: implementacion?.costo_transporte || 0,
+    costo_fabricacion: implementacion?.costo_total || implementacion?.costo_fabricacion || 0,
     notas: implementacion?.notas || ''
   });
 
   const [activos, setActivos] = useState([]);
 
-  const costoTotal = (parseFloat(formData.costo_fabricacion) || 0) + (parseFloat(formData.costo_instalacion) || 0) + (parseFloat(formData.costo_transporte) || 0);
+  const costoTotal = parseFloat(formData.costo_fabricacion) || 0;
 
   const agregarActivo = () => {
     setActivos([...activos, { tipo: 'malla', descripcion: '', cantidad: 1, costo_unitario: 0, costo_total: 0 }]);
@@ -208,20 +199,10 @@ const ImplementacionFormModal = ({ implementacion, tiendas, formatCurrency, onCl
 
             <div className="md:col-span-2 border-t pt-4 mt-2">
               <h4 className="font-semibold text-gray-700 mb-3">Costos</h4>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Fabricación</label>
+                  <label className="block text-xs text-gray-500 mb-1">Valor Implementación</label>
                   <input type="number" value={formData.costo_fabricacion} onChange={(e) => setFormData({ ...formData, costo_fabricacion: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Instalación</label>
-                  <input type="number" value={formData.costo_instalacion} onChange={(e) => setFormData({ ...formData, costo_instalacion: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Transporte</label>
-                  <input type="number" value={formData.costo_transporte} onChange={(e) => setFormData({ ...formData, costo_transporte: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] text-sm" />
                 </div>
                 <div>
@@ -238,6 +219,15 @@ const ImplementacionFormModal = ({ implementacion, tiendas, formatCurrency, onCl
                   <h4 className="font-semibold text-gray-700">Activos Instalados</h4>
                   <button onClick={agregarActivo} className="text-sm text-[#235250] font-semibold hover:underline">+ Agregar activo</button>
                 </div>
+                {activos.length > 0 && (
+                  <div className="grid grid-cols-5 gap-2 mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    <span>Tipo</span>
+                    <span>Descripción</span>
+                    <span>Cantidad</span>
+                    <span>Costo unitario</span>
+                    <span></span>
+                  </div>
+                )}
                 {activos.map((activo, idx) => (
                   <div key={idx} className="grid grid-cols-5 gap-2 mb-2">
                     <select value={activo.tipo} onChange={(e) => { const n = [...activos]; n[idx].tipo = e.target.value; setActivos(n); }}
@@ -250,9 +240,9 @@ const ImplementacionFormModal = ({ implementacion, tiendas, formatCurrency, onCl
                     </select>
                     <input type="text" placeholder="Descripción" value={activo.descripcion} onChange={(e) => { const n = [...activos]; n[idx].descripcion = e.target.value; setActivos(n); }}
                       className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
-                    <input type="number" placeholder="Cant" value={activo.cantidad} onChange={(e) => { const n = [...activos]; n[idx].cantidad = parseInt(e.target.value) || 1; setActivos(n); }}
+                    <input type="number" placeholder="Cantidad" value={activo.cantidad} onChange={(e) => { const n = [...activos]; n[idx].cantidad = parseInt(e.target.value) || 1; setActivos(n); n[idx].costo_total = n[idx].cantidad * (n[idx].costo_unitario || 0); }}
                       className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
-                    <input type="number" placeholder="Costo unit." value={activo.costo_unitario} onChange={(e) => { const n = [...activos]; n[idx].costo_unitario = parseFloat(e.target.value) || 0; n[idx].costo_total = n[idx].cantidad * n[idx].costo_unitario; setActivos(n); }}
+                    <input type="number" placeholder="Costo unitario" value={activo.costo_unitario} onChange={(e) => { const n = [...activos]; n[idx].costo_unitario = parseFloat(e.target.value) || 0; n[idx].costo_total = n[idx].cantidad * n[idx].costo_unitario; setActivos(n); }}
                       className="px-2 py-1.5 border border-gray-200 rounded-lg text-sm" />
                     <button onClick={() => setActivos(activos.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -273,7 +263,15 @@ const ImplementacionFormModal = ({ implementacion, tiendas, formatCurrency, onCl
           <button
             onClick={() => {
               if (!formData.tienda_id || !formData.nombre) { alert('Completa tienda y nombre'); return; }
-              onSave({ ...formData, costo_total: costoTotal }, activos);
+              onSave(
+                {
+                  ...formData,
+                  costo_instalacion: 0,
+                  costo_transporte: 0,
+                  costo_total: costoTotal
+                },
+                activos
+              );
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg"
             style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}

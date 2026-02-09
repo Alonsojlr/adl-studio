@@ -219,22 +219,14 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
               </div>
 
               {/* Costos */}
-              <div className="grid grid-cols-4 gap-3 mb-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
                 <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Fabricación</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_fabricacion)}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Instalación</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_instalacion)}</p>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-gray-500 text-xs">Transporte</p>
-                  <p className="font-semibold">{formatCurrency(impl.costo_transporte)}</p>
+                  <p className="text-gray-500 text-xs">Valor Implementación</p>
+                  <p className="font-semibold">{formatCurrency((parseFloat(impl.costo_total) || parseFloat(impl.costo_fabricacion) || 0))}</p>
                 </div>
                 <div className="rounded-lg p-2 text-center" style={{ backgroundColor: '#23525010' }}>
                   <p className="text-xs" style={{ color: '#235250' }}>Total</p>
-                  <p className="font-bold" style={{ color: '#235250' }}>{formatCurrency(impl.costo_total)}</p>
+                  <p className="font-bold" style={{ color: '#235250' }}>{formatCurrency((parseFloat(impl.costo_total) || parseFloat(impl.costo_fabricacion) || 0))}</p>
                 </div>
               </div>
 
