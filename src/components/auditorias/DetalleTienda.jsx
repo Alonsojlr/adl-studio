@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ClipboardCheck, Wrench, ListTodo, FileText, Camera, MapPin, AlertTriangle, Plus, Clock, Eye, Loader2 } from 'lucide-react';
+import { ChevronLeft, ClipboardCheck, Wrench, ListTodo, FileText, Camera, MapPin, AlertTriangle, Plus, Clock, Eye, Loader2, Trash2 } from 'lucide-react';
 import { getImplementacionesByTienda } from '../../api/audit-implementaciones';
-import { getAuditoriasByTienda, getRespuestasByAuditoria } from '../../api/audit-auditorias';
-import { getTareasByTienda } from '../../api/audit-tareas';
+import { deleteAuditoria, getAuditoriasByTienda, getRespuestasByAuditoria } from '../../api/audit-auditorias';
+import { deleteTarea, getTareasByTienda } from '../../api/audit-tareas';
 import { getAjustesByTienda } from '../../api/audit-tareas';
 import EjecutarAuditoria from './EjecutarAuditoria';
 
@@ -13,6 +13,8 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
   const [auditoriaDetalle, setAuditoriaDetalle] = useState(null);
   const [respuestasDetalle, setRespuestasDetalle] = useState([]);
   const [loadingAuditoriaDetalleId, setLoadingAuditoriaDetalleId] = useState(null);
+  const [deletingAuditoriaId, setDeletingAuditoriaId] = useState(null);
+  const [deletingTareaId, setDeletingTareaId] = useState(null);
 
   useEffect(() => {
     const loadAjustes = async () => {
@@ -77,6 +79,39 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
       alert('No se pudo cargar el detalle de la auditoría');
     } finally {
       setLoadingAuditoriaDetalleId(null);
+    }
+  };
+
+  const handleEliminarAuditoria = async (auditoria) => {
+    const fecha = auditoria.fecha_auditoria ? new Date(auditoria.fecha_auditoria).toLocaleDateString('es-CL') : 'sin fecha';
+    if (!confirm(`¿Eliminar auditoría del ${fecha}? Esta acción también elimina respuestas y hallazgos asociados.`)) return;
+    setDeletingAuditoriaId(auditoria.id);
+    try {
+      await deleteAuditoria(auditoria.id);
+      if (auditoriaDetalle?.id === auditoria.id) {
+        setAuditoriaDetalle(null);
+        setRespuestasDetalle([]);
+      }
+      await onReload?.();
+    } catch (error) {
+      console.error('Error eliminando auditoría:', error);
+      alert('No se pudo eliminar la auditoría');
+    } finally {
+      setDeletingAuditoriaId(null);
+    }
+  };
+
+  const handleEliminarTarea = async (tarea) => {
+    if (!confirm(`¿Eliminar tarea "${tarea.titulo}"?`)) return;
+    setDeletingTareaId(tarea.id);
+    try {
+      await deleteTarea(tarea.id);
+      await onReload?.();
+    } catch (error) {
+      console.error('Error eliminando tarea:', error);
+      alert('No se pudo eliminar la tarea');
+    } finally {
+      setDeletingTareaId(null);
     }
   };
 
@@ -457,7 +492,7 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                   <span>NA: {aud.items_na || 0}</span>
                   <span>Hallazgos: {aud.hallazgos_count || 0}</span>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 flex items-center gap-2">
                   <button
                     onClick={() => handleVerDetalleAuditoria(aud)}
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50"
@@ -473,6 +508,18 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                         Ver detalle
                       </>
                     )}
+                  </button>
+                  <button
+                    onClick={() => handleEliminarAuditoria(aud)}
+                    disabled={deletingAuditoriaId === aud.id}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                      deletingAuditoriaId === aud.id
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'border-red-200 text-red-700 hover:bg-red-50'
+                    }`}
+                  >
+                    {deletingAuditoriaId === aud.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    Eliminar
                   </button>
                 </div>
               </div>
@@ -547,12 +594,24 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                       {tarea.responsable && <span className="text-xs text-gray-400">→ {tarea.responsable}</span>}
                     </div>
                   </div>
-                  {tarea.fecha_limite && (
-                    <p className="text-xs text-gray-400">
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {new Date(tarea.fecha_limite).toLocaleDateString('es-CL')}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {tarea.fecha_limite && (
+                      <p className="text-xs text-gray-400">
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {new Date(tarea.fecha_limite).toLocaleDateString('es-CL')}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => handleEliminarTarea(tarea)}
+                      disabled={deletingTareaId === tarea.id}
+                      className={`p-1.5 rounded-lg ${
+                        deletingTareaId === tarea.id ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'
+                      }`}
+                      title="Eliminar tarea"
+                    >
+                      {deletingTareaId === tarea.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

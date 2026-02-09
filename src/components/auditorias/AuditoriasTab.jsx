@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ClipboardCheck, Search, Eye, ChevronLeft } from 'lucide-react';
-import { getRespuestasByAuditoria } from '../../api/audit-auditorias';
+import { ClipboardCheck, Search, Eye, ChevronLeft, Trash2 } from 'lucide-react';
+import { deleteAuditoria, getRespuestasByAuditoria } from '../../api/audit-auditorias';
 
 const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, onReload }) => {
   const [busqueda, setBusqueda] = useState('');
@@ -8,6 +8,7 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
   const [auditoriaDetalle, setAuditoriaDetalle] = useState(null);
   const [respuestasDetalle, setRespuestasDetalle] = useState([]);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [deletingAuditoriaId, setDeletingAuditoriaId] = useState(null);
 
   const auditoriasFiltradas = auditorias.filter(a => {
     const tienda = tiendas.find(t => t.id === a.tienda_id);
@@ -27,6 +28,25 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
       console.error('Error:', e);
     } finally {
       setLoadingDetalle(false);
+    }
+  };
+
+  const handleEliminarAuditoria = async (aud) => {
+    const fecha = aud.fecha_auditoria ? new Date(aud.fecha_auditoria).toLocaleDateString('es-CL') : 'sin fecha';
+    if (!confirm(`¿Eliminar auditoría del ${fecha}? Esta acción también eliminará respuestas y hallazgos asociados.`)) return;
+    setDeletingAuditoriaId(aud.id);
+    try {
+      await deleteAuditoria(aud.id);
+      if (auditoriaDetalle?.id === aud.id) {
+        setAuditoriaDetalle(null);
+        setRespuestasDetalle([]);
+      }
+      await onReload?.();
+    } catch (error) {
+      console.error('Error eliminando auditoría:', error);
+      alert('No se pudo eliminar la auditoría');
+    } finally {
+      setDeletingAuditoriaId(null);
     }
   };
 
@@ -170,9 +190,19 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
                     {aud.items_ok}/{aud.items_no}/{aud.items_na}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button onClick={() => verDetalle(aud)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg">
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="inline-flex items-center gap-1">
+                      <button onClick={() => verDetalle(aud)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg" title="Ver detalle">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEliminarAuditoria(aud)}
+                        disabled={deletingAuditoriaId === aud.id}
+                        className={`p-1.5 rounded-lg ${deletingAuditoriaId === aud.id ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'}`}
+                        title="Eliminar auditoría"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

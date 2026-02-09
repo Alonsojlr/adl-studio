@@ -52,6 +52,14 @@ export const updateAuditoria = async (id, updates) => {
   return data[0]
 }
 
+export const deleteAuditoria = async (id) => {
+  const { error } = await supabase
+    .from('audit_auditorias')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
 // =====================================================
 // RESPUESTAS
 // =====================================================

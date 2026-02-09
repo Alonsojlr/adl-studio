@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ListTodo, Search, Plus, XCircle, Camera, Clock } from 'lucide-react';
+import { ListTodo, Search, Plus, XCircle, Camera, Clock, Trash2, Loader2 } from 'lucide-react';
 import { createTarea, updateTarea, deleteTarea } from '../../api/audit-tareas';
 import { uploadFotoAuditoria } from '../../api/audit-auditorias';
 
@@ -7,6 +7,7 @@ const TareasTab = ({ tareas, tiendas, user, onReload }) => {
   const [filtroEstado, setFiltroEstado] = useState('abiertas');
   const [busqueda, setBusqueda] = useState('');
   const [showNuevaModal, setShowNuevaModal] = useState(false);
+  const [deletingTareaId, setDeletingTareaId] = useState(null);
 
   const tareasFiltradas = tareas.filter(t => {
     const tienda = tiendas.find(ti => ti.id === t.tienda_id);
@@ -44,6 +45,20 @@ const TareasTab = ({ tareas, tiendas, user, onReload }) => {
     } catch (error) {
       console.error('Error:', error);
       alert('Error al cerrar la tarea');
+    }
+  };
+
+  const handleEliminarTarea = async (tarea) => {
+    if (!confirm(`¿Eliminar tarea "${tarea.titulo}"?`)) return;
+    setDeletingTareaId(tarea.id);
+    try {
+      await deleteTarea(tarea.id);
+      await onReload();
+    } catch (error) {
+      console.error('Error eliminando tarea:', error);
+      alert('Error al eliminar la tarea');
+    } finally {
+      setDeletingTareaId(null);
     }
   };
 
@@ -121,27 +136,39 @@ const TareasTab = ({ tareas, tiendas, user, onReload }) => {
                   </div>
                 </div>
 
-                {tarea.estado !== 'cerrada' && (
-                  <div className="flex items-center gap-2 ml-4">
-                    {tarea.estado === 'abierta' && (
-                      <button onClick={() => handleCambiarEstado(tarea, 'en_progreso')}
-                        className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
-                        Iniciar
-                      </button>
-                    )}
-                    {tarea.estado === 'en_progreso' && (
-                      <button onClick={() => handleCambiarEstado(tarea, 'revision')}
-                        className="px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100">
-                        A revisión
-                      </button>
-                    )}
-                    <label className="px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 rounded-lg hover:bg-green-100 cursor-pointer">
-                      Cerrar
-                      <input type="file" accept="image/*" className="hidden"
-                        onChange={(e) => handleCerrarConFoto(tarea, e.target.files[0])} />
-                    </label>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 ml-4">
+                  {tarea.estado !== 'cerrada' && (
+                    <>
+                      {tarea.estado === 'abierta' && (
+                        <button onClick={() => handleCambiarEstado(tarea, 'en_progreso')}
+                          className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
+                          Iniciar
+                        </button>
+                      )}
+                      {tarea.estado === 'en_progreso' && (
+                        <button onClick={() => handleCambiarEstado(tarea, 'revision')}
+                          className="px-3 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100">
+                          A revisión
+                        </button>
+                      )}
+                      <label className="px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 rounded-lg hover:bg-green-100 cursor-pointer">
+                        Cerrar
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={(e) => handleCerrarConFoto(tarea, e.target.files[0])} />
+                      </label>
+                    </>
+                  )}
+                  <button
+                    onClick={() => handleEliminarTarea(tarea)}
+                    disabled={deletingTareaId === tarea.id}
+                    className={`p-1.5 rounded-lg ${
+                      deletingTareaId === tarea.id ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600'
+                    }`}
+                    title="Eliminar tarea"
+                  >
+                    {deletingTareaId === tarea.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {(tarea.foto_antes_url || tarea.foto_despues_url) && (
