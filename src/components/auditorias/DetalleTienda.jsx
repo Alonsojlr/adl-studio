@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ClipboardCheck, Wrench, ListTodo, FileText, Camera, MapPin, AlertTriangle, Plus, Clock } from 'lucide-react';
+import { ChevronLeft, ClipboardCheck, Wrench, ListTodo, FileText, Camera, MapPin, AlertTriangle, Plus, Clock, Eye, Loader2 } from 'lucide-react';
 import { getImplementacionesByTienda } from '../../api/audit-implementaciones';
-import { getAuditoriasByTienda } from '../../api/audit-auditorias';
+import { getAuditoriasByTienda, getRespuestasByAuditoria } from '../../api/audit-auditorias';
 import { getTareasByTienda } from '../../api/audit-tareas';
 import { getAjustesByTienda } from '../../api/audit-tareas';
 import EjecutarAuditoria from './EjecutarAuditoria';
@@ -10,6 +10,9 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
   const [activeSubTab, setActiveSubTab] = useState('resumen');
   const [showAuditoria, setShowAuditoria] = useState(false);
   const [ajustes, setAjustes] = useState([]);
+  const [auditoriaDetalle, setAuditoriaDetalle] = useState(null);
+  const [respuestasDetalle, setRespuestasDetalle] = useState([]);
+  const [loadingAuditoriaDetalleId, setLoadingAuditoriaDetalleId] = useState(null);
 
   useEffect(() => {
     const loadAjustes = async () => {
@@ -60,6 +63,147 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
           await onReload();
         }}
       />
+    );
+  }
+
+  const handleVerDetalleAuditoria = async (auditoria) => {
+    setLoadingAuditoriaDetalleId(auditoria.id);
+    try {
+      const respuestas = await getRespuestasByAuditoria(auditoria.id);
+      setRespuestasDetalle(respuestas || []);
+      setAuditoriaDetalle(auditoria);
+    } catch (error) {
+      console.error('Error cargando detalle de auditoria:', error);
+      alert('No se pudo cargar el detalle de la auditoría');
+    } finally {
+      setLoadingAuditoriaDetalleId(null);
+    }
+  };
+
+  if (auditoriaDetalle) {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => {
+            setAuditoriaDetalle(null);
+            setRespuestasDetalle([]);
+          }}
+          className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>Volver a auditorías</span>
+        </button>
+
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <div className="p-6" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
+            <h3 className="text-xl font-bold text-white">Detalle Auditoría</h3>
+            <p className="text-white/80">
+              {tienda?.nombre} · {new Date(auditoriaDetalle.fecha_auditoria).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+
+          <div className="p-6">
+            <div className="text-center mb-6">
+              <div
+                className="text-5xl font-bold"
+                style={{
+                  color: auditoriaDetalle.score_final >= 80 ? '#16a34a' : auditoriaDetalle.score_final >= 60 ? '#f59e0b' : '#dc2626'
+                }}
+              >
+                {auditoriaDetalle.score_final}%
+              </div>
+              <span
+                className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-bold uppercase ${
+                  auditoriaDetalle.estado === 'ok'
+                    ? 'bg-green-100 text-green-800'
+                    : auditoriaDetalle.estado === 'observada'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {auditoriaDetalle.estado}
+              </span>
+              <p className="text-sm text-gray-500 mt-2">Auditor: {auditoriaDetalle.auditor_nombre || '-'}</p>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-green-700">{auditoriaDetalle.items_ok || 0}</p>
+                <p className="text-xs text-green-600">OK</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-red-700">{auditoriaDetalle.items_no || 0}</p>
+                <p className="text-xs text-red-600">NO</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-gray-500">{auditoriaDetalle.items_na || 0}</p>
+                <p className="text-xs text-gray-500">N/A</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-orange-700">{auditoriaDetalle.hallazgos_count || 0}</p>
+                <p className="text-xs text-orange-600">Hallazgos</p>
+              </div>
+            </div>
+
+            {auditoriaDetalle.observacion_general && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                <p className="text-sm font-semibold text-gray-600 mb-1">Observación general</p>
+                <p className="text-sm text-gray-700">{auditoriaDetalle.observacion_general}</p>
+              </div>
+            )}
+
+            <h4 className="font-semibold text-gray-800 mb-3">Respuestas del Checklist</h4>
+            <div className="space-y-2">
+              {respuestasDetalle.map((resp, idx) => (
+                <div
+                  key={resp.id || idx}
+                  className={`flex items-start gap-3 p-3 rounded-lg ${
+                    resp.resultado === 'OK' ? 'bg-green-50' : resp.resultado === 'NO' ? 'bg-red-50' : 'bg-gray-50'
+                  }`}
+                >
+                  {resp.foto_url && (
+                    <a href={resp.foto_url} target="_blank" rel="noreferrer">
+                      <img src={resp.foto_url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+                    </a>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase font-semibold text-gray-400">{resp.zona?.replace('_', ' ')}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-bold ${
+                          resp.resultado === 'OK'
+                            ? 'bg-green-200 text-green-800'
+                            : resp.resultado === 'NO'
+                            ? 'bg-red-200 text-red-800'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {resp.resultado}
+                      </span>
+                      {resp.severidad && (
+                        <span
+                          className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            resp.severidad === 3
+                              ? 'bg-red-200 text-red-800'
+                              : resp.severidad === 2
+                              ? 'bg-orange-200 text-orange-800'
+                              : 'bg-yellow-200 text-yellow-800'
+                          }`}
+                        >
+                          {resp.severidad === 3 ? 'Grave' : resp.severidad === 2 ? 'Moderado' : 'Leve'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-800 mt-1">{resp.label}</p>
+                    {resp.comentario && <p className="text-xs text-gray-500 mt-1">{resp.comentario}</p>}
+                  </div>
+                </div>
+              ))}
+              {respuestasDetalle.length === 0 && <p className="text-sm text-gray-500">No hay respuestas guardadas para esta auditoría.</p>}
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -312,6 +456,24 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                   <span>NO: {aud.items_no || 0}</span>
                   <span>NA: {aud.items_na || 0}</span>
                   <span>Hallazgos: {aud.hallazgos_count || 0}</span>
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={() => handleVerDetalleAuditoria(aud)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    {loadingAuditoriaDetalleId === aud.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Cargando...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        Ver detalle
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             );
