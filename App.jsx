@@ -17,7 +17,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, updateInventarioItem, deleteInventarioItem, createInventarioReserva, updateInventarioReserva, deleteInventarioReserva, deleteInventarioReservasByItem } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck, MessageCircle } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck, MessageCircle, ZoomIn, ZoomOut } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 import AuditoriasModule from './src/components/auditorias/AuditoriasModule';
 
@@ -463,6 +463,7 @@ const InventarioModule = ({ activeModule }) => {
   const [itemsError, setItemsError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
+  const [cardMinWidth, setCardMinWidth] = useState(280);
 
   const loadItems = async (selectedId = null) => {
     try {
@@ -571,6 +572,7 @@ const InventarioModule = ({ activeModule }) => {
     reservasActivas: items.reduce((sum, i) => sum + i.reservas.filter(r => !r.devuelto).length, 0),
     reservasVencidas: items.reduce((sum, i) => sum + i.reservas.filter(isReservaVencida).length, 0)
   };
+  const cardImageHeight = Math.max(220, Math.min(340, Math.round(cardMinWidth * 0.78)));
 
   const handleEditarItem = (item) => {
     setItemEnEdicion(item);
@@ -696,7 +698,7 @@ const InventarioModule = ({ activeModule }) => {
 
       {/* Búsqueda y Filtros */}
       <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="flex-1">
             <input
               type="text"
@@ -717,6 +719,27 @@ const InventarioModule = ({ activeModule }) => {
             ))}
           </select>
         </div>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <ZoomOut className="w-4 h-4 text-gray-500" />
+              <span>Tamaño de cards</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>{cardMinWidth < 270 ? 'Chicas' : cardMinWidth > 320 ? 'Grandes' : 'Medianas'}</span>
+              <ZoomIn className="w-4 h-4 text-gray-500" />
+            </div>
+          </div>
+          <input
+            type="range"
+            min="220"
+            max="360"
+            step="10"
+            value={cardMinWidth}
+            onChange={(e) => setCardMinWidth(Number(e.target.value))}
+            className="w-full accent-[#45ad98]"
+          />
+        </div>
       </div>
 
       {/* Listado de Items - Vista de Cards */}
@@ -725,7 +748,10 @@ const InventarioModule = ({ activeModule }) => {
           <p className="text-gray-500">Cargando inventario...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div
+          className="grid gap-6"
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardMinWidth}px, 1fr))` }}
+        >
           {itemsFiltrados.map((item) => {
             const disponible = calcularStockDisponible(item);
             const porcentajeDisponible = (disponible / item.stockTotal) * 100;
@@ -733,7 +759,10 @@ const InventarioModule = ({ activeModule }) => {
             return (
               <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all">
                 {/* Imagen */}
-                <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div
+                  className="bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+                  style={{ height: `${cardImageHeight}px` }}
+                >
                   {item.foto ? (
                     <img src={item.foto} alt={item.nombre} className="w-full h-full object-cover" />
                   ) : (
