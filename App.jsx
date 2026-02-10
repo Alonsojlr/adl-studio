@@ -5935,6 +5935,8 @@ const ProtocolosModule = ({
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [detalleEditMode, setDetalleEditMode] = useState(false);
   const protocolosRef = useRef([]);
+  const vistaActualRef = useRef('listado');
+  const protocoloSeleccionadoRef = useRef(null);
 
   const userEmail = String(user?.email || '').toLowerCase();
   const hideFinancials =
@@ -5944,10 +5946,54 @@ const ProtocolosModule = ({
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const chatReadStorageKey = `protocolos.chatReadState.${String(user?.id || user?.email || 'anon').toLowerCase()}`;
+  const [chatReadState, setChatReadState] = useState({});
 
   useEffect(() => {
     protocolosRef.current = protocolos;
   }, [protocolos]);
+
+  useEffect(() => {
+    vistaActualRef.current = vistaActual;
+  }, [vistaActual]);
+
+  useEffect(() => {
+    protocoloSeleccionadoRef.current = protocoloSeleccionado;
+  }, [protocoloSeleccionado]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(chatReadStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setChatReadState(parsed && typeof parsed === 'object' ? parsed : {});
+      } else {
+        setChatReadState({});
+      }
+    } catch (error) {
+      console.error('Error cargando estado de lectura de chat:', error);
+      setChatReadState({});
+    }
+  }, [chatReadStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(chatReadStorageKey, JSON.stringify(chatReadState));
+    } catch (error) {
+      console.error('Error guardando estado de lectura de chat:', error);
+    }
+  }, [chatReadStorageKey, chatReadState]);
+
+  const markProtocoloChatAsRead = (protocoloId, totalCount = 0) => {
+    if (!protocoloId) return;
+    setChatReadState((prev) => ({
+      ...prev,
+      [protocoloId]: {
+        readCount: Math.max(0, Number(totalCount) || 0),
+        readAt: new Date().toISOString()
+      }
+    }));
+  };
 
   const normalizarFacturaProtocolo = (factura) => ({
     id: factura.id,
@@ -5980,17 +6026,21 @@ const ProtocolosModule = ({
           const mensaje = payload.new || {};
           const protocoloId = mensaje.protocolo_id;
           if (!protocoloId) return;
+          const protocoloActual = protocolosRef.current.find((p) => p.id === protocoloId);
+          const totalPrevio = protocoloActual?.chatMessagesCount || 0;
+          const totalSiguiente = totalPrevio + 1;
+          const lastMessageAt = mensaje.created_at || new Date().toISOString();
 
           setProtocolos((prev) =>
             prev.map((p) =>
               p.id === protocoloId
-                ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1 }
+                ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
                 : p
             )
           );
           setProtocoloSeleccionado((prev) =>
             prev && prev.id === protocoloId
-              ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1 }
+              ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
               : prev
           );
 
@@ -5998,6 +6048,13 @@ const ProtocolosModule = ({
             (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
             (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
           );
+          const isViewingThisProtocol =
+            vistaActualRef.current === 'detalle' &&
+            protocoloSeleccionadoRef.current?.id === protocoloId;
+
+          if (isOwnMessage || isViewingThisProtocol) {
+            markProtocoloChatAsRead(protocoloId, totalSiguiente);
+          }
           if (isOwnMessage) return;
 
           const protocoloNotificado = protocolosRef.current.find((p) => p.id === protocoloId);
@@ -6096,17 +6153,25 @@ const ProtocolosModule = ({
         acc[key].push(normalizarFacturaProtocolo(factura));
         return acc;
       }, {});
-      const chatCountByProtocolo = {};
+      const chatStatsByProtocolo = {};
       if (protocolosIds.length > 0) {
         const { data: chatData, error: chatError } = await supabase
           .from('protocolos_chat_mensajes')
-          .select('protocolo_id')
+          .select('protocolo_id, created_at')
           .in('protocolo_id', protocolosIds);
 
         if (!chatError && Array.isArray(chatData)) {
           chatData.forEach((row) => {
             if (!row?.protocolo_id) return;
-            chatCountByProtocolo[row.protocolo_id] = (chatCountByProtocolo[row.protocolo_id] || 0) + 1;
+            const prev = chatStatsByProtocolo[row.protocolo_id] || { count: 0, lastMessageAt: null };
+            const nextLast =
+              !prev.lastMessageAt || (row.created_at && new Date(row.created_at) > new Date(prev.lastMessageAt))
+                ? row.created_at
+                : prev.lastMessageAt;
+            chatStatsByProtocolo[row.protocolo_id] = {
+              count: prev.count + 1,
+              lastMessageAt: nextLast
+            };
           });
         } else if (chatError && chatError.code !== '42P01') {
           console.error('Error cargando conteo de chat de protocolos:', chatError);
@@ -6144,7 +6209,8 @@ const ProtocolosModule = ({
           montoNeto: parseFloat(p.monto_neto) || undefined,
           montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
           items: Array.isArray(p.items) ? p.items : [],
-          chatMessagesCount: chatCountByProtocolo[p.id] || 0,
+          chatMessagesCount: chatStatsByProtocolo[p.id]?.count || 0,
+          chatLastMessageAt: chatStatsByProtocolo[p.id]?.lastMessageAt || null,
           facturas: (() => {
             const facturas = facturasByProtocolo[p.id] || [];
             if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
@@ -6446,9 +6512,11 @@ const ProtocolosModule = ({
     <>
           <VistaListadoProtocolos 
             protocolos={protocolos}
+            chatReadState={chatReadState}
             hideFinancials={hideFinancials}
             loading={loading}
             onVerDetalle={(protocolo) => {
+              markProtocoloChatAsRead(protocolo.id, protocolo.chatMessagesCount || 0);
               setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
               setVistaActual('detalle');
             }} 
@@ -6557,7 +6625,7 @@ const ProtocolosModule = ({
 // ========================================
 // VISTA LISTADO DE PROTOCOLOS
 // ========================================
-const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, onEliminar, hideFinancials = false, loading = false }) => {
+const VistaListadoProtocolos = ({ protocolos, chatReadState = {}, onVerDetalle, onNuevoProtocolo, onEliminar, hideFinancials = false, loading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -6717,7 +6785,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas BM</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Mensajes</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">No leídos</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
@@ -6733,7 +6801,9 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 const iva = neto * 0.19;
                 const total = neto + iva;
                 const resumenFacturas = obtenerResumenFacturas(protocolo.facturas);
-                const hasMessages = (protocolo.chatMessagesCount || 0) > 0;
+                const readCount = chatReadState?.[protocolo.id]?.readCount || 0;
+                const unreadCount = Math.max(0, (protocolo.chatMessagesCount || 0) - readCount);
+                const hasUnreadMessages = unreadCount > 0;
 
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
@@ -6791,9 +6861,9 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <MessageCircle className={`w-5 h-5 ${hasMessages ? 'text-green-600' : 'text-gray-400'}`} />
-                      <span className={`text-xs font-semibold ${hasMessages ? 'text-green-700' : 'text-gray-400'}`}>
-                        {protocolo.chatMessagesCount || 0}
+                      <MessageCircle className={`w-5 h-5 ${hasUnreadMessages ? 'text-green-600' : 'text-gray-400'}`} />
+                      <span className={`text-xs font-semibold ${hasUnreadMessages ? 'text-green-700' : 'text-gray-400'}`}>
+                        {unreadCount}
                       </span>
                     </div>
                   </td>
@@ -6872,6 +6942,37 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const hashString = (value) => {
+    const str = String(value || '');
+    let hash = 0;
+    for (let i = 0; i < str.length; i += 1) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const getBubbleStyle = (mensaje, own) => {
+    if (own) {
+      return {
+        backgroundColor: '#e9f7f3',
+        borderColor: '#9dd8c8',
+        textColor: '#1f2937'
+      };
+    }
+
+    const palette = [
+      { backgroundColor: 'rgba(251, 146, 60, 0.18)', borderColor: 'rgba(251, 146, 60, 0.35)', textColor: '#9a3412' },
+      { backgroundColor: 'rgba(244, 114, 182, 0.16)', borderColor: 'rgba(244, 114, 182, 0.35)', textColor: '#9d174d' },
+      { backgroundColor: 'rgba(96, 165, 250, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)', textColor: '#1d4ed8' },
+      { backgroundColor: 'rgba(167, 139, 250, 0.16)', borderColor: 'rgba(167, 139, 250, 0.35)', textColor: '#5b21b6' },
+      { backgroundColor: 'rgba(45, 212, 191, 0.16)', borderColor: 'rgba(45, 212, 191, 0.35)', textColor: '#0f766e' }
+    ];
+
+    const key = mensaje.userEmail || mensaje.userName || mensaje.userId || 'otro';
+    return palette[hashString(key) % palette.length];
   };
 
   useEffect(() => {
@@ -6989,15 +7090,21 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
         ) : (
           mensajes.map((mensaje) => {
             const own = isOwnMessage(mensaje);
+            const bubbleStyle = getBubbleStyle(mensaje, own);
             return (
               <div key={mensaje.id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[92%] rounded-2xl px-3 py-2 shadow-sm border ${own ? 'bg-[#e9f7f3] border-[#9dd8c8]' : 'bg-white border-gray-200'}`}>
+                <div
+                  className="max-w-[92%] rounded-2xl px-3 py-2 shadow-sm border"
+                  style={{ backgroundColor: bubbleStyle.backgroundColor, borderColor: bubbleStyle.borderColor }}
+                >
                   <p className="text-xs text-gray-500 mb-1">
                     <span className="font-semibold text-gray-700">{mensaje.userName}</span>
                     {mensaje.userEmail ? ` · ${mensaje.userEmail}` : ''}
                     {mensaje.createdAt ? ` · ${formatHora(mensaje.createdAt)}` : ''}
                   </p>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{mensaje.texto}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words" style={{ color: bubbleStyle.textColor }}>
+                    {mensaje.texto}
+                  </p>
                 </div>
               </div>
             );
