@@ -15,7 +15,7 @@ import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCom
 import { getClientes, createCliente, updateCliente, deleteCliente, getContactosByCliente, createContacto, updateContacto, deleteContacto, getAllContactos } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
-import { getInventarioItems, getInventarioReservas, createInventarioItem, updateInventarioItem, deleteInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
+import { getInventarioItems, getInventarioReservas, createInventarioItem, updateInventarioItem, deleteInventarioItem, createInventarioReserva, updateInventarioReserva, deleteInventarioReserva, deleteInventarioReservasByItem } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
@@ -578,16 +578,27 @@ const InventarioModule = ({ activeModule }) => {
   };
 
   const handleEliminarItem = async (item) => {
-    const reservasActivas = (item.reservas || []).filter((r) => !r.devuelto).length;
-    const advertencia = reservasActivas > 0
-      ? `\n\nAdvertencia: este item tiene ${reservasActivas} reservas activas.`
+    const reservasActivas = (item.reservas || []).filter((r) => !r.devuelto);
+    const reservasDevueltas = (item.reservas || []).filter((r) => r.devuelto);
+
+    if (reservasActivas.length > 0) {
+      alert(`No puedes eliminar este item porque tiene ${reservasActivas.length} reserva(s) activa(s). Marca devolución o elimina esas reservas primero.`);
+      return;
+    }
+
+    const advertenciaDevueltas = reservasDevueltas.length > 0
+      ? `\n\nSe eliminarán también ${reservasDevueltas.length} reserva(s) en estado devuelto.`
       : '';
+
     const confirmar = window.confirm(
-      `¿Eliminar el item "${item.nombre}" (${item.codigo})?${advertencia}`
+      `¿Eliminar el item "${item.nombre}" (${item.codigo})?${advertenciaDevueltas}`
     );
     if (!confirmar) return;
 
     try {
+      if (reservasDevueltas.length > 0) {
+        await deleteInventarioReservasByItem(item.id, { onlyReturned: true });
+      }
       await deleteInventarioItem(item.id);
       if (itemSeleccionado?.id === item.id) {
         setShowFichaModal(false);
@@ -929,6 +940,16 @@ const InventarioModule = ({ activeModule }) => {
               alert('Error al actualizar reserva');
             }
           }}
+          onEliminarReserva={async (reservaId) => {
+            try {
+              await deleteInventarioReserva(reservaId);
+              await loadItems(itemSeleccionado.id);
+              notifyToast('Reserva eliminada correctamente', 'success');
+            } catch (error) {
+              console.error('Error eliminando reserva:', error);
+              alert('Error al eliminar reserva');
+            }
+          }}
         />
       )}
     </div>
@@ -1130,7 +1151,7 @@ const NuevoItemModal = ({ onClose, onSave, mode = 'create', initialData = null }
 };
 
 // Modal Ficha Completa del Item
-const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDevuelto }) => {
+const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDevuelto, onEliminarReserva }) => {
   const [item, setItem] = useState({ ...itemInicial, reservas: itemInicial.reservas || [] });
   const [showReservaModal, setShowReservaModal] = useState(false);
 
@@ -1152,6 +1173,20 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
     setItem(actualizado);
     if (onMarcarDevuelto) {
       onMarcarDevuelto(reservaId);
+    }
+  };
+
+  const eliminarReserva = (reservaId) => {
+    const confirmar = window.confirm('¿Eliminar esta reserva del historial?');
+    if (!confirmar) return;
+
+    const actualizado = {
+      ...item,
+      reservas: item.reservas.filter((r) => r.id !== reservaId)
+    };
+    setItem(actualizado);
+    if (onEliminarReserva) {
+      onEliminarReserva(reservaId);
     }
   };
 
@@ -1291,14 +1326,22 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                               )}
                             </td>
                             <td className="px-3 py-3">
-                              {!reserva.devuelto && (
+                              <div className="flex items-center gap-2">
+                                {!reserva.devuelto && (
+                                  <button
+                                    onClick={() => marcarDevuelto(reserva.id)}
+                                    className="px-3 py-1 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600"
+                                  >
+                                    Devolver
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => marcarDevuelto(reserva.id)}
-                                  className="px-3 py-1 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600"
+                                  onClick={() => eliminarReserva(reserva.id)}
+                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs font-semibold hover:bg-red-600"
                                 >
-                                  Devolver
+                                  Eliminar
                                 </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         ))}
