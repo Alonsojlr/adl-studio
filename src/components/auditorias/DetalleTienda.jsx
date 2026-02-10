@@ -15,6 +15,17 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
   const [loadingAuditoriaDetalleId, setLoadingAuditoriaDetalleId] = useState(null);
   const [deletingAuditoriaId, setDeletingAuditoriaId] = useState(null);
   const [deletingTareaId, setDeletingTareaId] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setLightboxImage(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     const loadAjustes = async () => {
@@ -60,12 +71,13 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
         plantillas={plantillas}
         user={user}
         onVolver={() => setShowAuditoria(false)}
-        onComplete={async () => {
-          setShowAuditoria(false);
-          await onReload();
-        }}
-      />
-    );
+          onComplete={async () => {
+            setShowAuditoria(false);
+            setLightboxImage(null);
+            await onReload();
+          }}
+        />
+      );
   }
 
   const handleVerDetalleAuditoria = async (auditoria) => {
@@ -122,6 +134,7 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
           onClick={() => {
             setAuditoriaDetalle(null);
             setRespuestasDetalle([]);
+            setLightboxImage(null);
           }}
           className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm"
         >
@@ -197,9 +210,18 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
                   }`}
                 >
                   {resp.foto_url && (
-                    <a href={resp.foto_url} target="_blank" rel="noreferrer">
-                      <img src={resp.foto_url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
-                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(resp.foto_url)}
+                      className="flex-shrink-0 focus:outline-none"
+                      title="Ver foto"
+                    >
+                      <img
+                        src={resp.foto_url}
+                        alt="Foto auditoría"
+                        className="w-12 h-12 object-cover rounded-lg border border-white/40 hover:opacity-90 transition-opacity"
+                      />
+                    </button>
                   )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -238,6 +260,27 @@ const DetalleTienda = ({ tienda, auditorias: initialAuditorias, implementaciones
             </div>
           </div>
         </div>
+
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            <div
+              className="relative max-w-5xl max-h-[90vh] w-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="absolute top-2 right-2 z-10 px-3 py-1 rounded-lg bg-white/90 text-gray-800 text-sm font-semibold hover:bg-white"
+              >
+                Cerrar
+              </button>
+              <img src={lightboxImage} alt="Foto ampliada" className="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl" />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

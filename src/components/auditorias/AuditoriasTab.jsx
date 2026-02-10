@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ClipboardCheck, Search, Eye, ChevronLeft, Trash2 } from 'lucide-react';
 import { deleteAuditoria, getRespuestasByAuditoria } from '../../api/audit-auditorias';
 
@@ -9,6 +9,15 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
   const [respuestasDetalle, setRespuestasDetalle] = useState([]);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [deletingAuditoriaId, setDeletingAuditoriaId] = useState(null);
+  const [lightboxImage, setLightboxImage] = useState(null);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setLightboxImage(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const auditoriasFiltradas = auditorias.filter(a => {
     const tienda = tiendas.find(t => t.id === a.tienda_id);
@@ -54,7 +63,13 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
     const tienda = tiendas.find(t => t.id === auditoriaDetalle.tienda_id);
     return (
       <div className="space-y-4">
-        <button onClick={() => setAuditoriaDetalle(null)} className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm">
+        <button
+          onClick={() => {
+            setAuditoriaDetalle(null);
+            setLightboxImage(null);
+          }}
+          className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm"
+        >
           <ChevronLeft className="w-4 h-4" /><span>Volver</span>
         </button>
 
@@ -101,7 +116,18 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
                   'bg-gray-50'
                 }`}>
                   {resp.foto_url && (
-                    <img src={resp.foto_url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(resp.foto_url)}
+                      className="flex-shrink-0 focus:outline-none"
+                      title="Ver foto"
+                    >
+                      <img
+                        src={resp.foto_url}
+                        alt="Foto auditoría"
+                        className="w-12 h-12 object-cover rounded-lg border border-white/40 hover:opacity-90 transition-opacity"
+                      />
+                    </button>
                   )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -127,6 +153,27 @@ const AuditoriasTab = ({ auditorias, tiendas, plantillas, formatCurrency, user, 
             </div>
           </div>
         </div>
+
+        {lightboxImage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            <div
+              className="relative max-w-5xl max-h-[90vh] w-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="absolute top-2 right-2 z-10 px-3 py-1 rounded-lg bg-white/90 text-gray-800 text-sm font-semibold hover:bg-white"
+              >
+                Cerrar
+              </button>
+              <img src={lightboxImage} alt="Foto ampliada" className="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl" />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
