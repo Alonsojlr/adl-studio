@@ -725,7 +725,7 @@ const InventarioModule = ({ activeModule }) => {
           <p className="text-gray-500">Cargando inventario...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {itemsFiltrados.map((item) => {
             const disponible = calcularStockDisponible(item);
             const porcentajeDisponible = (disponible / item.stockTotal) * 100;
