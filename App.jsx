@@ -6975,13 +6975,13 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-fit">
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-[520px] xl:h-[calc(100vh-220px)]">
       <div className="p-4 border-b border-gray-100">
         <h3 className="text-lg font-bold text-gray-800">Chat del Proyecto</h3>
         <p className="text-xs text-gray-500 mt-1 truncate">{protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`}</p>
       </div>
 
-      <div className="max-h-[420px] xl:max-h-[560px] overflow-y-auto p-3 space-y-3 bg-gray-50/60">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/60">
         {loadingMensajes ? (
           <p className="text-sm text-gray-500">Cargando mensajes...</p>
         ) : mensajes.length === 0 ? (
@@ -7303,14 +7303,14 @@ const VistaDetalleProtocolo = ({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-      <div className="order-2 xl:order-none xl:col-start-2 xl:pt-14">
+      <div className="order-2 xl:order-2 xl:mt-14">
         <ProtocoloChatPanel
           protocolo={protocolo}
           currentUserName={currentUserName}
           currentUser={currentUser}
         />
       </div>
-      <div className="order-1 xl:order-none xl:col-start-1">
+      <div className="order-1 xl:order-1">
       {/* Header con botón volver */}
       <div className="mb-6">
         <button
