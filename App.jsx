@@ -12197,9 +12197,13 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
 
 // Componente de Dashboard
 const Dashboard = ({ user, onLogout }) => {
-  const [activeModule, setActiveModule] = useState(
-    ['auditor', 'trade_marketing'].includes(user?.role) ? 'auditorias' : 'dashboard'
-  );
+  const getDefaultModuleByRole = (role) => {
+    if (['auditor', 'trade_marketing'].includes(role)) return 'auditorias';
+    if (role === 'compras') return 'protocolos';
+    return 'dashboard';
+  };
+
+  const [activeModule, setActiveModule] = useState(() => getDefaultModuleByRole(user?.role));
   const [selectedUnit, setSelectedUnit] = useState('Todas');
 
   // ===== ESTADOS COMPARTIDOS ENTRE MÓDULOS =====
@@ -12608,11 +12612,17 @@ const Dashboard = ({ user, onLogout }) => {
   // Permisos por rol
   const hasAccess = (module) => {
     if (isAdminLike) return true;
-    if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
+    if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario', 'auditorias'].includes(module)) return true;
     if (user.role === 'finanzas' && ['cotizaciones', 'clientes', 'facturacion'].includes(module)) return true;
     if (['auditor', 'trade_marketing'].includes(user.role) && module === 'auditorias') return true;
     return false;
   };
+
+  useEffect(() => {
+    if (!hasAccess(activeModule)) {
+      setActiveModule(getDefaultModuleByRole(user?.role));
+    }
+  }, [activeModule, user?.role]);
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
@@ -12624,7 +12634,7 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
     { id: 'clientes', name: 'Clientes', icon: Users, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'informes', name: 'Informes', icon: TrendingUp, roles: ['admin', 'comercial', 'finanzas'] },
-    { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck, roles: ['admin', 'comercial', 'auditor', 'trade_marketing'] },
+    { id: 'auditorias', name: 'Auditorías', icon: ClipboardCheck, roles: ['admin', 'comercial', 'auditor', 'trade_marketing', 'compras'] },
     { id: 'administracion', name: 'Administración', icon: Settings, roles: ['admin', 'comercial'] }
   ];
 
