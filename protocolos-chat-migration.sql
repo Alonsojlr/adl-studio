@@ -17,6 +17,23 @@ CREATE TABLE IF NOT EXISTS protocolos_chat_mensajes (
 CREATE INDEX IF NOT EXISTS idx_protocolos_chat_protocolo_fecha
   ON protocolos_chat_mensajes (protocolo_id, created_at);
 
+-- Realtime en Supabase (INSERT/UPDATE/DELETE).
+ALTER TABLE protocolos_chat_mensajes REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'protocolos_chat_mensajes'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE protocolos_chat_mensajes;
+  END IF;
+END
+$$;
+
 GRANT SELECT, INSERT ON protocolos_chat_mensajes TO authenticated;
 
 ALTER TABLE protocolos_chat_mensajes ENABLE ROW LEVEL SECURITY;

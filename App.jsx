@@ -5948,6 +5948,8 @@ const ProtocolosModule = ({
   const [loading, setLoading] = useState(true);
   const chatReadStorageKey = `protocolos.chatReadState.${String(user?.id || user?.email || 'anon').toLowerCase()}`;
   const [chatReadState, setChatReadState] = useState({});
+  const processedChatMessageIdsRef = useRef(new Set());
+  const chatLastSyncAtRef = useRef(null);
 
   useEffect(() => {
     protocolosRef.current = protocolos;
@@ -5995,6 +5997,75 @@ const ProtocolosModule = ({
     }));
   };
 
+  const registerProcessedChatMessage = (messageId) => {
+    if (!messageId) return false;
+    const ids = processedChatMessageIdsRef.current;
+    if (ids.has(messageId)) return true;
+    ids.add(messageId);
+    if (ids.size > 1500) {
+      const keep = Array.from(ids).slice(-800);
+      processedChatMessageIdsRef.current = new Set(keep);
+    }
+    return false;
+  };
+
+  const updateChatSyncTimestamp = (isoDate) => {
+    if (!isoDate) return;
+    const next = new Date(isoDate).getTime();
+    if (Number.isNaN(next)) return;
+    const prev = chatLastSyncAtRef.current ? new Date(chatLastSyncAtRef.current).getTime() : null;
+    if (!prev || next > prev) {
+      chatLastSyncAtRef.current = isoDate;
+    }
+  };
+
+  const handleIncomingChatMessage = (mensaje, { notify = true } = {}) => {
+    if (!mensaje) return;
+    const protocoloId = mensaje.protocolo_id;
+    if (!protocoloId) return;
+    if (registerProcessedChatMessage(mensaje.id)) return;
+
+    const lastMessageAt = mensaje.created_at || new Date().toISOString();
+    updateChatSyncTimestamp(lastMessageAt);
+
+    const protocoloActual = protocolosRef.current.find((p) => p.id === protocoloId);
+    const totalPrevio = protocoloActual?.chatMessagesCount || 0;
+    const totalSiguiente = totalPrevio + 1;
+
+    setProtocolos((prev) =>
+      prev.map((p) =>
+        p.id === protocoloId
+          ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
+          : p
+      )
+    );
+
+    setProtocoloSeleccionado((prev) =>
+      prev && prev.id === protocoloId
+        ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
+        : prev
+    );
+
+    const isOwnMessage = (
+      (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
+      (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
+    );
+    const isViewingThisProtocol =
+      vistaActualRef.current === 'detalle' &&
+      protocoloSeleccionadoRef.current?.id === protocoloId;
+
+    if (isOwnMessage || isViewingThisProtocol) {
+      markProtocoloChatAsRead(protocoloId, totalSiguiente);
+    }
+
+    if (isOwnMessage || !notify) return;
+
+    const protocoloNotificado = protocolosRef.current.find((p) => p.id === protocoloId);
+    const nombreProyecto = protocoloNotificado?.nombreProyecto || `PT-${protocoloNotificado?.folio || ''}`;
+    notifyToast(`Nuevo mensaje en ${nombreProyecto || 'proyecto'}`, 'success');
+    playNotificationSound();
+  };
+
   const normalizarFacturaProtocolo = (factura) => ({
     id: factura.id,
     protocoloId: factura.protocolo_id,
@@ -6023,50 +6094,55 @@ const ProtocolosModule = ({
           table: 'protocolos_chat_mensajes'
         },
         (payload) => {
-          const mensaje = payload.new || {};
-          const protocoloId = mensaje.protocolo_id;
-          if (!protocoloId) return;
-          const protocoloActual = protocolosRef.current.find((p) => p.id === protocoloId);
-          const totalPrevio = protocoloActual?.chatMessagesCount || 0;
-          const totalSiguiente = totalPrevio + 1;
-          const lastMessageAt = mensaje.created_at || new Date().toISOString();
-
-          setProtocolos((prev) =>
-            prev.map((p) =>
-              p.id === protocoloId
-                ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
-                : p
-            )
-          );
-          setProtocoloSeleccionado((prev) =>
-            prev && prev.id === protocoloId
-              ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
-              : prev
-          );
-
-          const isOwnMessage = (
-            (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
-            (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
-          );
-          const isViewingThisProtocol =
-            vistaActualRef.current === 'detalle' &&
-            protocoloSeleccionadoRef.current?.id === protocoloId;
-
-          if (isOwnMessage || isViewingThisProtocol) {
-            markProtocoloChatAsRead(protocoloId, totalSiguiente);
-          }
-          if (isOwnMessage) return;
-
-          const protocoloNotificado = protocolosRef.current.find((p) => p.id === protocoloId);
-          const nombreProyecto = protocoloNotificado?.nombreProyecto || `PT-${protocoloNotificado?.folio || ''}`;
-          notifyToast(`Nuevo mensaje en ${nombreProyecto || 'proyecto'}`, 'success');
-          playNotificationSound();
+          handleIncomingChatMessage(payload.new || {}, { notify: true });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime de chat con problemas, activando fallback por polling.');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollChatMessages = async () => {
+      if (cancelled) return;
+      const since = chatLastSyncAtRef.current;
+      if (!since) return;
+
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('id, protocolo_id, user_id, user_name, user_email, created_at')
+        .gt('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(200);
+
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en fallback polling de chat:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      data.forEach((mensaje) => {
+        handleIncomingChatMessage(mensaje, { notify: true });
+      });
+    };
+
+    const intervalId = setInterval(pollChatMessages, 5000);
+    pollChatMessages();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
     };
   }, [user?.id, user?.email]);
 
@@ -6231,7 +6307,14 @@ const ProtocolosModule = ({
           })()
         };
       });
-      
+
+      const latestChatAt = transformados.reduce((latest, protocolo) => {
+        if (!protocolo.chatLastMessageAt) return latest;
+        if (!latest) return protocolo.chatLastMessageAt;
+        return new Date(protocolo.chatLastMessageAt) > new Date(latest) ? protocolo.chatLastMessageAt : latest;
+      }, null);
+      chatLastSyncAtRef.current = latestChatAt || new Date().toISOString();
+
       setProtocolos(transformados);
     } catch (error) {
       console.error('Error:', error);
@@ -6910,6 +6993,7 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
   const [enviandoMensaje, setEnviandoMensaje] = useState(false);
   const [errorChat, setErrorChat] = useState('');
   const listEndRef = useRef(null);
+  const lastMessageAtRef = useRef(null);
 
   const protocoloId = protocolo?.id;
   const senderName = currentUserName || currentUser?.name || currentUser?.email || 'Usuario';
@@ -7043,6 +7127,58 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    const lastMessage = mensajes[mensajes.length - 1];
+    lastMessageAtRef.current = lastMessage?.createdAt || null;
+  }, [mensajes]);
+
+  useEffect(() => {
+    if (!protocoloId) return undefined;
+
+    let cancelled = false;
+
+    const pollNewMessages = async () => {
+      if (cancelled) return;
+
+      let query = supabase
+        .from('protocolos_chat_mensajes')
+        .select('*')
+        .eq('protocolo_id', protocoloId)
+        .order('created_at', { ascending: true })
+        .limit(100);
+
+      if (lastMessageAtRef.current) {
+        query = query.gt('created_at', lastMessageAtRef.current);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en polling de chat de protocolo:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      const nuevos = data.map(mapMensaje);
+      setMensajes((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const toAdd = nuevos.filter((m) => !existingIds.has(m.id));
+        if (!toAdd.length) return prev;
+        return [...prev, ...toAdd];
+      });
+    };
+
+    const intervalId = setInterval(pollNewMessages, 4000);
+    pollNewMessages();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
     };
   }, [protocoloId]);
 
