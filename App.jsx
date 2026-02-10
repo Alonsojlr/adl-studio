@@ -6927,8 +6927,19 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
   });
 
   const isOwnMessage = (mensaje) => {
+    const currentName = String(senderName || '').trim().toLowerCase();
+    const messageName = String(mensaje.userName || '').trim().toLowerCase();
+
     if (senderId && mensaje.userId) return String(senderId) === String(mensaje.userId);
-    if (senderEmail && mensaje.userEmail) return String(senderEmail).toLowerCase() === String(mensaje.userEmail).toLowerCase();
+
+    if (senderEmail && mensaje.userEmail) {
+      const sameEmail = String(senderEmail).toLowerCase() === String(mensaje.userEmail).toLowerCase();
+      if (!sameEmail) return false;
+      if (currentName && messageName) return currentName === messageName;
+      return true;
+    }
+
+    if (currentName && messageName) return currentName === messageName;
     return false;
   };
 
@@ -6957,18 +6968,18 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
   const getBubbleStyle = (mensaje, own) => {
     if (own) {
       return {
-        backgroundColor: '#e9f7f3',
-        borderColor: '#9dd8c8',
-        textColor: '#1f2937'
+        backgroundColor: 'rgba(16, 185, 129, 0.20)',
+        borderColor: 'rgba(5, 150, 105, 0.45)',
+        textColor: '#065f46'
       };
     }
 
     const palette = [
-      { backgroundColor: 'rgba(251, 146, 60, 0.18)', borderColor: 'rgba(251, 146, 60, 0.35)', textColor: '#9a3412' },
-      { backgroundColor: 'rgba(244, 114, 182, 0.16)', borderColor: 'rgba(244, 114, 182, 0.35)', textColor: '#9d174d' },
-      { backgroundColor: 'rgba(96, 165, 250, 0.16)', borderColor: 'rgba(96, 165, 250, 0.35)', textColor: '#1d4ed8' },
-      { backgroundColor: 'rgba(167, 139, 250, 0.16)', borderColor: 'rgba(167, 139, 250, 0.35)', textColor: '#5b21b6' },
-      { backgroundColor: 'rgba(45, 212, 191, 0.16)', borderColor: 'rgba(45, 212, 191, 0.35)', textColor: '#0f766e' }
+      { backgroundColor: 'rgba(251, 146, 60, 0.22)', borderColor: 'rgba(251, 146, 60, 0.40)', textColor: '#9a3412' }, // naranjo
+      { backgroundColor: 'rgba(248, 113, 113, 0.22)', borderColor: 'rgba(239, 68, 68, 0.40)', textColor: '#991b1b' }, // rojo
+      { backgroundColor: 'rgba(125, 211, 252, 0.28)', borderColor: 'rgba(56, 189, 248, 0.45)', textColor: '#1e3a8a' }, // celeste
+      { backgroundColor: 'rgba(196, 181, 253, 0.22)', borderColor: 'rgba(139, 92, 246, 0.40)', textColor: '#5b21b6' }, // violeta
+      { backgroundColor: 'rgba(244, 114, 182, 0.20)', borderColor: 'rgba(236, 72, 153, 0.40)', textColor: '#9d174d' }  // rosado
     ];
 
     const key = mensaje.userEmail || mensaje.userName || mensaje.userId || 'otro';
