@@ -17,7 +17,7 @@ import { getProveedores, createProveedor, updateProveedor, deleteProveedor } fro
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
 import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 import AuditoriasModule from './src/components/auditorias/AuditoriasModule';
 
@@ -33,6 +33,29 @@ const alert = (message) => {
   const normalized = String(message || '').toLowerCase();
   const type = normalized.includes('error') ? 'error' : 'success';
   notifyToast(message, type);
+};
+
+const playNotificationSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const audioCtx = new AudioCtx();
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, audioCtx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.26);
+  } catch (error) {
+    console.error('No se pudo reproducir sonido de notificación:', error);
+  }
 };
 
 
@@ -5911,6 +5934,7 @@ const ProtocolosModule = ({
   const [showDetalleOC, setShowDetalleOC] = useState(false);
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [detalleEditMode, setDetalleEditMode] = useState(false);
+  const protocolosRef = useRef([]);
 
   const userEmail = String(user?.email || '').toLowerCase();
   const hideFinancials =
@@ -5920,6 +5944,10 @@ const ProtocolosModule = ({
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    protocolosRef.current = protocolos;
+  }, [protocolos]);
 
   const normalizarFacturaProtocolo = (factura) => ({
     id: factura.id,
@@ -5937,6 +5965,53 @@ const ProtocolosModule = ({
   useEffect(() => {
     loadProtocolos();
   }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('protocolos-chat-notify')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes'
+        },
+        (payload) => {
+          const mensaje = payload.new || {};
+          const protocoloId = mensaje.protocolo_id;
+          if (!protocoloId) return;
+
+          setProtocolos((prev) =>
+            prev.map((p) =>
+              p.id === protocoloId
+                ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1 }
+                : p
+            )
+          );
+          setProtocoloSeleccionado((prev) =>
+            prev && prev.id === protocoloId
+              ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1 }
+              : prev
+          );
+
+          const isOwnMessage = (
+            (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
+            (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
+          );
+          if (isOwnMessage) return;
+
+          const protocoloNotificado = protocolosRef.current.find((p) => p.id === protocoloId);
+          const nombreProyecto = protocoloNotificado?.nombreProyecto || `PT-${protocoloNotificado?.folio || ''}`;
+          notifyToast(`Nuevo mensaje en ${nombreProyecto || 'proyecto'}`, 'success');
+          playNotificationSound();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email]);
 
   const calcularNetoCotizacion = (cot) => {
     // Si ya tiene neto, usarlo directamente
@@ -6021,6 +6096,22 @@ const ProtocolosModule = ({
         acc[key].push(normalizarFacturaProtocolo(factura));
         return acc;
       }, {});
+      const chatCountByProtocolo = {};
+      if (protocolosIds.length > 0) {
+        const { data: chatData, error: chatError } = await supabase
+          .from('protocolos_chat_mensajes')
+          .select('protocolo_id')
+          .in('protocolo_id', protocolosIds);
+
+        if (!chatError && Array.isArray(chatData)) {
+          chatData.forEach((row) => {
+            if (!row?.protocolo_id) return;
+            chatCountByProtocolo[row.protocolo_id] = (chatCountByProtocolo[row.protocolo_id] || 0) + 1;
+          });
+        } else if (chatError && chatError.code !== '42P01') {
+          console.error('Error cargando conteo de chat de protocolos:', chatError);
+        }
+      }
       
       const cotizacionesByNumero = new Map(
         (cotizacionesData || []).map((cot) => [normalizarNumero(cot.numero), cot])
@@ -6053,6 +6144,7 @@ const ProtocolosModule = ({
           montoNeto: parseFloat(p.monto_neto) || undefined,
           montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
           items: Array.isArray(p.items) ? p.items : [],
+          chatMessagesCount: chatCountByProtocolo[p.id] || 0,
           facturas: (() => {
             const facturas = facturasByProtocolo[p.id] || [];
             if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
@@ -6169,6 +6261,8 @@ const ProtocolosModule = ({
         <VistaDetalleProtocolo
           protocolo={protocoloSeleccionado}
           ordenesCompra={ordenesCompra}
+          currentUserName={currentUserName}
+          currentUser={user}
           hideFinancials={hideFinancials}
           onVerDetalleOC={(orden, editar = false) => {
             setOrdenDetalle(orden);
@@ -6623,13 +6717,14 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas BM</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Mensajes</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={hideFinancials ? 8 : 11} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={hideFinancials ? 9 : 12} className="px-6 py-8 text-center text-gray-500">
                     Cargando protocolos...
                   </td>
                 </tr>
@@ -6638,6 +6733,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 const iva = neto * 0.19;
                 const total = neto + iva;
                 const resumenFacturas = obtenerResumenFacturas(protocolo.facturas);
+                const hasMessages = (protocolo.chatMessagesCount || 0) > 0;
 
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
@@ -6694,6 +6790,14 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                     )}
                   </td>
                   <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className={`w-5 h-5 ${hasMessages ? 'text-green-600' : 'text-gray-400'}`} />
+                      <span className={`text-xs font-semibold ${hasMessages ? 'text-green-700' : 'text-gray-400'}`}>
+                        {protocolo.chatMessagesCount || 0}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <button
                       onClick={() => onVerDetalle(protocolo)}
                       className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold"
@@ -6729,7 +6833,218 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
 // ========================================
 // VISTA DETALLE DEL PROTOCOLO (PÁGINA COMPLETA)
 // ========================================
-const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar, onVerDetalleOC, hideFinancials = false }) => {
+const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
+  const [mensajes, setMensajes] = useState([]);
+  const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [loadingMensajes, setLoadingMensajes] = useState(true);
+  const [enviandoMensaje, setEnviandoMensaje] = useState(false);
+  const [errorChat, setErrorChat] = useState('');
+  const listEndRef = useRef(null);
+
+  const protocoloId = protocolo?.id;
+  const senderName = currentUserName || currentUser?.name || currentUser?.email || 'Usuario';
+  const senderEmail = currentUser?.email || null;
+  const senderId = currentUser?.id || null;
+
+  const mapMensaje = (raw) => ({
+    id: raw.id,
+    protocoloId: raw.protocolo_id,
+    texto: raw.mensaje || '',
+    userId: raw.user_id || null,
+    userName: raw.user_name || 'Usuario',
+    userEmail: raw.user_email || null,
+    createdAt: raw.created_at || null
+  });
+
+  const isOwnMessage = (mensaje) => {
+    if (senderId && mensaje.userId) return String(senderId) === String(mensaje.userId);
+    if (senderEmail && mensaje.userEmail) return String(senderEmail).toLowerCase() === String(mensaje.userEmail).toLowerCase();
+    return false;
+  };
+
+  const formatHora = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMensajes = async () => {
+      if (!protocoloId) return;
+      setLoadingMensajes(true);
+      setErrorChat('');
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('*')
+        .eq('protocolo_id', protocoloId)
+        .order('created_at', { ascending: true });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error('Error cargando chat de protocolo:', error);
+        setMensajes([]);
+        setErrorChat('No se pudo cargar el chat. Verifica que la tabla de chat esté creada.');
+      } else {
+        setMensajes((data || []).map(mapMensaje));
+      }
+      setLoadingMensajes(false);
+    };
+
+    loadMensajes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    if (!protocoloId) return undefined;
+
+    const channel = supabase
+      .channel(`protocolo-chat-${protocoloId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes',
+          filter: `protocolo_id=eq.${protocoloId}`
+        },
+        (payload) => {
+          const nuevo = mapMensaje(payload.new || {});
+          setMensajes((prev) => {
+            if (prev.some((m) => m.id === nuevo.id)) return prev;
+            return [...prev, nuevo];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mensajes]);
+
+  const enviarMensaje = async () => {
+    const texto = String(nuevoMensaje || '').trim();
+    if (!texto || !protocoloId || enviandoMensaje) return;
+
+    setEnviandoMensaje(true);
+    setErrorChat('');
+
+    const payload = {
+      protocolo_id: protocoloId,
+      mensaje: texto,
+      user_id: senderId,
+      user_name: senderName,
+      user_email: senderEmail
+    };
+
+    const { data, error } = await supabase
+      .from('protocolos_chat_mensajes')
+      .insert([payload])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error enviando mensaje de chat:', error);
+      setErrorChat('No se pudo enviar el mensaje.');
+    } else if (data) {
+      const normalized = mapMensaje(data);
+      setMensajes((prev) => {
+        if (prev.some((m) => m.id === normalized.id)) return prev;
+        return [...prev, normalized];
+      });
+      setNuevoMensaje('');
+    }
+
+    setEnviandoMensaje(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 h-[calc(100vh-180px)] min-h-[520px] flex flex-col">
+      <div className="p-4 border-b border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800">Chat del Proyecto</h3>
+        <p className="text-xs text-gray-500 mt-1 truncate">{protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`}</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/60">
+        {loadingMensajes ? (
+          <p className="text-sm text-gray-500">Cargando mensajes...</p>
+        ) : mensajes.length === 0 ? (
+          <p className="text-sm text-gray-500">No hay mensajes aún. Inicia la conversación del proyecto.</p>
+        ) : (
+          mensajes.map((mensaje) => {
+            const own = isOwnMessage(mensaje);
+            return (
+              <div key={mensaje.id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[92%] rounded-2xl px-3 py-2 shadow-sm border ${own ? 'bg-[#e9f7f3] border-[#9dd8c8]' : 'bg-white border-gray-200'}`}>
+                  <p className="text-xs text-gray-500 mb-1">
+                    <span className="font-semibold text-gray-700">{mensaje.userName}</span>
+                    {mensaje.userEmail ? ` · ${mensaje.userEmail}` : ''}
+                    {mensaje.createdAt ? ` · ${formatHora(mensaje.createdAt)}` : ''}
+                  </p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{mensaje.texto}</p>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={listEndRef} />
+      </div>
+
+      <div className="p-3 border-t border-gray-100 bg-white">
+        <textarea
+          value={nuevoMensaje}
+          onChange={(e) => setNuevoMensaje(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              enviarMensaje();
+            }
+          }}
+          rows={3}
+          placeholder="Escribe un mensaje para el equipo..."
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#45ad98]"
+        />
+        {errorChat && <p className="text-xs text-red-600 mt-2">{errorChat}</p>}
+        <button
+          onClick={enviarMensaje}
+          disabled={!String(nuevoMensaje || '').trim() || enviandoMensaje}
+          className="mt-2 w-full px-4 py-2 rounded-xl text-white font-semibold disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+        >
+          {enviandoMensaje ? 'Enviando...' : 'Enviar mensaje'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const VistaDetalleProtocolo = ({
+  protocolo,
+  ordenesCompra,
+  onVolver,
+  onAdjudicarCompra,
+  onActualizar,
+  onVerDetalleOC,
+  currentUserName,
+  currentUser,
+  hideFinancials = false
+}) => {
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -6987,7 +7302,15 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   };
 
   return (
-    <div>
+    <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6 items-start">
+      <div className="xl:sticky xl:top-6">
+        <ProtocoloChatPanel
+          protocolo={protocolo}
+          currentUserName={currentUserName}
+          currentUser={currentUser}
+        />
+      </div>
+      <div>
       {/* Header con botón volver */}
       <div className="mb-6">
         <button
@@ -7518,10 +7841,10 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
       )}
 
       {/* Modal Cerrar Protocolo */}
-      {showCerrarModal && (
-        <ModalCerrarProtocolo
-          protocolo={protocolo}
-          costoReal={costoRealNeto}
+	      {showCerrarModal && (
+	        <ModalCerrarProtocolo
+	          protocolo={protocolo}
+	          costoReal={costoRealNeto}
           onClose={() => setShowCerrarModal(false)}
           onConfirmar={async () => {
             try {
@@ -7534,10 +7857,11 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
               alert('Error al cerrar protocolo: ' + error.message);
             }
           }}
-        />
-      )}
+	        />
+	      )}
 
-</div>
+      </div>
+    </div>
   );
 };
 
