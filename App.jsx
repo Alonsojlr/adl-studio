@@ -7302,15 +7302,15 @@ const VistaDetalleProtocolo = ({
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-6 items-start">
-      <div className="xl:sticky xl:top-6">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+      <div className="order-2 xl:order-none xl:col-start-2 xl:sticky xl:top-6">
         <ProtocoloChatPanel
           protocolo={protocolo}
           currentUserName={currentUserName}
           currentUser={currentUser}
         />
       </div>
-      <div>
+      <div className="order-1 xl:order-none xl:col-start-1">
       {/* Header con botón volver */}
       <div className="mb-6">
         <button
