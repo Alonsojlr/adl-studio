@@ -6975,13 +6975,13 @@ const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 h-[calc(100vh-180px)] min-h-[520px] flex flex-col">
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-fit">
       <div className="p-4 border-b border-gray-100">
         <h3 className="text-lg font-bold text-gray-800">Chat del Proyecto</h3>
         <p className="text-xs text-gray-500 mt-1 truncate">{protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/60">
+      <div className="max-h-[420px] xl:max-h-[560px] overflow-y-auto p-3 space-y-3 bg-gray-50/60">
         {loadingMensajes ? (
           <p className="text-sm text-gray-500">Cargando mensajes...</p>
         ) : mensajes.length === 0 ? (
@@ -7303,7 +7303,7 @@ const VistaDetalleProtocolo = ({
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-      <div className="order-2 xl:order-none xl:col-start-2 xl:sticky xl:top-6">
+      <div className="order-2 xl:order-none xl:col-start-2 xl:pt-14">
         <ProtocoloChatPanel
           protocolo={protocolo}
           currentUserName={currentUserName}
