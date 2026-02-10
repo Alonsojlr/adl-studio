@@ -44,6 +44,16 @@ export const updateInventarioItem = async (id, updates) => {
   return data[0]
 }
 
+export const deleteInventarioItem = async (id) => {
+  const { error } = await supabase
+    .from(ITEMS_TABLE)
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}
+
 export const createInventarioReserva = async (reserva) => {
   const { data, error } = await supabase
     .from(RESERVAS_TABLE)

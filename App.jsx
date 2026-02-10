@@ -15,7 +15,7 @@ import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCom
 import { getClientes, createCliente, updateCliente, deleteCliente, getContactosByCliente, createContacto, updateContacto, deleteContacto, getAllContactos } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
-import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
+import { getInventarioItems, getInventarioReservas, createInventarioItem, updateInventarioItem, deleteInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
 import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, ClipboardCheck, MessageCircle } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
@@ -454,8 +454,10 @@ const LoginPage = ({ onLogin }) => {
 // Componente de Módulo de Inventario/Bodega
 const InventarioModule = ({ activeModule }) => {
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showFichaModal, setShowFichaModal] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
+  const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [itemsError, setItemsError] = useState('');
@@ -568,6 +570,35 @@ const InventarioModule = ({ activeModule }) => {
     valorTotal: items.reduce((sum, i) => sum + (i.stockTotal * i.precioCosto), 0),
     reservasActivas: items.reduce((sum, i) => sum + i.reservas.filter(r => !r.devuelto).length, 0),
     reservasVencidas: items.reduce((sum, i) => sum + i.reservas.filter(isReservaVencida).length, 0)
+  };
+
+  const handleEditarItem = (item) => {
+    setItemEnEdicion(item);
+    setShowEditModal(true);
+  };
+
+  const handleEliminarItem = async (item) => {
+    const reservasActivas = (item.reservas || []).filter((r) => !r.devuelto).length;
+    const advertencia = reservasActivas > 0
+      ? `\n\nAdvertencia: este item tiene ${reservasActivas} reservas activas.`
+      : '';
+    const confirmar = window.confirm(
+      `¿Eliminar el item "${item.nombre}" (${item.codigo})?${advertencia}`
+    );
+    if (!confirmar) return;
+
+    try {
+      await deleteInventarioItem(item.id);
+      if (itemSeleccionado?.id === item.id) {
+        setShowFichaModal(false);
+        setItemSeleccionado(null);
+      }
+      await loadItems();
+      notifyToast('Item eliminado correctamente', 'success');
+    } catch (error) {
+      console.error('Error eliminando item:', error);
+      alert('No se pudo eliminar el item. Verifica si tiene reservas relacionadas.');
+    }
   };
 
   return (
@@ -767,6 +798,20 @@ const InventarioModule = ({ activeModule }) => {
                   >
                     Ver Ficha Completa
                   </button>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <button
+                      onClick={() => handleEditarItem(item)}
+                      className="w-full py-2 rounded-xl border-2 border-[#45ad98] text-[#235250] font-semibold hover:bg-[#45ad98]/10 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleEliminarItem(item)}
+                      className="w-full py-2 rounded-xl border-2 border-red-300 text-red-700 font-semibold hover:bg-red-50 transition-colors"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -784,6 +829,7 @@ const InventarioModule = ({ activeModule }) => {
       {/* Modales */}
       {showNewModal && (
         <NuevoItemModal 
+          mode="create"
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevoItem) => {
             try {
@@ -809,6 +855,42 @@ const InventarioModule = ({ activeModule }) => {
             } catch (error) {
               console.error('Error creando item:', error);
               alert('Error al crear item en inventario');
+            }
+          }}
+        />
+      )}
+
+      {showEditModal && itemEnEdicion && (
+        <NuevoItemModal
+          mode="edit"
+          initialData={itemEnEdicion}
+          onClose={() => {
+            setShowEditModal(false);
+            setItemEnEdicion(null);
+          }}
+          onSave={async (itemEditado) => {
+            try {
+              const updates = {
+                nombre: itemEditado.nombre,
+                descripcion: itemEditado.descripcion,
+                categoria: itemEditado.categoria,
+                especificaciones: itemEditado.especificaciones,
+                unidad_medida: itemEditado.unidadMedida,
+                stock_total: itemEditado.stockTotal,
+                ubicacion: itemEditado.ubicacion,
+                proveedor_principal: itemEditado.proveedorPrincipal,
+                precio_costo: itemEditado.precioCosto,
+                foto_url: itemEditado.foto || null
+              };
+
+              await updateInventarioItem(itemEnEdicion.id, updates);
+              await loadItems(itemEnEdicion.id);
+              setShowEditModal(false);
+              setItemEnEdicion(null);
+              notifyToast('Item actualizado correctamente', 'success');
+            } catch (error) {
+              console.error('Error actualizando item:', error);
+              alert('Error al actualizar item del inventario');
             }
           }}
         />
@@ -853,20 +935,25 @@ const InventarioModule = ({ activeModule }) => {
   );
 };
 
-// Modal Nuevo Item
-const NuevoItemModal = ({ onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    categoria: '',
-    especificaciones: '',
-    unidadMedida: 'Unidad',
-    stockTotal: 1,
-    ubicacion: '',
-    proveedorPrincipal: '',
-    precioCosto: 0,
-    foto: null
+// Modal Nuevo/Editar Item
+const NuevoItemModal = ({ onClose, onSave, mode = 'create', initialData = null }) => {
+  const getInitialFormData = () => ({
+    nombre: initialData?.nombre || '',
+    descripcion: initialData?.descripcion || '',
+    categoria: initialData?.categoria || '',
+    especificaciones: initialData?.especificaciones || '',
+    unidadMedida: initialData?.unidadMedida || 'Unidad',
+    stockTotal: Number.isFinite(Number(initialData?.stockTotal)) ? Number(initialData.stockTotal) : 1,
+    ubicacion: initialData?.ubicacion || '',
+    proveedorPrincipal: initialData?.proveedorPrincipal || '',
+    precioCosto: Number.isFinite(Number(initialData?.precioCosto)) ? Number(initialData.precioCosto) : 0,
+    foto: initialData?.foto || null
   });
+  const [formData, setFormData] = useState(getInitialFormData());
+
+  useEffect(() => {
+    setFormData(getInitialFormData());
+  }, [initialData, mode]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -878,7 +965,9 @@ const NuevoItemModal = ({ onClose, onSave }) => {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
         <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-white">Nuevo Item de Inventario</h3>
+            <h3 className="text-2xl font-bold text-white">
+              {mode === 'edit' ? 'Editar Item de Inventario' : 'Nuevo Item de Inventario'}
+            </h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
               <XCircle className="w-6 h-6" />
             </button>
@@ -1031,7 +1120,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
               style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
-              Crear Item
+              {mode === 'edit' ? 'Guardar Cambios' : 'Crear Item'}
             </button>
           </div>
         </form>
