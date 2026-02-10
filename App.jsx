@@ -733,7 +733,7 @@ const InventarioModule = ({ activeModule }) => {
             return (
               <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all">
                 {/* Imagen */}
-                <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                   {item.foto ? (
                     <img src={item.foto} alt={item.nombre} className="w-full h-full object-cover" />
                   ) : (
