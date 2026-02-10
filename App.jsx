@@ -251,10 +251,10 @@ const ToastContainer = () => {
   };
 
   return (
-    <div className="fixed top-4 left-4 z-[9999] space-y-2">
+    <div className="fixed top-4 right-4 z-[9999] space-y-2">
       <style>{`
-        @keyframes toast-in-left {
-          from { opacity: 0; transform: translateX(-16px); }
+        @keyframes toast-in-right {
+          from { opacity: 0; transform: translateX(16px); }
           to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
@@ -262,7 +262,7 @@ const ToastContainer = () => {
         <div
           key={toast.id}
           className={`min-w-[320px] max-w-md rounded-2xl border px-5 py-4 shadow-lg ${colorMap[toast.type] || colorMap.info}`}
-          style={{ animation: 'toast-in-left 0.25s ease-out' }}
+          style={{ animation: 'toast-in-right 0.25s ease-out' }}
         >
           <p className="text-base font-semibold">{toast.message}</p>
         </div>
@@ -6019,7 +6019,7 @@ const ProtocolosModule = ({
     }
   };
 
-  const handleIncomingChatMessage = (mensaje, { notify = true } = {}) => {
+  const handleIncomingChatMessage = (mensaje, { notify = false } = {}) => {
     if (!mensaje) return;
     const protocoloId = mensaje.protocolo_id;
     if (!protocoloId) return;
@@ -6094,7 +6094,7 @@ const ProtocolosModule = ({
           table: 'protocolos_chat_mensajes'
         },
         (payload) => {
-          handleIncomingChatMessage(payload.new || {}, { notify: true });
+          handleIncomingChatMessage(payload.new || {}, { notify: false });
         }
       )
       .subscribe((status) => {
@@ -6133,7 +6133,7 @@ const ProtocolosModule = ({
       if (!Array.isArray(data) || data.length === 0) return;
 
       data.forEach((mensaje) => {
-        handleIncomingChatMessage(mensaje, { notify: true });
+        handleIncomingChatMessage(mensaje, { notify: false });
       });
     };
 
@@ -12348,6 +12348,121 @@ const Dashboard = ({ user, onLogout }) => {
   const [sharedOrdenesCompra, setSharedOrdenesCompra] = useState([]);
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
+  const chatNotifyProcessedIdsRef = useRef(new Set());
+  const chatNotifyLastSyncRef = useRef(new Date().toISOString());
+  const protocolosByIdRef = useRef(new Map());
+
+  useEffect(() => {
+    const byId = new Map();
+    sharedProtocolos.forEach((protocolo) => {
+      if (protocolo?.id) byId.set(protocolo.id, protocolo);
+    });
+    protocolosByIdRef.current = byId;
+  }, [sharedProtocolos]);
+
+  const registerProcessedChatNotify = (messageId) => {
+    if (!messageId) return false;
+    const ids = chatNotifyProcessedIdsRef.current;
+    if (ids.has(messageId)) return true;
+    ids.add(messageId);
+    if (ids.size > 2000) {
+      const keep = Array.from(ids).slice(-1200);
+      chatNotifyProcessedIdsRef.current = new Set(keep);
+    }
+    return false;
+  };
+
+  const updateChatNotifySync = (isoDate) => {
+    if (!isoDate) return;
+    const next = new Date(isoDate).getTime();
+    if (Number.isNaN(next)) return;
+    const prev = chatNotifyLastSyncRef.current ? new Date(chatNotifyLastSyncRef.current).getTime() : null;
+    if (!prev || next > prev) {
+      chatNotifyLastSyncRef.current = isoDate;
+    }
+  };
+
+  const notifyIncomingChatMessage = (mensaje) => {
+    if (!mensaje?.id || !mensaje?.protocolo_id) return;
+    if (registerProcessedChatNotify(mensaje.id)) return;
+
+    updateChatNotifySync(mensaje.created_at || new Date().toISOString());
+
+    const isOwnMessage = (
+      (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
+      (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
+    );
+
+    if (isOwnMessage) return;
+
+    const protocolo = protocolosByIdRef.current.get(mensaje.protocolo_id);
+    const nombreProyecto = protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`;
+    const remitente = String(mensaje.user_name || mensaje.user_email || 'Usuario');
+
+    notifyToast(`Mensaje de ${remitente} en ${nombreProyecto || 'proyecto'}`, 'info');
+    playNotificationSound();
+  };
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('global-chat-notify')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes'
+        },
+        (payload) => {
+          notifyIncomingChatMessage(payload.new || {});
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime global de chat con problemas, activando fallback por polling.');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollChatNotifications = async () => {
+      if (cancelled) return;
+      const since = chatNotifyLastSyncRef.current;
+      if (!since) return;
+
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('id, protocolo_id, user_id, user_name, user_email, created_at')
+        .gt('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(200);
+
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en polling global de notificaciones de chat:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      data.forEach((mensaje) => notifyIncomingChatMessage(mensaje));
+    };
+
+    const intervalId = setInterval(pollChatNotifications, 5000);
+    pollChatNotifications();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.id, user?.email]);
 
   const calcularNetoCotizacion = (cot) => {
     // Si ya tiene neto, usarlo directamente
