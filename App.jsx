@@ -6081,10 +6081,7 @@ const ProtocolosModule = ({
   const vistaActualRef = useRef('listado');
   const protocoloSeleccionadoRef = useRef(null);
 
-  const userEmail = String(user?.email || '').toLowerCase();
-  const hideFinancials =
-    user?.role === 'compras' &&
-    (userEmail.includes('eyzaguirre') || userEmail.includes('jeyzaguirre') || userEmail.includes('jyzaguirre'));
+  const hideFinancials = user?.role === 'compras';
   
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
@@ -7010,7 +7007,9 @@ const VistaListadoProtocolos = ({ protocolos, chatReadState = {}, onVerDetalle, 
                   </>
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas BM</th>
+                {!hideFinancials && (
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas ADL</th>
+                )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">No leídos</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
@@ -7018,7 +7017,7 @@ const VistaListadoProtocolos = ({ protocolos, chatReadState = {}, onVerDetalle, 
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={hideFinancials ? 9 : 12} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={hideFinancials ? 9 : 13} className="px-6 py-8 text-center text-gray-500">
                     Cargando protocolos...
                   </td>
                 </tr>
@@ -7072,19 +7071,21 @@ const VistaListadoProtocolos = ({ protocolos, chatReadState = {}, onVerDetalle, 
                       {protocolo.estado}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    {resumenFacturas ? (
-                      <div>
-                        <p className="font-medium text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</p>
-                        <p className="text-xs text-gray-500">{resumenFacturas.ultima?.fecha || ''}</p>
-                        {resumenFacturas.count > 1 && (
-                          <p className="text-xs text-gray-400">+{resumenFacturas.count - 1} más</p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 text-sm">Sin facturas</span>
-                    )}
-                  </td>
+                  {!hideFinancials && (
+                    <td className="px-6 py-4">
+                      {resumenFacturas ? (
+                        <div>
+                          <p className="font-medium text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</p>
+                          <p className="text-xs text-gray-500">{resumenFacturas.ultima?.fecha || ''}</p>
+                          {resumenFacturas.count > 1 && (
+                            <p className="text-xs text-gray-400">+{resumenFacturas.count - 1} más</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">Sin facturas</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <MessageCircle className={`w-5 h-5 ${hasUnreadMessages ? 'text-green-600' : 'text-gray-400'}`} />
@@ -7747,7 +7748,7 @@ const VistaDetalleProtocolo = ({
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-4 text-sm">
+              <div className={`grid grid-cols-2 ${hideFinancials ? 'md:grid-cols-4' : 'md:grid-cols-7'} gap-4 text-sm`}>
                 <div>
                   <p className="text-gray-500">Cliente:</p>
                   <p className="font-semibold text-gray-800">{protocolo.cliente}</p>
@@ -7784,24 +7785,26 @@ const VistaDetalleProtocolo = ({
                     {protocolo.ocCliente || <span className="text-gray-400">Sin OC</span>}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Facturas BM:</p>
-                  <p className="font-semibold text-gray-800">
-                    {resumenFacturas ? (
-                      <>
-                        <span className="text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</span>
-                        {resumenFacturas.ultima?.fecha && (
-                          <span className="text-xs text-gray-500 ml-2">{resumenFacturas.ultima?.fecha}</span>
-                        )}
-                        <span className="text-xs text-gray-500 ml-2">
-                          ({resumenFacturas.count} factura{resumenFacturas.count === 1 ? '' : 's'})
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400">Sin facturas</span>
-                    )}
-                  </p>
-                </div>
+                {!hideFinancials && (
+                  <div>
+                    <p className="text-gray-500">Facturas ADL:</p>
+                    <p className="font-semibold text-gray-800">
+                      {resumenFacturas ? (
+                        <>
+                          <span className="text-green-600">{resumenFacturas.ultima?.numero || 'Sin número'}</span>
+                          {resumenFacturas.ultima?.fecha && (
+                            <span className="text-xs text-gray-500 ml-2">{resumenFacturas.ultima?.fecha}</span>
+                          )}
+                          <span className="text-xs text-gray-500 ml-2">
+                            ({resumenFacturas.count} factura{resumenFacturas.count === 1 ? '' : 's'})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400">Sin facturas</span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -7816,17 +7819,19 @@ const VistaDetalleProtocolo = ({
               <ShoppingCart className="w-5 h-5 inline mr-2" />
               Adjudicar Compra (Crear OC)
             </button>
-            <button
-              onClick={() => {
-                setFacturaEnEdicion(null);
-                setShowFacturaModal(true);
-              }}
-              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
-            >
-              <FileText className="w-5 h-5 inline mr-2" />
-              Agregar Factura
-            </button>
+            {!hideFinancials && (
+              <button
+                onClick={() => {
+                  setFacturaEnEdicion(null);
+                  setShowFacturaModal(true);
+                }}
+                className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+                style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
+              >
+                <FileText className="w-5 h-5 inline mr-2" />
+                Agregar Factura
+              </button>
+            )}
             <button
               onClick={async () => {
                 const ocCliente = prompt('Ingrese el número de OC del cliente:');
@@ -8119,82 +8124,79 @@ const VistaDetalleProtocolo = ({
         )}
       </div>
 
-      {/* Facturas del Protocolo */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg mt-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          Facturas ADL Studio ({facturasProtocolo.length})
-        </h3>
-        {facturasProtocolo.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Doc</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
-                  {!hideFinancials && (
+      {!hideFinancials && (
+        <div className="bg-white rounded-2xl p-6 shadow-lg mt-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            Facturas ADL ({facturasProtocolo.length})
+          </h3>
+          {facturasProtocolo.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Tipo Doc</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">N°</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Fecha</th>
                     <>
                       <th className="px-4 py-3 text-left text-sm font-semibold">Neto</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">IVA</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">Total</th>
                     </>
-                  )}
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {facturasProtocolo.map((factura) => {
-                  const isLegacy = String(factura.id).startsWith('legacy-');
-                  const estadoColor = factura.estado === 'Pagada'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-yellow-100 text-yellow-800';
-                  return (
-                    <tr key={factura.id}>
-                      <td className="px-4 py-3 font-semibold">{factura.tipoDoc || 'Factura'}</td>
-                      <td className="px-4 py-3 text-gray-700">{factura.numero || 'Sin número'}</td>
-                      <td className="px-4 py-3 text-gray-600">{factura.fecha || 'Sin fecha'}</td>
-                      {!hideFinancials && (
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {facturasProtocolo.map((factura) => {
+                    const isLegacy = String(factura.id).startsWith('legacy-');
+                    const estadoColor = factura.estado === 'Pagada'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-yellow-100 text-yellow-800';
+                    return (
+                      <tr key={factura.id}>
+                        <td className="px-4 py-3 font-semibold">{factura.tipoDoc || 'Factura'}</td>
+                        <td className="px-4 py-3 text-gray-700">{factura.numero || 'Sin número'}</td>
+                        <td className="px-4 py-3 text-gray-600">{factura.fecha || 'Sin fecha'}</td>
                         <>
                           <td className="px-4 py-3">{formatCurrency(factura.montoNeto || 0)}</td>
                           <td className="px-4 py-3">{formatCurrency(factura.iva || 0)}</td>
                           <td className="px-4 py-3 font-semibold">{formatCurrency(factura.total || 0)}</td>
                         </>
-                      )}
-                      <td className="px-4 py-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${estadoColor}`}>
-                          {factura.estado || 'Emitida'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 space-x-2">
-                        <button
-                          onClick={() => {
-                            setFacturaEnEdicion(factura);
-                            setShowFacturaModal(true);
-                          }}
-                          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
-                          disabled={isLegacy}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => eliminarFacturaProtocolo(factura)}
-                          className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
-                          disabled={isLegacy}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-gray-500 text-sm">No hay facturas registradas.</div>
-        )}
-      </div>
+                        <td className="px-4 py-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${estadoColor}`}>
+                            {factura.estado || 'Emitida'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 space-x-2">
+                          <button
+                            onClick={() => {
+                              setFacturaEnEdicion(factura);
+                              setShowFacturaModal(true);
+                            }}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                            disabled={isLegacy}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => eliminarFacturaProtocolo(factura)}
+                            className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50"
+                            disabled={isLegacy}
+                          >
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-gray-500 text-sm">No hay facturas registradas.</div>
+          )}
+        </div>
+      )}
 
       {showFacturaModal && (
         <FacturaProtocoloModal
