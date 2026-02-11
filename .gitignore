@@ -6,3 +6,5 @@ backend/data
 .DS_Store
 *.log
 mnt
+supabase/.temp/
+src/api/*-BACKUP.js
