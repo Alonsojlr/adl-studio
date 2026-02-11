@@ -12,12 +12,12 @@ import {
   deleteProtocoloFactura
 } from './src/api/protocolos';
 import { getOrdenesCompra, getOrdenCompraById, createOrdenCompra, updateOrdenCompra, replaceOrdenCompraItems, deleteOrdenCompra } from './src/api/ordenes-compra';
-import { getClientes, createCliente, updateCliente, deleteCliente } from './src/api/clientes';
+import { getClientes, createCliente, updateCliente, deleteCliente, getContactosByCliente, createContacto, updateContacto, deleteContacto, getAllContactos } from './src/api/clientes';
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor } from './src/api/proveedores';
 import { autenticarUsuario, cerrarSesion, obtenerSesionActual, getUsuarios, createUsuario, updateUsuario, deleteUsuario } from './src/api/usuarios';
-import { getInventarioItems, getInventarioReservas, createInventarioItem, createInventarioReserva, updateInventarioReserva } from './src/api/inventario';
+import { getInventarioItems, getInventarioReservas, createInventarioItem, updateInventarioItem, deleteInventarioItem, createInventarioReserva, updateInventarioReserva, deleteInventarioReserva, deleteInventarioReservasByItem } from './src/api/inventario';
 import { getGastosAdministracion, createGastoAdministracion, updateGastoAdministracion, deleteGastoAdministracion } from './src/api/administracion';
-import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, FileText, ShoppingCart, Package, Users, Building2, Settings, LogOut, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, Pause, Download, Calendar, ChevronLeft, ChevronRight, Plus, Trash2, Edit2, Edit3, Star, MessageCircle, ZoomIn, ZoomOut } from 'lucide-react';
 import { generarCotizacionPDF, generarOCPDF, generarProtocoloPDF } from './src/utils/documentGenerator';
 
 const TOAST_EVENT = 'app-toast';
@@ -32,6 +32,29 @@ const alert = (message) => {
   const normalized = String(message || '').toLowerCase();
   const type = normalized.includes('error') ? 'error' : 'success';
   notifyToast(message, type);
+};
+
+const playNotificationSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const audioCtx = new AudioCtx();
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, audioCtx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.26);
+  } catch (error) {
+    console.error('No se pudo reproducir sonido de notificación:', error);
+  }
 };
 
 
@@ -150,6 +173,39 @@ const MEDIOS_PAGO = [
   'Tarjeta de Crédito'
 ];
 
+const normalizeRole = (role) => {
+  const normalized = String(role || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
+  if (normalized === 'trademarketing' || normalized === 'trade-marketing') {
+    return 'trade_marketing';
+  }
+  return normalized;
+};
+
+const getRoleLabel = (role) => {
+  const normalized = normalizeRole(role);
+  const labels = {
+    admin: 'Admin',
+    comercial: 'Comercial',
+    compras: 'Compras',
+    finanzas: 'Finanzas'
+  };
+  return labels[normalized] || role;
+};
+
+const LOGIN_PORTALS = [
+  {
+    id: 'buildingme',
+    title: 'Building Me',
+    subtitle: 'Acceso General',
+    allowedRoles: ['admin', 'comercial', 'compras', 'finanzas'],
+    buttonLabel: 'Entrar a Building Me'
+  }
+];
+
 const normalizarNumero = (value) => String(value || '').replace(/\D/g, '');
 
 const ToastContainer = () => {
@@ -178,10 +234,10 @@ const ToastContainer = () => {
   };
 
   return (
-    <div className="fixed top-4 left-4 z-[9999] space-y-2">
+    <div className="fixed top-4 right-4 z-[9999] space-y-2">
       <style>{`
-        @keyframes toast-in-left {
-          from { opacity: 0; transform: translateX(-16px); }
+        @keyframes toast-in-right {
+          from { opacity: 0; transform: translateX(16px); }
           to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
@@ -189,7 +245,7 @@ const ToastContainer = () => {
         <div
           key={toast.id}
           className={`min-w-[320px] max-w-md rounded-2xl border px-5 py-4 shadow-lg ${colorMap[toast.type] || colorMap.info}`}
-          style={{ animation: 'toast-in-left 0.25s ease-out' }}
+          style={{ animation: 'toast-in-right 0.25s ease-out' }}
         >
           <p className="text-base font-semibold">{toast.message}</p>
         </div>
@@ -200,29 +256,55 @@ const ToastContainer = () => {
 
 // Componente de Login
 const LoginPage = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [credentials, setCredentials] = useState({
+    buildingme: { email: '', password: '', showPassword: false }
+  });
+  const [errors, setErrors] = useState({});
+  const [submittingPortal, setSubmittingPortal] = useState('');
 
-  const handleSubmit = async (e) => {
+  const updatePortalField = (portalId, field, value) => {
+    setCredentials((prev) => ({
+      ...prev,
+      [portalId]: {
+        ...prev[portalId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSubmitPortal = async (e, portal) => {
     e.preventDefault();
-    setError('');
-    
+    const portalCredentials = credentials[portal.id];
+    const email = portalCredentials.email.trim().toLowerCase();
+    const password = portalCredentials.password;
+
+    setErrors((prev) => ({ ...prev, [portal.id]: '' }));
+    setSubmittingPortal(portal.id);
+
     try {
-      const usuario = await autenticarUsuario(username.toLowerCase(), password);
-      
+      const usuario = await autenticarUsuario(email, password);
+      const normalizedRole = normalizeRole(usuario.rol);
+
+      if (!portal.allowedRoles.includes(normalizedRole)) {
+        await cerrarSesion();
+        throw new Error('Este usuario no pertenece a este tipo de acceso');
+      }
+
       onLogin({
         id: usuario.id,
         email: usuario.email,
         username: usuario.email,
         name: usuario.nombre,
-        role: usuario.rol
+        role: normalizedRole
       });
     } catch (error) {
       console.error('Error login:', error);
-      setError('Usuario o contraseña incorrectos');
-      setTimeout(() => setError(''), 3000);
+      const errorMessage = error?.message?.includes('tipo de acceso')
+        ? error.message
+        : 'Usuario o contraseña incorrectos';
+      setErrors((prev) => ({ ...prev, [portal.id]: errorMessage }));
+    } finally {
+      setSubmittingPortal('');
     }
   };
 
@@ -230,7 +312,7 @@ const LoginPage = ({ onLogin }) => {
     <div 
       className="min-h-screen flex items-center justify-center relative overflow-hidden"
       style={{
-        backgroundImage: 'url(/bg-login-adl.png)',
+        backgroundImage: 'url(/bg-login3.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -240,94 +322,98 @@ const LoginPage = ({ onLogin }) => {
       <div className="absolute inset-0 bg-black/20"></div>
 
       {/* Contenedor del login */}
-      <div className="relative z-10 w-full max-w-md px-6">
-        {/* Logo ADL Studio centrado */}
-        <div className="text-center mb-20">
-          <img
-            src="/logo-adl-studio.png"
-            alt="ADL Studio"
+      <div className="relative z-10 w-full max-w-6xl px-6">
+        {/* Logo Building Me centrado */}
+        <div className="text-center mb-12">
+          <img 
+            src="/logo-building-me.png" 
+            alt="Building Me" 
             className="h-20 mx-auto"
             style={{ filter: 'brightness(0) invert(1) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.3))' }}
           />
         </div>
 
-        {/* Card de Login */}
-        <div 
-          className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8"
-          style={{
-            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
-          }}
-        >
-          <h2 className="text-3xl font-bold text-white text-center mb-8">Login</h2>
+        {/* Cards de Login */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {LOGIN_PORTALS.map((portal) => {
+            const portalData = credentials[portal.id];
+            const portalError = errors[portal.id];
+            const isSubmitting = submittingPortal === portal.id;
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl backdrop-blur-sm">
-              <p className="text-white text-sm text-center font-semibold">{error}</p>
-            </div>
-          )}
+            return (
+              <div
+                key={portal.id}
+                className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-6"
+                style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
+              >
+                <h2 className="text-2xl font-bold text-white text-center">{portal.title}</h2>
+                <p className="text-white/75 text-sm text-center mt-1 mb-6">{portal.subtitle}</p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Campo Usuario */}
-            <div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Usuario"
-                  className="w-full px-6 py-4 bg-white/10 border-2 border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:border-white/60 backdrop-blur-sm transition-all text-lg"
-                  required
-                />
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                  <svg className="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
+                {portalError && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl backdrop-blur-sm">
+                    <p className="text-white text-sm text-center font-semibold">{portalError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={(e) => handleSubmitPortal(e, portal)} className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={portalData.email}
+                      onChange={(e) => updatePortalField(portal.id, 'email', e.target.value)}
+                      placeholder="Email"
+                      className="w-full px-5 py-3 bg-white/10 border-2 border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:border-white/60 backdrop-blur-sm transition-all"
+                      required
+                    />
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                      <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={portalData.showPassword ? 'text' : 'password'}
+                      value={portalData.password}
+                      onChange={(e) => updatePortalField(portal.id, 'password', e.target.value)}
+                      placeholder="Contraseña"
+                      className="w-full px-5 py-3 bg-white/10 border-2 border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:border-white/60 backdrop-blur-sm transition-all"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updatePortalField(portal.id, 'showPassword', !portalData.showPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2"
+                    >
+                      {portalData.showPassword ? (
+                        <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 rounded-2xl font-bold shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)',
+                      color: '#235250'
+                    }}
+                  >
+                    {isSubmitting ? 'Validando...' : portal.buttonLabel}
+                  </button>
+                </form>
               </div>
-            </div>
-
-            {/* Campo Contraseña */}
-            <div>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Contraseña"
-                  className="w-full px-6 py-4 bg-white/10 border-2 border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:border-white/60 backdrop-blur-sm transition-all text-lg"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2"
-                >
-                  {showPassword ? (
-                    <svg className="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Botón Login */}
-            <button
-              type="submit"
-              className="w-full py-4 rounded-2xl font-bold text-lg shadow-xl transition-all transform hover:scale-105 hover:shadow-2xl"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%)',
-                color: '#0B1F3B'
-              }}
-            >
-              Iniciar Sesión
-            </button>
-          </form>
+            );
+          })}
         </div>
 
         {/* Footer con logo KODIAK */}
@@ -335,9 +421,9 @@ const LoginPage = ({ onLogin }) => {
           <p className="text-white/70 text-sm mb-4">
             Kodiak Software © 2025 - Todos los derechos reservados
           </p>
-          <img
-            src="/logo-kodiak.png"
-            alt="KODIAK"
+          <img 
+            src="/logo-kodiak.png" 
+            alt="KODIAK" 
             className="h-20 mx-auto opacity-90"
           />
         </div>
@@ -349,13 +435,16 @@ const LoginPage = ({ onLogin }) => {
 // Componente de Módulo de Inventario/Bodega
 const InventarioModule = ({ activeModule }) => {
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showFichaModal, setShowFichaModal] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
+  const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [itemsError, setItemsError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('todas');
+  const [cardMinWidth, setCardMinWidth] = useState(280);
 
   const loadItems = async (selectedId = null) => {
     try {
@@ -464,6 +553,47 @@ const InventarioModule = ({ activeModule }) => {
     reservasActivas: items.reduce((sum, i) => sum + i.reservas.filter(r => !r.devuelto).length, 0),
     reservasVencidas: items.reduce((sum, i) => sum + i.reservas.filter(isReservaVencida).length, 0)
   };
+  const cardImageHeight = Math.max(220, Math.min(340, Math.round(cardMinWidth * 0.78)));
+
+  const handleEditarItem = (item) => {
+    setItemEnEdicion(item);
+    setShowEditModal(true);
+  };
+
+  const handleEliminarItem = async (item) => {
+    const reservasActivas = (item.reservas || []).filter((r) => !r.devuelto);
+    const reservasDevueltas = (item.reservas || []).filter((r) => r.devuelto);
+
+    if (reservasActivas.length > 0) {
+      alert(`No puedes eliminar este item porque tiene ${reservasActivas.length} reserva(s) activa(s). Marca devolución o elimina esas reservas primero.`);
+      return;
+    }
+
+    const advertenciaDevueltas = reservasDevueltas.length > 0
+      ? `\n\nSe eliminarán también ${reservasDevueltas.length} reserva(s) en estado devuelto.`
+      : '';
+
+    const confirmar = window.confirm(
+      `¿Eliminar el item "${item.nombre}" (${item.codigo})?${advertenciaDevueltas}`
+    );
+    if (!confirmar) return;
+
+    try {
+      if (reservasDevueltas.length > 0) {
+        await deleteInventarioReservasByItem(item.id, { onlyReturned: true });
+      }
+      await deleteInventarioItem(item.id);
+      if (itemSeleccionado?.id === item.id) {
+        setShowFichaModal(false);
+        setItemSeleccionado(null);
+      }
+      await loadItems();
+      notifyToast('Item eliminado correctamente', 'success');
+    } catch (error) {
+      console.error('Error eliminando item:', error);
+      alert('No se pudo eliminar el item. Verifica si tiene reservas relacionadas.');
+    }
+  };
 
   return (
     <div>
@@ -476,7 +606,7 @@ const InventarioModule = ({ activeModule }) => {
         <button
           onClick={() => setShowNewModal(true)}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
         >
           <Package className="w-5 h-5" />
           <span>Nuevo Item</span>
@@ -549,26 +679,47 @@ const InventarioModule = ({ activeModule }) => {
 
       {/* Búsqueda y Filtros */}
       <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Buscar por código, nombre o descripción..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <select
             value={filterCategoria}
             onChange={(e) => setFilterCategoria(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
           >
             <option value="todas">Todas las categorías</option>
             {categorias.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <ZoomOut className="w-4 h-4 text-gray-500" />
+              <span>Tamaño de cards</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>{cardMinWidth < 270 ? 'Chicas' : cardMinWidth > 320 ? 'Grandes' : 'Medianas'}</span>
+              <ZoomIn className="w-4 h-4 text-gray-500" />
+            </div>
+          </div>
+          <input
+            type="range"
+            min="220"
+            max="360"
+            step="10"
+            value={cardMinWidth}
+            onChange={(e) => setCardMinWidth(Number(e.target.value))}
+            className="w-full accent-[#45ad98]"
+          />
         </div>
       </div>
 
@@ -578,7 +729,10 @@ const InventarioModule = ({ activeModule }) => {
           <p className="text-gray-500">Cargando inventario...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          className="grid gap-6"
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${cardMinWidth}px, 1fr))` }}
+        >
           {itemsFiltrados.map((item) => {
             const disponible = calcularStockDisponible(item);
             const porcentajeDisponible = (disponible / item.stockTotal) * 100;
@@ -586,7 +740,10 @@ const InventarioModule = ({ activeModule }) => {
             return (
               <div key={item.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all">
                 {/* Imagen */}
-                <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div
+                  className="bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+                  style={{ height: `${cardImageHeight}px` }}
+                >
                   {item.foto ? (
                     <img src={item.foto} alt={item.nombre} className="w-full h-full object-cover" />
                   ) : (
@@ -658,10 +815,24 @@ const InventarioModule = ({ activeModule }) => {
                       setShowFichaModal(true);
                     }}
                     className="w-full py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                    style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
                   >
                     Ver Ficha Completa
                   </button>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <button
+                      onClick={() => handleEditarItem(item)}
+                      className="w-full py-2 rounded-xl border-2 border-[#45ad98] text-[#235250] font-semibold hover:bg-[#45ad98]/10 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleEliminarItem(item)}
+                      className="w-full py-2 rounded-xl border-2 border-red-300 text-red-700 font-semibold hover:bg-red-50 transition-colors"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -679,6 +850,7 @@ const InventarioModule = ({ activeModule }) => {
       {/* Modales */}
       {showNewModal && (
         <NuevoItemModal 
+          mode="create"
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevoItem) => {
             try {
@@ -704,6 +876,42 @@ const InventarioModule = ({ activeModule }) => {
             } catch (error) {
               console.error('Error creando item:', error);
               alert('Error al crear item en inventario');
+            }
+          }}
+        />
+      )}
+
+      {showEditModal && itemEnEdicion && (
+        <NuevoItemModal
+          mode="edit"
+          initialData={itemEnEdicion}
+          onClose={() => {
+            setShowEditModal(false);
+            setItemEnEdicion(null);
+          }}
+          onSave={async (itemEditado) => {
+            try {
+              const updates = {
+                nombre: itemEditado.nombre,
+                descripcion: itemEditado.descripcion,
+                categoria: itemEditado.categoria,
+                especificaciones: itemEditado.especificaciones,
+                unidad_medida: itemEditado.unidadMedida,
+                stock_total: itemEditado.stockTotal,
+                ubicacion: itemEditado.ubicacion,
+                proveedor_principal: itemEditado.proveedorPrincipal,
+                precio_costo: itemEditado.precioCosto,
+                foto_url: itemEditado.foto || null
+              };
+
+              await updateInventarioItem(itemEnEdicion.id, updates);
+              await loadItems(itemEnEdicion.id);
+              setShowEditModal(false);
+              setItemEnEdicion(null);
+              notifyToast('Item actualizado correctamente', 'success');
+            } catch (error) {
+              console.error('Error actualizando item:', error);
+              alert('Error al actualizar item del inventario');
             }
           }}
         />
@@ -742,26 +950,41 @@ const InventarioModule = ({ activeModule }) => {
               alert('Error al actualizar reserva');
             }
           }}
+          onEliminarReserva={async (reservaId) => {
+            try {
+              await deleteInventarioReserva(reservaId);
+              await loadItems(itemSeleccionado.id);
+              notifyToast('Reserva eliminada correctamente', 'success');
+            } catch (error) {
+              console.error('Error eliminando reserva:', error);
+              alert('Error al eliminar reserva');
+            }
+          }}
         />
       )}
     </div>
   );
 };
 
-// Modal Nuevo Item
-const NuevoItemModal = ({ onClose, onSave }) => {
-  const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    categoria: '',
-    especificaciones: '',
-    unidadMedida: 'Unidad',
-    stockTotal: 1,
-    ubicacion: '',
-    proveedorPrincipal: '',
-    precioCosto: 0,
-    foto: null
+// Modal Nuevo/Editar Item
+const NuevoItemModal = ({ onClose, onSave, mode = 'create', initialData = null }) => {
+  const getInitialFormData = () => ({
+    nombre: initialData?.nombre || '',
+    descripcion: initialData?.descripcion || '',
+    categoria: initialData?.categoria || '',
+    especificaciones: initialData?.especificaciones || '',
+    unidadMedida: initialData?.unidadMedida || 'Unidad',
+    stockTotal: Number.isFinite(Number(initialData?.stockTotal)) ? Number(initialData.stockTotal) : 1,
+    ubicacion: initialData?.ubicacion || '',
+    proveedorPrincipal: initialData?.proveedorPrincipal || '',
+    precioCosto: Number.isFinite(Number(initialData?.precioCosto)) ? Number(initialData.precioCosto) : 0,
+    foto: initialData?.foto || null
   });
+  const [formData, setFormData] = useState(getInitialFormData());
+
+  useEffect(() => {
+    setFormData(getInitialFormData());
+  }, [initialData, mode]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -771,9 +994,11 @@ const NuevoItemModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
-            <h3 className="text-2xl font-bold text-white">Nuevo Item de Inventario</h3>
+            <h3 className="text-2xl font-bold text-white">
+              {mode === 'edit' ? 'Editar Item de Inventario' : 'Nuevo Item de Inventario'}
+            </h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
               <XCircle className="w-6 h-6" />
             </button>
@@ -789,7 +1014,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.nombre}
                 onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: TV Samsung 50 pulgadas"
               />
             </div>
@@ -801,7 +1026,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 value={formData.descripcion}
                 onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
                 rows="2"
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Descripción detallada del item"
               />
             </div>
@@ -813,7 +1038,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.categoria}
                 onChange={(e) => setFormData({...formData, categoria: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: Electrónica, Mobiliario"
               />
             </div>
@@ -824,7 +1049,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 type="text"
                 value={formData.especificaciones}
                 onChange={(e) => setFormData({...formData, especificaciones: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: 50 pulgadas, 4K, Smart TV"
               />
             </div>
@@ -835,7 +1060,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.unidadMedida}
                 onChange={(e) => setFormData({...formData, unidadMedida: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
               >
                 <option value="Unidad">Unidad</option>
                 <option value="Metro">Metro</option>
@@ -854,7 +1079,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 min="0"
                 value={formData.stockTotal}
                 onChange={(e) => setFormData({...formData, stockTotal: parseInt(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
 
@@ -866,7 +1091,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 required
                 value={formData.ubicacion}
                 onChange={(e) => setFormData({...formData, ubicacion: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: Bodega A - Estante 3"
               />
             </div>
@@ -877,7 +1102,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 type="text"
                 value={formData.proveedorPrincipal}
                 onChange={(e) => setFormData({...formData, proveedorPrincipal: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
 
@@ -888,7 +1113,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                 min="0"
                 value={formData.precioCosto}
                 onChange={(e) => setFormData({...formData, precioCosto: parseFloat(e.target.value) || 0})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
 
@@ -907,7 +1132,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
                     reader.readAsDataURL(e.target.files[0]);
                   }
                 }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
               <p className="text-xs text-gray-500 mt-1">Sube una imagen del producto (opcional)</p>
             </div>
@@ -924,9 +1149,9 @@ const NuevoItemModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
-              Crear Item
+              {mode === 'edit' ? 'Guardar Cambios' : 'Crear Item'}
             </button>
           </div>
         </form>
@@ -936,7 +1161,7 @@ const NuevoItemModal = ({ onClose, onSave }) => {
 };
 
 // Modal Ficha Completa del Item
-const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDevuelto }) => {
+const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDevuelto, onEliminarReserva }) => {
   const [item, setItem] = useState({ ...itemInicial, reservas: itemInicial.reservas || [] });
   const [showReservaModal, setShowReservaModal] = useState(false);
 
@@ -961,6 +1186,20 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
     }
   };
 
+  const eliminarReserva = (reservaId) => {
+    const confirmar = window.confirm('¿Eliminar esta reserva del historial?');
+    if (!confirmar) return;
+
+    const actualizado = {
+      ...item,
+      reservas: item.reservas.filter((r) => r.id !== reservaId)
+    };
+    setItem(actualizado);
+    if (onEliminarReserva) {
+      onEliminarReserva(reservaId);
+    }
+  };
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -978,7 +1217,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">{item.nombre}</h3>
@@ -1055,7 +1294,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                   <h4 className="font-bold text-gray-800">Calendario de Reservas</h4>
                   <button
                     onClick={() => setShowReservaModal(true)}
-                    className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors text-sm"
+                    className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors text-sm"
                   >
                     + Nueva Reserva
                   </button>
@@ -1097,14 +1336,22 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
                               )}
                             </td>
                             <td className="px-3 py-3">
-                              {!reserva.devuelto && (
+                              <div className="flex items-center gap-2">
+                                {!reserva.devuelto && (
+                                  <button
+                                    onClick={() => marcarDevuelto(reserva.id)}
+                                    className="px-3 py-1 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600"
+                                  >
+                                    Devolver
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => marcarDevuelto(reserva.id)}
-                                  className="px-3 py-1 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600"
+                                  onClick={() => eliminarReserva(reserva.id)}
+                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs font-semibold hover:bg-red-600"
                                 >
-                                  Devolver
+                                  Eliminar
                                 </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1125,7 +1372,7 @@ const FichaItemModal = ({ item: itemInicial, onClose, onCrearReserva, onMarcarDe
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             Cerrar Ficha
           </button>
@@ -1184,7 +1431,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="text"
               value={formData.protocolo}
               onChange={(e) => setFormData({...formData, protocolo: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               placeholder="Ej: 30650"
             />
           </div>
@@ -1196,7 +1443,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               max={disponible}
               value={formData.cantidad}
               onChange={(e) => setFormData({...formData, cantidad: parseInt(e.target.value) || 1})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <div>
@@ -1205,7 +1452,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="date"
               value={formData.fechaDesde}
               onChange={(e) => setFormData({...formData, fechaDesde: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <div>
@@ -1214,7 +1461,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
               type="date"
               value={formData.fechaHasta}
               onChange={(e) => setFormData({...formData, fechaHasta: e.target.value})}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
         </div>
@@ -1227,7 +1474,7 @@ const ReservaModal = ({ item, onClose, onSave }) => {
           </button>
           <button
             onClick={() => onSave(formData)}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
             disabled={!formData.protocolo || !formData.fechaDesde || !formData.fechaHasta || formData.cantidad > disponible}
           >
             Crear Reserva
@@ -1288,7 +1535,7 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
           item_id: item.id,
           item: item.nombre,
           descripcion: item.descripcion,
-          cantidad: 1,
+          cantidad: 0,
           valorUnitario: parseFloat(item.precio_costo) || 0,
           descuento: 0
         }
@@ -1492,7 +1739,7 @@ const BodegaItemsModal = ({ codigoProtocolo, onClose, onAgregarItems }) => {
           </button>
           <button
             onClick={agregarYReservar}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
             disabled={seleccionados.length === 0}
           >
             Agregar a OC
@@ -1730,7 +1977,7 @@ const AdministracionModule = ({ activeModule }) => {
         <button
           onClick={openNew}
           className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
         >
           + Registrar gasto
         </button>
@@ -1743,7 +1990,7 @@ const AdministracionModule = ({ activeModule }) => {
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="all">Todos</option>
               {months.map((mes) => (
@@ -1756,7 +2003,7 @@ const AdministracionModule = ({ activeModule }) => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="all">Todos</option>
               {yearsDisponibles.map((year) => (
@@ -1797,7 +2044,7 @@ const AdministracionModule = ({ activeModule }) => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Gasto</th>
@@ -1881,7 +2128,7 @@ const AdministracionModule = ({ activeModule }) => {
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
-            <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+            <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-2xl font-bold text-white">
@@ -1910,7 +2157,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.fecha}
                     onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -1920,7 +2167,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.nombreGasto}
                     onChange={(e) => setFormData({ ...formData, nombreGasto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -1930,7 +2177,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.proveedor}
                     onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -1940,7 +2187,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.numeroDocumento}
                     onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                     placeholder="Factura / Boleta / Contrato"
                   />
                 </div>
@@ -1950,7 +2197,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.medioPago}
                     onChange={(e) => setFormData({ ...formData, medioPago: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                   >
                     <option value="">Seleccione...</option>
                     {MEDIOS_PAGO.map((medio) => (
@@ -1966,7 +2213,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.montoNeto}
                     onChange={(e) => setFormData({ ...formData, montoNeto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -2002,7 +2249,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.tipoCosto}
                     onChange={(e) => setFormData({ ...formData, tipoCosto: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                   >
                     <option value="">Seleccione tipo...</option>
                     {ADMIN_TIPOS_COSTO.map((tipo) => (
@@ -2016,7 +2263,7 @@ const AdministracionModule = ({ activeModule }) => {
                     required
                     value={formData.actividadUso}
                     onChange={(e) => setFormData({ ...formData, actividadUso: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                   >
                     <option value="">Seleccione actividad...</option>
                     {ADMIN_ACTIVIDADES_USO.map((actividad) => (
@@ -2031,7 +2278,7 @@ const AdministracionModule = ({ activeModule }) => {
                   rows={3}
                   value={formData.observaciones}
                   onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div className="flex justify-end space-x-3 pt-2">
@@ -2047,7 +2294,7 @@ const AdministracionModule = ({ activeModule }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
                 >
                   {editingGasto ? 'Guardar cambios' : 'Registrar gasto'}
                 </button>
@@ -2255,7 +2502,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('dashboard')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'dashboard' 
-                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2265,7 +2512,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('tipo-costo')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'tipo-costo' 
-                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2275,7 +2522,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('margenes')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'margenes' 
-                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2285,7 +2532,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             onClick={() => setVistaActual('unidad-negocio')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all ${
               vistaActual === 'unidad-negocio' 
-                ? 'bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A] text-white shadow-lg' 
+                ? 'bg-gradient-to-r from-[#235250] to-[#45ad98] text-white shadow-lg' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -2302,7 +2549,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="all">Todos</option>
               {months.map((mes) => (
@@ -2315,7 +2562,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="all">Todos</option>
               {yearsDisponibles.map((year) => (
@@ -2345,7 +2592,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <p className="text-sm text-gray-500 mb-2">Total Gastos (Mes)</p>
-              <p className="text-3xl font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(totalGastos)}</p>
+              <p className="text-3xl font-bold" style={{ color: '#235250' }}>{formatCurrency(totalGastos)}</p>
             </div>
             <div className="bg-white rounded-xl p-6 shadow-lg">
               <p className="text-sm text-gray-500 mb-2">Total OC</p>
@@ -2397,15 +2644,15 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                         style={{ 
                           width: `${porcentaje}%`,
                           background: `linear-gradient(90deg, ${
-                            index === 0 ? '#0B1F3B' :
-                            index === 1 ? '#1E3A8A' :
-                            index === 2 ? '#3B82F6' :
+                            index === 0 ? '#235250' :
+                            index === 1 ? '#45ad98' :
+                            index === 2 ? '#33b4e9' :
                             index === 3 ? '#f59e0b' :
                             '#8b5cf6'
                           } 0%, ${
-                            index === 0 ? '#1E3A8A' :
-                            index === 1 ? '#3B82F6' :
-                            index === 2 ? '#1E3A8A' :
+                            index === 0 ? '#45ad98' :
+                            index === 1 ? '#33b4e9' :
+                            index === 2 ? '#45ad98' :
                             index === 3 ? '#fbbf24' :
                             '#a78bfa'
                           } 100%)`
@@ -2466,7 +2713,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <h3 className="text-xl font-bold text-gray-800 mb-4">Análisis Detallado por Tipo de Costo</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead style={{ backgroundColor: '#1E3A8A' }}>
+                <thead style={{ backgroundColor: '#45ad98' }}>
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Tipo de Costo</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cantidad OC</th>
@@ -2483,13 +2730,13 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                       <tr key={tipo.tipo} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-semibold text-gray-800">{tipo.tipo}</td>
                         <td className="px-6 py-4">{tipo.cantidad}</td>
-                        <td className="px-6 py-4 font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(tipo.total)}</td>
+                        <td className="px-6 py-4 font-bold" style={{ color: '#235250' }}>{formatCurrency(tipo.total)}</td>
                         <td className="px-6 py-4 text-gray-600">{formatCurrency(promedio)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A]"
+                                className="h-2 rounded-full bg-gradient-to-r from-[#235250] to-[#45ad98]"
                                 style={{ width: `${porcentaje}%` }}
                               ></div>
                             </div>
@@ -2573,7 +2820,7 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
             <h3 className="text-xl font-bold text-gray-800 mb-4">Gastos por Unidad de Negocio</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead style={{ backgroundColor: '#1E3A8A' }}>
+                <thead style={{ backgroundColor: '#45ad98' }}>
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Unidad de Negocio</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-white">Cantidad OC</th>
@@ -2588,12 +2835,12 @@ const InformesModule = ({ activeModule, sharedOrdenesCompra = [], sharedProtocol
                       <tr key={un.unidad} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-semibold text-gray-800">{un.unidad}</td>
                         <td className="px-6 py-4">{un.cantidad}</td>
-                        <td className="px-6 py-4 font-bold" style={{ color: '#0B1F3B' }}>{formatCurrency(un.total)}</td>
+                        <td className="px-6 py-4 font-bold" style={{ color: '#235250' }}>{formatCurrency(un.total)}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
                               <div 
-                                className="h-2 rounded-full bg-gradient-to-r from-[#0B1F3B] to-[#1E3A8A]"
+                                className="h-2 rounded-full bg-gradient-to-r from-[#235250] to-[#45ad98]"
                                 style={{ width: `${porcentaje}%` }}
                               ></div>
                             </div>
@@ -2620,7 +2867,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Buscar Protocolo</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -2637,7 +2884,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
             type="text"
             value={codigoProtocolo}
             onChange={(e) => setCodigoProtocolo(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] font-mono text-lg"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] font-mono text-lg"
             placeholder="Ej: 30650"
             autoFocus
           />
@@ -2661,7 +2908,7 @@ const ModalBuscarProtocolo = ({ onClose, onSeleccionar, sharedProtocolos }) => {
               }}
               disabled={!codigoProtocolo}
               className="px-6 py-3 rounded-xl text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Buscar
             </button>
@@ -2795,9 +3042,9 @@ const OrdenesCompraModule = ({
   const [filterEstado, setFilterEstado] = useState('todos');
 
   const ordenesFiltradas = ordenes.filter(orden => {
-    const matchSearch = (orden.numero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       (orden.proveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       (orden.codigoProtocolo || '').includes(searchTerm);
+    const matchSearch = orden.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       orden.proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       orden.codigoProtocolo.includes(searchTerm);
     const matchEstado = filterEstado === 'todos' || orden.estado === filterEstado;
     return matchSearch && matchEstado;
   });
@@ -2879,7 +3126,7 @@ const OrdenesCompraModule = ({
             <button
               onClick={() => setShowNewModal(true)}
               className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-              style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
+              style={{ borderColor: '#45ad98', color: '#45ad98' }}
             >
               <ShoppingCart className="w-5 h-5" />
               <span>OC Manual</span>
@@ -2888,7 +3135,7 @@ const OrdenesCompraModule = ({
           <button
             onClick={() => setShowBuscarProtocolo(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             <Package className="w-5 h-5" />
             <span>Desde Protocolo</span>
@@ -2969,13 +3216,13 @@ const OrdenesCompraModule = ({
               placeholder="Buscar por número OC, proveedor o protocolo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
           >
             <option value="todos">Todos los estados</option>
             <option value="Emitida">Emitida</option>
@@ -2991,7 +3238,7 @@ const OrdenesCompraModule = ({
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° OC</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Protocolo</th>
@@ -3036,7 +3283,7 @@ const OrdenesCompraModule = ({
                 return (
                 <tr key={orden.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{orden.numero}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{orden.numero}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-mono text-gray-600">{orden.codigoProtocolo}</span>
@@ -3288,16 +3535,7 @@ const OrdenesCompraModule = ({
           onClose={() => setShowNewModal(false)}
           onSave={async (nuevaOC) => {
             try {
-              const ordenesExistentes = await getOrdenesCompra();
-              const ultimoNumero = ordenesExistentes.length > 0
-                ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt((o.numero || '').replace('OC-', ''));
-                    return isNaN(num) ? 3999 : num;
-                  }))
-                : 3999;
-
               const ocData = {
-                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: nuevaOC.codigoProtocolo || '',
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
@@ -3466,10 +3704,10 @@ const OrdenesCompraModule = ({
               const ordenesExistentes = await getOrdenesCompra();
               const ultimoNumero = ordenesExistentes.length > 0
                 ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt((o.numero || '').replace('OC-', ''));
-                    return isNaN(num) ? 3999 : num;
+                    const num = parseInt(o.numero.replace('OC-', ''));
+                    return isNaN(num) ? 17403 : num;
                   }))
-                : 3999;
+                : 17402;
 
               const ocData = {
                 numero: `OC-${ultimoNumero + 1}`,
@@ -3527,7 +3765,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
     centroCosto: '',
     actividadUso: '',
     items: [
-      { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
+      { id: 1, item: '', cantidad: 0, descripcion: '', valorUnitario: 0, descuento: 0 }
     ],
     observaciones: ''
   });
@@ -3603,13 +3841,13 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        id: prev.items.length + 1, 
-        item: '', 
-        cantidad: 1, 
-        descripcion: '', 
-        valorUnitario: 0, 
-        descuento: 0 
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 0,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
       }]
     }));
   };
@@ -3710,7 +3948,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra (Manual)</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -3764,7 +4002,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                     }}
                     onFocus={() => setShowProveedorAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                   {showProveedorAutocomplete && formData.proveedor && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -3795,7 +4033,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.rutProveedor}
                   onChange={(e) => setFormData({...formData, rutProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -3804,7 +4042,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.contactoProveedor}
                   onChange={(e) => setFormData({...formData, contactoProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -3813,7 +4051,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.telefonoProveedor}
                   onChange={(e) => setFormData({...formData, telefonoProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -3829,7 +4067,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.codigoProtocolo}
                   onChange={(e) => setFormData({...formData, codigoProtocolo: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="Ej: 30650 (Opcional)"
                 />
               </div>
@@ -3839,7 +4077,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="date"
                   value={formData.fechaProtocolo}
                   onChange={(e) => setFormData({...formData, fechaProtocolo: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -3848,7 +4086,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.cotizacionProveedor}
                   onChange={(e) => setFormData({...formData, cotizacionProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="Ref. del proveedor"
                 />
               </div>
@@ -3861,7 +4099,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.centroCosto}
                   onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione centro...</option>
                   {CENTROS_COSTO.map((grupo) => (
@@ -3882,7 +4120,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.tipoCosto}
                   onChange={(e) => setFormData({...formData, tipoCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
                   {TIPOS_COSTO.map((tipo) => (
@@ -3898,7 +4136,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                 <select
                   value={formData.actividadUso}
                   onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="">Seleccione actividad...</option>
                   {ACTIVIDADES_USO.map((actividad) => (
@@ -3912,7 +4150,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.formaPago}
                   onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado Efectivo">Contado Efectivo</option>
@@ -3929,7 +4167,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.tipoDocumento}
                   onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="Factura">Factura</option>
                   <option value="Factura Exenta">Factura Exenta</option>
@@ -3945,7 +4183,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.responsableCompra}
                   onChange={(e) => setFormData({...formData, responsableCompra: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -3966,7 +4204,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                 <button
                   type="button"
                   onClick={agregarItem}
-                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
                 >
                   + Agregar Item
                 </button>
@@ -3983,17 +4221,17 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
@@ -4012,7 +4250,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
@@ -4023,7 +4261,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div className="flex items-end">
@@ -4041,7 +4279,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                   </div>
@@ -4072,14 +4310,14 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez spa</p>
-              <p className="text-gray-600">77.111.974-3</p>
+              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
+              <p className="text-gray-600">76.226.767-5</p>
             </div>
           </div>
 
@@ -4090,7 +4328,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
 
@@ -4106,7 +4344,7 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Orden de Compra
             </button>
@@ -4254,7 +4492,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
     const nuevo = {
       id: Date.now(),
       item: '',
-      cantidad: 1,
+      cantidad: 0,
       descripcion: '',
       valorUnitario: 0,
       descuento: 0
@@ -4284,7 +4522,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">Orden de Compra {orden.numero}</h3>
@@ -4435,13 +4673,13 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setIsEditing(prev => !prev)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               {isEditing ? 'Cancelar Edición' : 'Editar'}
             </button>
             <button
               onClick={() => setShowFacturaModal(true)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
               disabled={orden.numeroFactura}
             >
               {orden.numeroFactura ? `Documento: ${orden.numeroFactura}` : 'Asignar Documento'}
@@ -4457,7 +4695,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
             <select
               value={orden.estado}
               onChange={(e) => cambiarEstado(e.target.value)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
               disabled={!isEditing}
             >
               <option value="Emitida">Emitida</option>
@@ -4479,7 +4717,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 };
                 await generarOCPDF(orden, proveedor, protocolo, orden.items || []);
               }}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100"
             >
               Generar PDF
             </button>
@@ -4506,18 +4744,18 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.item || ''}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
                         disabled
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
@@ -4537,7 +4775,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
                     <div>
@@ -4549,7 +4787,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
                         disabled
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
                     {isEditing && (
@@ -4570,7 +4808,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
                         disabled={!isEditing}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] disabled:bg-gray-100"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] disabled:bg-gray-100"
                       />
                     </div>
                   </div>
@@ -4605,16 +4843,16 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold">TOTAL:</span>
-                  <span className="font-bold text-xl" style={{ color: '#0B1F3B' }}>{formatCurrency(totales.total)}</span>
+                  <span className="font-bold text-xl" style={{ color: '#235250' }}>{formatCurrency(totales.total)}</span>
                 </div>
               </div>
             </div>
 
             <div className="bg-blue-50 rounded-xl p-6">
               <h5 className="font-semibold text-gray-800 mb-4">Facturar a:</h5>
-              <p className="font-bold text-gray-800">Grafica Lopez y Ramirez spa</p>
-              <p className="text-gray-600">RUT: 77.111.974-3</p>
-              <p className="text-gray-600 mt-2">Av Presidente Eduardo Frei Montalva 1475, Independencia</p>
+              <p className="font-bold text-gray-800">Maria Paula Ross EIRL</p>
+              <p className="text-gray-600">RUT: 76.226.767-5</p>
+              <p className="text-gray-600 mt-2">La Capitanía 80, Las Condes</p>
               <p className="text-gray-600">Santiago - Chile</p>
             </div>
           </div>
@@ -4634,7 +4872,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
                 }
               }}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
               disabled={isSaving}
             >
               {isSaving ? 'Guardando...' : 'Guardar Cambios'}
@@ -4643,7 +4881,7 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             Cerrar
           </button>
@@ -4681,7 +4919,7 @@ const FacturaModal = ({ onClose, onSave }) => {
             <select
               value={tipoDocumento}
               onChange={(e) => setTipoDocumento(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="Factura">Factura</option>
               <option value="Factura Exenta">Factura Exenta</option>
@@ -4696,7 +4934,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               type="text"
               value={numeroFactura}
               onChange={(e) => setNumeroFactura(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               placeholder="Ej: 12345"
             />
           </div>
@@ -4706,7 +4944,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               type="date"
               value={fechaFactura}
               onChange={(e) => setFechaFactura(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
         </div>
@@ -4722,7 +4960,7 @@ const FacturaModal = ({ onClose, onSave }) => {
               numeroFactura: `${tipoDocumento} ${numeroFactura}`.trim(),
               fechaFactura
             })}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
             disabled={!numeroFactura || !fechaFactura}
           >
             Guardar
@@ -4902,7 +5140,7 @@ const ProveedoresModule = () => {
           <button
             onClick={exportarExcel}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
+            style={{ borderColor: '#45ad98', color: '#45ad98' }}
           >
             <Download className="w-5 h-5" />
             <span>Exportar Excel</span>
@@ -4910,7 +5148,7 @@ const ProveedoresModule = () => {
           <button
             onClick={() => setShowNewModal(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             <Building2 className="w-5 h-5" />
             <span>Nuevo Proveedor</span>
@@ -4951,13 +5189,13 @@ const ProveedoresModule = () => {
               placeholder="Buscar por código, razón social o RUT..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <select
             value={filterPendientes}
             onChange={(e) => setFilterPendientes(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
           >
             <option value="todos">Todos los proveedores</option>
             <option value="pendientes">Solo con pagos pendientes</option>
@@ -4969,7 +5207,7 @@ const ProveedoresModule = () => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Código</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Razón Social</th>
@@ -4991,7 +5229,7 @@ const ProveedoresModule = () => {
               ) : proveedoresFiltrados.map((proveedor) => (
                 <tr key={proveedor.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{proveedor.codigo}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{proveedor.codigo}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
@@ -5208,7 +5446,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nuevo Proveedor</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -5229,7 +5467,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5239,7 +5477,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -5250,7 +5488,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -5266,7 +5504,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5276,7 +5514,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5286,7 +5524,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5296,7 +5534,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -5313,7 +5551,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.contacto}
                   onChange={(e) => setFormData({...formData, contacto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5323,7 +5561,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="+56 2 1234 5678"
                 />
               </div>
@@ -5334,7 +5572,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="contacto@proveedor.cl"
                 />
               </div>
@@ -5351,7 +5589,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.condicionesPago}
                   onChange={(e) => setFormData({...formData, condicionesPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="Ej: 30 días, 60 días, contado"
                 />
               </div>
@@ -5361,7 +5599,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.banco}
                   onChange={(e) => setFormData({...formData, banco: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div className="md:col-span-2">
@@ -5370,7 +5608,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.numeroCuenta}
                   onChange={(e) => setFormData({...formData, numeroCuenta: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -5383,7 +5621,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               placeholder="Notas adicionales sobre el proveedor..."
             />
           </div>
@@ -5400,7 +5638,7 @@ const NuevoProveedorModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Proveedor
             </button>
@@ -5423,7 +5661,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Editar Proveedor</h3>
@@ -5447,7 +5685,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5457,7 +5695,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -5467,7 +5705,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -5484,7 +5722,7 @@ const EditarProveedorModal = ({ proveedor, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -5547,8 +5785,8 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex-shrink-0" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Historial de Órdenes de Compra</h3>
@@ -5560,7 +5798,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {loading ? (
             <div className="text-center py-12">
               <p className="text-gray-500">Cargando historial...</p>
@@ -5571,7 +5809,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
                 <div key={oc.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>
+                      <p className="font-mono font-bold text-lg" style={{ color: '#235250' }}>
                         OC #{oc.numero}
                       </p>
                       <p className="text-sm text-gray-600">
@@ -5644,7 +5882,7 @@ const HistorialProveedorModal = ({ proveedor, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Cerrar
             </button>
@@ -5668,7 +5906,7 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Estado de Cuenta</h3>
@@ -5722,7 +5960,7 @@ const EstadoCuentaModal = ({ proveedor, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Cerrar
             </button>
@@ -5746,7 +5984,7 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Seleccionar Cotización Ganada</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -5767,13 +6005,13 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
               {cotizaciones.map(cotizacion => (
                 <div 
                   key={cotizacion.id}
-                  className="border-2 border-gray-200 rounded-xl p-6 hover:border-[#1E3A8A] hover:shadow-lg transition-all cursor-pointer"
+                  className="border-2 border-gray-200 rounded-xl p-6 hover:border-[#45ad98] hover:shadow-lg transition-all cursor-pointer"
                   onClick={() => onSeleccionar(cotizacion)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-3">
-                        <span className="font-mono font-bold text-2xl" style={{ color: '#0B1F3B' }}>
+                        <span className="font-mono font-bold text-2xl" style={{ color: '#235250' }}>
                           #{cotizacion.numero}
                         </span>
                         <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
@@ -5793,10 +6031,10 @@ const ModalSeleccionarCotizacion = ({ cotizaciones, onClose, onSeleccionar }) =>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500 mb-1">Monto Total</p>
-                      <p className="text-3xl font-bold" style={{ color: '#0B1F3B' }}>
+                      <p className="text-3xl font-bold" style={{ color: '#235250' }}>
                         {formatCurrency(cotizacion.total)}
                       </p>
-                      <div className="mt-3 px-6 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold text-center">
+                      <div className="mt-3 px-6 py-2 bg-[#45ad98] text-white rounded-lg font-semibold text-center">
                         Seleccionar →
                       </div>
                     </div>
@@ -5838,6 +6076,9 @@ const ProtocolosModule = ({
   const [showDetalleOC, setShowDetalleOC] = useState(false);
   const [ordenDetalle, setOrdenDetalle] = useState(null);
   const [detalleEditMode, setDetalleEditMode] = useState(false);
+  const protocolosRef = useRef([]);
+  const vistaActualRef = useRef('listado');
+  const protocoloSeleccionadoRef = useRef(null);
 
   const userEmail = String(user?.email || '').toLowerCase();
   const hideFinancials =
@@ -5847,6 +6088,125 @@ const ProtocolosModule = ({
   // Cargar protocolos desde Supabase
   const [protocolos, setProtocolos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const chatReadStorageKey = `protocolos.chatReadState.${String(user?.id || user?.email || 'anon').toLowerCase()}`;
+  const [chatReadState, setChatReadState] = useState({});
+  const processedChatMessageIdsRef = useRef(new Set());
+  const chatLastSyncAtRef = useRef(null);
+
+  useEffect(() => {
+    protocolosRef.current = protocolos;
+  }, [protocolos]);
+
+  useEffect(() => {
+    vistaActualRef.current = vistaActual;
+  }, [vistaActual]);
+
+  useEffect(() => {
+    protocoloSeleccionadoRef.current = protocoloSeleccionado;
+  }, [protocoloSeleccionado]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(chatReadStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setChatReadState(parsed && typeof parsed === 'object' ? parsed : {});
+      } else {
+        setChatReadState({});
+      }
+    } catch (error) {
+      console.error('Error cargando estado de lectura de chat:', error);
+      setChatReadState({});
+    }
+  }, [chatReadStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(chatReadStorageKey, JSON.stringify(chatReadState));
+    } catch (error) {
+      console.error('Error guardando estado de lectura de chat:', error);
+    }
+  }, [chatReadStorageKey, chatReadState]);
+
+  const markProtocoloChatAsRead = (protocoloId, totalCount = 0) => {
+    if (!protocoloId) return;
+    setChatReadState((prev) => ({
+      ...prev,
+      [protocoloId]: {
+        readCount: Math.max(0, Number(totalCount) || 0),
+        readAt: new Date().toISOString()
+      }
+    }));
+  };
+
+  const registerProcessedChatMessage = (messageId) => {
+    if (!messageId) return false;
+    const ids = processedChatMessageIdsRef.current;
+    if (ids.has(messageId)) return true;
+    ids.add(messageId);
+    if (ids.size > 1500) {
+      const keep = Array.from(ids).slice(-800);
+      processedChatMessageIdsRef.current = new Set(keep);
+    }
+    return false;
+  };
+
+  const updateChatSyncTimestamp = (isoDate) => {
+    if (!isoDate) return;
+    const next = new Date(isoDate).getTime();
+    if (Number.isNaN(next)) return;
+    const prev = chatLastSyncAtRef.current ? new Date(chatLastSyncAtRef.current).getTime() : null;
+    if (!prev || next > prev) {
+      chatLastSyncAtRef.current = isoDate;
+    }
+  };
+
+  const handleIncomingChatMessage = (mensaje, { notify = false } = {}) => {
+    if (!mensaje) return;
+    const protocoloId = mensaje.protocolo_id;
+    if (!protocoloId) return;
+    if (registerProcessedChatMessage(mensaje.id)) return;
+
+    const lastMessageAt = mensaje.created_at || new Date().toISOString();
+    updateChatSyncTimestamp(lastMessageAt);
+
+    const protocoloActual = protocolosRef.current.find((p) => p.id === protocoloId);
+    const totalPrevio = protocoloActual?.chatMessagesCount || 0;
+    const totalSiguiente = totalPrevio + 1;
+
+    setProtocolos((prev) =>
+      prev.map((p) =>
+        p.id === protocoloId
+          ? { ...p, chatMessagesCount: (p.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
+          : p
+      )
+    );
+
+    setProtocoloSeleccionado((prev) =>
+      prev && prev.id === protocoloId
+        ? { ...prev, chatMessagesCount: (prev.chatMessagesCount || 0) + 1, chatLastMessageAt: lastMessageAt }
+        : prev
+    );
+
+    const isOwnMessage = (
+      (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
+      (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
+    );
+    const isViewingThisProtocol =
+      vistaActualRef.current === 'detalle' &&
+      protocoloSeleccionadoRef.current?.id === protocoloId;
+
+    if (isOwnMessage || isViewingThisProtocol) {
+      markProtocoloChatAsRead(protocoloId, totalSiguiente);
+    }
+
+    if (isOwnMessage || !notify) return;
+
+    const protocoloNotificado = protocolosRef.current.find((p) => p.id === protocoloId);
+    const nombreProyecto = protocoloNotificado?.nombreProyecto || `PT-${protocoloNotificado?.folio || ''}`;
+    notifyToast(`Nuevo mensaje en ${nombreProyecto || 'proyecto'}`, 'success');
+    playNotificationSound();
+  };
 
   const normalizarFacturaProtocolo = (factura) => ({
     id: factura.id,
@@ -5864,6 +6224,69 @@ const ProtocolosModule = ({
   useEffect(() => {
     loadProtocolos();
   }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('protocolos-chat-notify')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes'
+        },
+        (payload) => {
+          handleIncomingChatMessage(payload.new || {}, { notify: false });
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime de chat con problemas, activando fallback por polling.');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollChatMessages = async () => {
+      if (cancelled) return;
+      const since = chatLastSyncAtRef.current;
+      if (!since) return;
+
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('id, protocolo_id, user_id, user_name, user_email, created_at')
+        .gt('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(200);
+
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en fallback polling de chat:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      data.forEach((mensaje) => {
+        handleIncomingChatMessage(mensaje, { notify: false });
+      });
+    };
+
+    const intervalId = setInterval(pollChatMessages, 5000);
+    pollChatMessages();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.id, user?.email]);
 
   const calcularNetoCotizacion = (cot) => {
     // Si ya tiene neto, usarlo directamente
@@ -5948,6 +6371,30 @@ const ProtocolosModule = ({
         acc[key].push(normalizarFacturaProtocolo(factura));
         return acc;
       }, {});
+      const chatStatsByProtocolo = {};
+      if (protocolosIds.length > 0) {
+        const { data: chatData, error: chatError } = await supabase
+          .from('protocolos_chat_mensajes')
+          .select('protocolo_id, created_at')
+          .in('protocolo_id', protocolosIds);
+
+        if (!chatError && Array.isArray(chatData)) {
+          chatData.forEach((row) => {
+            if (!row?.protocolo_id) return;
+            const prev = chatStatsByProtocolo[row.protocolo_id] || { count: 0, lastMessageAt: null };
+            const nextLast =
+              !prev.lastMessageAt || (row.created_at && new Date(row.created_at) > new Date(prev.lastMessageAt))
+                ? row.created_at
+                : prev.lastMessageAt;
+            chatStatsByProtocolo[row.protocolo_id] = {
+              count: prev.count + 1,
+              lastMessageAt: nextLast
+            };
+          });
+        } else if (chatError && chatError.code !== '42P01') {
+          console.error('Error cargando conteo de chat de protocolos:', chatError);
+        }
+      }
       
       const cotizacionesByNumero = new Map(
         (cotizacionesData || []).map((cot) => [normalizarNumero(cot.numero), cot])
@@ -5980,6 +6427,8 @@ const ProtocolosModule = ({
           montoNeto: parseFloat(p.monto_neto) || undefined,
           montoNetoCotizacion: p.monto_neto ? parseFloat(p.monto_neto) : (cotizacion ? calcularNetoCotizacion(cotizacion) : undefined),
           items: Array.isArray(p.items) ? p.items : [],
+          chatMessagesCount: chatStatsByProtocolo[p.id]?.count || 0,
+          chatLastMessageAt: chatStatsByProtocolo[p.id]?.lastMessageAt || null,
           facturas: (() => {
             const facturas = facturasByProtocolo[p.id] || [];
             if (!facturas.length && (p.factura_bm || p.fecha_factura_bm)) {
@@ -6000,7 +6449,14 @@ const ProtocolosModule = ({
           })()
         };
       });
-      
+
+      const latestChatAt = transformados.reduce((latest, protocolo) => {
+        if (!protocolo.chatLastMessageAt) return latest;
+        if (!latest) return protocolo.chatLastMessageAt;
+        return new Date(protocolo.chatLastMessageAt) > new Date(latest) ? protocolo.chatLastMessageAt : latest;
+      }, null);
+      chatLastSyncAtRef.current = latestChatAt || new Date().toISOString();
+
       setProtocolos(transformados);
     } catch (error) {
       console.error('Error:', error);
@@ -6096,6 +6552,8 @@ const ProtocolosModule = ({
         <VistaDetalleProtocolo
           protocolo={protocoloSeleccionado}
           ordenesCompra={ordenesCompra}
+          currentUserName={currentUserName}
+          currentUser={user}
           hideFinancials={hideFinancials}
           onVerDetalleOC={(orden, editar = false) => {
             setOrdenDetalle(orden);
@@ -6240,16 +6698,7 @@ const ProtocolosModule = ({
             }}
             onGuardar={async (nuevaOC) => {
               try {
-                const ordenesExistentes = await getOrdenesCompra();
-                const ultimoNumero = ordenesExistentes.length > 0
-                  ? Math.max(...ordenesExistentes.map(o => {
-                      const num = parseInt((o.numero || '').replace('OC-', ''));
-                      return isNaN(num) ? 3999 : num;
-                    }))
-                  : 3999;
-
                 const ocData = {
-                  numero: `OC-${ultimoNumero + 1}`,
                   codigo_protocolo: datosPreOC.codigoProtocolo,
                   fecha: new Date().toISOString().split('T')[0],
                   proveedor_id: nuevaOC.proveedorId || null,
@@ -6288,9 +6737,11 @@ const ProtocolosModule = ({
     <>
           <VistaListadoProtocolos 
             protocolos={protocolos}
+            chatReadState={chatReadState}
             hideFinancials={hideFinancials}
             loading={loading}
             onVerDetalle={(protocolo) => {
+              markProtocoloChatAsRead(protocolo.id, protocolo.chatMessagesCount || 0);
               setProtocoloSeleccionado({ ...protocolo, items: obtenerItemsProtocolo(protocolo) });
               setVistaActual('detalle');
             }} 
@@ -6320,16 +6771,7 @@ const ProtocolosModule = ({
           }}
           onGuardar={async (nuevaOC) => {
             try {
-              const ordenesExistentes = await getOrdenesCompra();
-              const ultimoNumero = ordenesExistentes.length > 0
-                ? Math.max(...ordenesExistentes.map(o => {
-                    const num = parseInt((o.numero || '').replace('OC-', ''));
-                    return isNaN(num) ? 3999 : num;
-                  }))
-                : 3999;
-
               const ocData = {
-                numero: `OC-${ultimoNumero + 1}`,
                 codigo_protocolo: datosPreOC.codigoProtocolo,
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor_id: nuevaOC.proveedorId || null,
@@ -6371,9 +6813,9 @@ const ProtocolosModule = ({
               const ultimoFolio = protocolosExistentes.length > 0
                 ? Math.max(...protocolosExistentes.map(p => {
                     const num = parseInt(p.folio);
-                    return isNaN(num) ? 4999 : num;
+                    return isNaN(num) ? 30650 : num;
                   }))
-                : 4999;
+                : 30649;
 
               const protocoloData = {
                 folio: `${ultimoFolio + 1}`,
@@ -6408,7 +6850,7 @@ const ProtocolosModule = ({
 // ========================================
 // VISTA LISTADO DE PROTOCOLOS
 // ========================================
-const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, onEliminar, hideFinancials = false, loading = false }) => {
+const VistaListadoProtocolos = ({ protocolos, chatReadState = {}, onVerDetalle, onNuevoProtocolo, onEliminar, hideFinancials = false, loading = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todos');
 
@@ -6491,7 +6933,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
         <button
           onClick={onNuevoProtocolo}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
         >
           <Package className="w-5 h-5" />
           <span>Adjudicar Venta</span>
@@ -6531,13 +6973,13 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
               placeholder="Buscar por folio, cliente o cotización..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
           >
             <option value="todos">Todos los estados</option>
             <option value="Abierto">Abierto</option>
@@ -6551,7 +6993,7 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Folio</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
@@ -6568,13 +7010,14 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 )}
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Facturas BM</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">No leídos</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={hideFinancials ? 8 : 11} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={hideFinancials ? 9 : 12} className="px-6 py-8 text-center text-gray-500">
                     Cargando protocolos...
                   </td>
                 </tr>
@@ -6583,11 +7026,14 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                 const iva = neto * 0.19;
                 const total = neto + iva;
                 const resumenFacturas = obtenerResumenFacturas(protocolo.facturas);
+                const readCount = chatReadState?.[protocolo.id]?.readCount || 0;
+                const unreadCount = Math.max(0, (protocolo.chatMessagesCount || 0) - readCount);
+                const hasUnreadMessages = unreadCount > 0;
 
                 return (
                 <tr key={protocolo.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-xl" style={{ color: '#0B1F3B' }}>{protocolo.folio}</span>
+                    <span className="font-mono font-bold text-xl" style={{ color: '#235250' }}>{protocolo.folio}</span>
                   </td>
                   <td className="px-6 py-4">
                     <span className="font-mono text-gray-600">#{protocolo.numeroCotizacion}</span>
@@ -6639,9 +7085,17 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
                     )}
                   </td>
                   <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className={`w-5 h-5 ${hasUnreadMessages ? 'text-green-600' : 'text-gray-400'}`} />
+                      <span className={`text-xs font-semibold ${hasUnreadMessages ? 'text-green-700' : 'text-gray-400'}`}>
+                        {unreadCount}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <button
                       onClick={() => onVerDetalle(protocolo)}
-                      className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors font-semibold"
+                      className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors font-semibold"
                     >
                       Abrir Tablero
                     </button>
@@ -6674,7 +7128,319 @@ const VistaListadoProtocolos = ({ protocolos, onVerDetalle, onNuevoProtocolo, on
 // ========================================
 // VISTA DETALLE DEL PROTOCOLO (PÁGINA COMPLETA)
 // ========================================
-const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicarCompra, onActualizar, onVerDetalleOC, hideFinancials = false }) => {
+const ProtocoloChatPanel = ({ protocolo, currentUserName, currentUser }) => {
+  const [mensajes, setMensajes] = useState([]);
+  const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const [loadingMensajes, setLoadingMensajes] = useState(true);
+  const [enviandoMensaje, setEnviandoMensaje] = useState(false);
+  const [errorChat, setErrorChat] = useState('');
+  const listEndRef = useRef(null);
+  const lastMessageAtRef = useRef(null);
+
+  const protocoloId = protocolo?.id;
+  const senderName = currentUserName || currentUser?.name || currentUser?.email || 'Usuario';
+  const senderEmail = currentUser?.email || null;
+  const senderId = currentUser?.id || null;
+
+  const mapMensaje = (raw) => ({
+    id: raw.id,
+    protocoloId: raw.protocolo_id,
+    texto: raw.mensaje || '',
+    userId: raw.user_id || null,
+    userName: raw.user_name || 'Usuario',
+    userEmail: raw.user_email || null,
+    createdAt: raw.created_at || null
+  });
+
+  const isOwnMessage = (mensaje) => {
+    const currentName = String(senderName || '').trim().toLowerCase();
+    const messageName = String(mensaje.userName || '').trim().toLowerCase();
+
+    if (senderId && mensaje.userId) return String(senderId) === String(mensaje.userId);
+
+    if (senderEmail && mensaje.userEmail) {
+      const sameEmail = String(senderEmail).toLowerCase() === String(mensaje.userEmail).toLowerCase();
+      if (!sameEmail) return false;
+      if (currentName && messageName) return currentName === messageName;
+      return true;
+    }
+
+    if (currentName && messageName) return currentName === messageName;
+    return false;
+  };
+
+  const formatHora = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const hashString = (value) => {
+    const str = String(value || '');
+    let hash = 0;
+    for (let i = 0; i < str.length; i += 1) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const getBubbleStyle = (mensaje, own) => {
+    if (own) {
+      return {
+        backgroundColor: 'rgba(16, 185, 129, 0.20)',
+        borderColor: 'rgba(5, 150, 105, 0.45)',
+        textColor: '#065f46'
+      };
+    }
+
+    const palette = [
+      { backgroundColor: 'rgba(251, 146, 60, 0.22)', borderColor: 'rgba(251, 146, 60, 0.40)', textColor: '#9a3412' }, // naranjo
+      { backgroundColor: 'rgba(248, 113, 113, 0.22)', borderColor: 'rgba(239, 68, 68, 0.40)', textColor: '#991b1b' }, // rojo
+      { backgroundColor: 'rgba(125, 211, 252, 0.28)', borderColor: 'rgba(56, 189, 248, 0.45)', textColor: '#1e3a8a' }, // celeste
+      { backgroundColor: 'rgba(196, 181, 253, 0.22)', borderColor: 'rgba(139, 92, 246, 0.40)', textColor: '#5b21b6' }, // violeta
+      { backgroundColor: 'rgba(244, 114, 182, 0.20)', borderColor: 'rgba(236, 72, 153, 0.40)', textColor: '#9d174d' }  // rosado
+    ];
+
+    const key = mensaje.userEmail || mensaje.userName || mensaje.userId || 'otro';
+    return palette[hashString(key) % palette.length];
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMensajes = async () => {
+      if (!protocoloId) return;
+      setLoadingMensajes(true);
+      setErrorChat('');
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('*')
+        .eq('protocolo_id', protocoloId)
+        .order('created_at', { ascending: true });
+
+      if (!isMounted) return;
+
+      if (error) {
+        console.error('Error cargando chat de protocolo:', error);
+        setMensajes([]);
+        setErrorChat('No se pudo cargar el chat. Verifica que la tabla de chat esté creada.');
+      } else {
+        setMensajes((data || []).map(mapMensaje));
+      }
+      setLoadingMensajes(false);
+    };
+
+    loadMensajes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    if (!protocoloId) return undefined;
+
+    const channel = supabase
+      .channel(`protocolo-chat-${protocoloId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes',
+          filter: `protocolo_id=eq.${protocoloId}`
+        },
+        (payload) => {
+          const nuevo = mapMensaje(payload.new || {});
+          setMensajes((prev) => {
+            if (prev.some((m) => m.id === nuevo.id)) return prev;
+            return [...prev, nuevo];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    const lastMessage = mensajes[mensajes.length - 1];
+    lastMessageAtRef.current = lastMessage?.createdAt || null;
+  }, [mensajes]);
+
+  useEffect(() => {
+    if (!protocoloId) return undefined;
+
+    let cancelled = false;
+
+    const pollNewMessages = async () => {
+      if (cancelled) return;
+
+      let query = supabase
+        .from('protocolos_chat_mensajes')
+        .select('*')
+        .eq('protocolo_id', protocoloId)
+        .order('created_at', { ascending: true })
+        .limit(100);
+
+      if (lastMessageAtRef.current) {
+        query = query.gt('created_at', lastMessageAtRef.current);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en polling de chat de protocolo:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      const nuevos = data.map(mapMensaje);
+      setMensajes((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const toAdd = nuevos.filter((m) => !existingIds.has(m.id));
+        if (!toAdd.length) return prev;
+        return [...prev, ...toAdd];
+      });
+    };
+
+    const intervalId = setInterval(pollNewMessages, 4000);
+    pollNewMessages();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [protocoloId]);
+
+  useEffect(() => {
+    listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mensajes]);
+
+  const enviarMensaje = async () => {
+    const texto = String(nuevoMensaje || '').trim();
+    if (!texto || !protocoloId || enviandoMensaje) return;
+
+    setEnviandoMensaje(true);
+    setErrorChat('');
+
+    const payload = {
+      protocolo_id: protocoloId,
+      mensaje: texto,
+      user_id: senderId,
+      user_name: senderName,
+      user_email: senderEmail
+    };
+
+    const { data, error } = await supabase
+      .from('protocolos_chat_mensajes')
+      .insert([payload])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Error enviando mensaje de chat:', error);
+      setErrorChat('No se pudo enviar el mensaje.');
+    } else if (data) {
+      const normalized = mapMensaje(data);
+      setMensajes((prev) => {
+        if (prev.some((m) => m.id === normalized.id)) return prev;
+        return [...prev, normalized];
+      });
+      setNuevoMensaje('');
+    }
+
+    setEnviandoMensaje(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col h-[520px] xl:h-[calc(100vh-220px)]">
+      <div className="p-4 border-b border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800">Chat del Proyecto</h3>
+        <p className="text-xs text-gray-500 mt-1 truncate">{protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`}</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50/60">
+        {loadingMensajes ? (
+          <p className="text-sm text-gray-500">Cargando mensajes...</p>
+        ) : mensajes.length === 0 ? (
+          <p className="text-sm text-gray-500">No hay mensajes aún. Inicia la conversación del proyecto.</p>
+        ) : (
+          mensajes.map((mensaje) => {
+            const own = isOwnMessage(mensaje);
+            const bubbleStyle = getBubbleStyle(mensaje, own);
+            return (
+              <div key={mensaje.id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className="max-w-[92%] rounded-2xl px-3 py-2 shadow-sm border"
+                  style={{ backgroundColor: bubbleStyle.backgroundColor, borderColor: bubbleStyle.borderColor }}
+                >
+                  <p className="text-xs text-gray-500 mb-1">
+                    <span className="font-semibold text-gray-700">{mensaje.userName}</span>
+                    {mensaje.userEmail ? ` · ${mensaje.userEmail}` : ''}
+                    {mensaje.createdAt ? ` · ${formatHora(mensaje.createdAt)}` : ''}
+                  </p>
+                  <p className="text-sm whitespace-pre-wrap break-words" style={{ color: bubbleStyle.textColor }}>
+                    {mensaje.texto}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={listEndRef} />
+      </div>
+
+      <div className="p-3 border-t border-gray-100 bg-white">
+        <textarea
+          value={nuevoMensaje}
+          onChange={(e) => setNuevoMensaje(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              enviarMensaje();
+            }
+          }}
+          rows={3}
+          placeholder="Escribe un mensaje para el equipo..."
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#45ad98]"
+        />
+        {errorChat && <p className="text-xs text-red-600 mt-2">{errorChat}</p>}
+        <button
+          onClick={enviarMensaje}
+          disabled={!String(nuevoMensaje || '').trim() || enviandoMensaje}
+          className="mt-2 w-full px-4 py-2 rounded-xl text-white font-semibold disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+        >
+          {enviandoMensaje ? 'Enviando...' : 'Enviar mensaje'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const VistaDetalleProtocolo = ({
+  protocolo,
+  ordenesCompra,
+  onVolver,
+  onAdjudicarCompra,
+  onActualizar,
+  onVerDetalleOC,
+  currentUserName,
+  currentUser,
+  hideFinancials = false
+}) => {
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -6722,12 +7488,12 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   const [showCerrarModal, setShowCerrarModal] = useState(false);
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [facturaEnEdicion, setFacturaEnEdicion] = useState(null);
-  const [editingFechas, setEditingFechas] = useState(false);
-  const [tempFechaInicio, setTempFechaInicio] = useState(protocolo.fechaInicioProduccion || '');
-  const [tempFechaEntrega, setTempFechaEntrega] = useState(protocolo.fechaEntrega || '');
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [itemEnEdicion, setItemEnEdicion] = useState(null);
   const [itemsComprados, setItemsComprados] = useState({});
+  const [editingFechas, setEditingFechas] = useState(false);
+  const [tempFechaInicio, setTempFechaInicio] = useState(protocolo.fechaInicioProduccion || '');
+  const [tempFechaEntrega, setTempFechaEntrega] = useState(protocolo.fechaEntrega || '');
   const itemsCompradosKey = `protocolos.itemsComprados.${protocolo.id ?? protocolo.folio ?? 'default'}`;
   const itemsCompradosHydratingRef = useRef(true);
 
@@ -6932,7 +7698,15 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
   };
 
   return (
-    <div>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+      <div className="order-2 xl:order-2 xl:mt-14">
+        <ProtocoloChatPanel
+          protocolo={protocolo}
+          currentUserName={currentUserName}
+          currentUser={currentUser}
+        />
+      </div>
+      <div className="order-1 xl:order-1">
       {/* Header con botón volver */}
       <div className="mb-6">
         <button
@@ -6959,7 +7733,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   <select
                     value={protocolo.estado}
                     onChange={(e) => cambiarEstado(e.target.value)}
-                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                   >
                     {estadosSelect.map((estado) => (
                       <option key={estado} value={estado}>
@@ -7028,85 +7802,15 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                   </p>
                 </div>
               </div>
-              <div>
-                <p className="text-gray-500">Inicio Producción:</p>
-                <p className="font-semibold text-gray-800">
-                  {protocolo.fechaInicioProduccion || <span className="text-gray-400">Sin fecha</span>}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500">Fecha Entrega:</p>
-                <p className="font-semibold text-gray-800">
-                  {protocolo.fechaEntrega || <span className="text-gray-400">Sin fecha</span>}
-                </p>
-              </div>
             </div>
           </div>
-
-          {/* Editor de fechas de producción */}
-          {editingFechas && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <h4 className="font-semibold text-gray-800 mb-3">Fechas de Producción</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Inicio Producción</label>
-                  <input
-                    type="date"
-                    value={tempFechaInicio}
-                    onChange={(e) => setTempFechaInicio(e.target.value)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Entrega</label>
-                  <input
-                    type="date"
-                    value={tempFechaEntrega}
-                    onChange={(e) => setTempFechaEntrega(e.target.value)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                  />
-                </div>
-              </div>
-              <div className="flex space-x-3 mt-3">
-                <button
-                  onClick={async () => {
-                    try {
-                      await updateProtocolo(protocolo.id, {
-                        fecha_inicio_produccion: tempFechaInicio || null,
-                        fecha_entrega: tempFechaEntrega || null
-                      });
-                      onActualizar({
-                        ...protocolo,
-                        fechaInicioProduccion: tempFechaInicio || null,
-                        fechaEntrega: tempFechaEntrega || null
-                      });
-                      setEditingFechas(false);
-                    } catch (error) {
-                      console.error('Error:', error);
-                      alert('Error al guardar fechas');
-                    }
-                  }}
-                  className="px-4 py-2 rounded-lg text-white font-semibold"
-                  style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
-                >
-                  Guardar Fechas
-                </button>
-                <button
-                  onClick={() => setEditingFechas(false)}
-                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Botón Adjudicar Compra */}
           <div className="flex space-x-3">
             <button
               onClick={onAdjudicarCompra}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               <ShoppingCart className="w-5 h-5 inline mr-2" />
               Adjudicar Compra (Crear OC)
@@ -7117,22 +7821,10 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 setShowFacturaModal(true);
               }}
               className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
+              style={{ borderColor: '#45ad98', color: '#235250' }}
             >
               <FileText className="w-5 h-5 inline mr-2" />
               Agregar Factura
-            </button>
-            <button
-              onClick={() => {
-                setTempFechaInicio(protocolo.fechaInicioProduccion || '');
-                setTempFechaEntrega(protocolo.fechaEntrega || '');
-                setEditingFechas(true);
-              }}
-              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
-            >
-              <Calendar className="w-5 h-5 inline mr-2" />
-              Fechas Producción
             </button>
             <button
               onClick={async () => {
@@ -7148,9 +7840,17 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                 }
               }}
               className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-              style={{ borderColor: '#1E3A8A', color: '#0B1F3B' }}
+              style={{ borderColor: '#45ad98', color: '#235250' }}
             >
               📄 Ingresar OC Cliente
+            </button>
+            <button
+              onClick={() => setEditingFechas(!editingFechas)}
+              className="px-6 py-3 bg-white border-2 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+              style={{ borderColor: '#45ad98', color: '#235250' }}
+            >
+              <Calendar className="w-5 h-5 inline mr-2" />
+              Fechas Produccion
             </button>
             <button
               onClick={async () => {
@@ -7167,6 +7867,66 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
               Generar PDF
             </button>
           </div>
+
+          {/* Editor de fechas de producción */}
+          {editingFechas && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl border-2 border-[#45ad98]/30">
+              <div className="flex items-end space-x-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Inicio Produccion</label>
+                  <input
+                    type="date"
+                    value={tempFechaInicio}
+                    onChange={(e) => setTempFechaInicio(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha Entrega</label>
+                  <input
+                    type="date"
+                    value={tempFechaEntrega}
+                    onChange={(e) => setTempFechaEntrega(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await updateProtocolo(protocolo.id, {
+                        fecha_inicio_produccion: tempFechaInicio || null,
+                        fecha_entrega: tempFechaEntrega || null
+                      });
+                      onActualizar({
+                        ...protocolo,
+                        fechaInicioProduccion: tempFechaInicio || null,
+                        fechaEntrega: tempFechaEntrega || null
+                      });
+                      setEditingFechas(false);
+                      alert('Fechas de produccion actualizadas');
+                    } catch (error) {
+                      console.error('Error guardando fechas:', error);
+                      alert('Error al guardar las fechas');
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
+                >
+                  Guardar
+                </button>
+                <button
+                  onClick={() => setEditingFechas(false)}
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-semibold"
+                >
+                  Cancelar
+                </button>
+              </div>
+              {protocolo.fechaInicioProduccion && protocolo.fechaEntrega && (
+                <p className="mt-2 text-sm text-gray-500">
+                  Actual: {protocolo.fechaInicioProduccion} a {protocolo.fechaEntrega}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -7176,7 +7936,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
           <h3 className="text-xl font-bold text-gray-800">Items del Proyecto</h3>
           <button
             onClick={() => setShowAddItemModal(true)}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
           >
             Agregar Item
           </button>
@@ -7332,7 +8092,7 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => onVerDetalleOC && onVerDetalleOC(oc, false)}
-                          className="px-3 py-1 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-xs font-semibold"
+                          className="px-3 py-1 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-xs font-semibold"
                         >
                           Ver
                         </button>
@@ -7477,46 +8237,32 @@ const VistaDetalleProtocolo = ({ protocolo, ordenesCompra, onVolver, onAdjudicar
       )}
 
       {/* Modal Cerrar Protocolo */}
-      {showCerrarModal && (
-        <ModalCerrarProtocolo
-          protocolo={protocolo}
-          costoReal={costoRealNeto}
+	      {showCerrarModal && (
+	        <ModalCerrarProtocolo
+	          protocolo={protocolo}
+	          costoReal={costoRealNeto}
           onClose={() => setShowCerrarModal(false)}
-          onConfirmar={async (precioVenta) => {
+          onConfirmar={async () => {
             try {
-              // Buscar la cotización por número
-              const cotizaciones = await getCotizaciones();
-              const cotizacion = cotizaciones.find(c => c.numero === protocolo.numeroCotizacion);
-              
-              if (cotizacion) {
-                // Actualizar cotización con el nuevo precio
-                await updateCotizacion(cotizacion.id, { monto: precioVenta });
-              }
-              
-              // Actualizar estado y monto del protocolo
-              await updateProtocolo(protocolo.id, { estado: 'Cerrado', monto_total: precioVenta });
-              
-              // Actualizar en la interfaz
-              onActualizar({ ...protocolo, estado: 'Cerrado', montoTotal: precioVenta });
-              
+              await updateProtocolo(protocolo.id, { estado: 'Cerrado' });
+              onActualizar({ ...protocolo, estado: 'Cerrado' });
               setShowCerrarModal(false);
-              alert('Protocolo cerrado y cotización actualizada exitosamente');
+              alert('Protocolo cerrado exitosamente');
             } catch (error) {
               console.error('Error:', error);
-              alert('Error al actualizar: ' + error.message);
+              alert('Error al cerrar protocolo: ' + error.message);
             }
           }}
-        />
-      )}
+	        />
+	      )}
 
-</div>
+      </div>
+    </div>
   );
 };
 
-// Modal para Cerrar Protocolo y Actualizar Cotización
+// Modal para Cerrar Protocolo
 const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) => {
-  const [precioVenta, setPrecioVenta] = useState('');
-
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -7525,29 +8271,15 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
     }).format(value);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!precioVenta || parseFloat(precioVenta) <= 0) {
-      alert('Ingresa un precio válido');
-      return;
-    }
-    onConfirmar(parseFloat(precioVenta));
-  };
-
-  const margen = precioVenta ? parseFloat(precioVenta) - costoReal : 0;
-  const porcentajeMargen = precioVenta && costoReal > 0 
-    ? ((margen / costoReal) * 100).toFixed(1) 
-    : 0;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
         <h3 className="text-2xl font-bold text-gray-800 mb-4">Cerrar Protocolo</h3>
-        
+
         <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
           <p className="text-sm text-gray-600 mb-2">Protocolo #{protocolo.folio}</p>
-          <p className="text-sm text-gray-600 mb-4">Cotización #{protocolo.numeroCotizacion}</p>
-          
+          <p className="text-sm text-gray-600 mb-4">Cotizacion #{protocolo.numeroCotizacion}</p>
+
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Costo Real (OC):</span>
@@ -7556,54 +8288,23 @@ const ModalCerrarProtocolo = ({ protocolo, costoReal, onClose, onConfirmar }) =>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Precio Venta al Cliente
-            </label>
-            <input
-              type="number"
-              value={precioVenta}
-              onChange={(e) => setPrecioVenta(e.target.value)}
-              placeholder="Ingresa el precio final"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-              min="1"
-              required
-            />
-          </div>
+        <p className="text-gray-600 mb-6">Estas seguro de que deseas cerrar este protocolo?</p>
 
-          {precioVenta && (
-            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Margen:</span>
-                  <span className="font-bold text-green-600">{formatCurrency(margen)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">% Margen:</span>
-                  <span className="font-bold text-green-600">{porcentajeMargen}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
-            >
-              Cerrar y Actualizar
-            </button>
-          </div>
-        </form>
+        <div className="flex space-x-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirmar}
+            className="flex-1 px-4 py-3 rounded-xl font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
+          >
+            Cerrar Protocolo
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -7632,7 +8333,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
             <select
               value={tipoDoc}
               onChange={(e) => setTipoDoc(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="Factura">Factura</option>
               <option value="Boleta">Boleta</option>
@@ -7646,7 +8347,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 type="text"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: 12345"
               />
             </div>
@@ -7656,7 +8357,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
           </div>
@@ -7665,7 +8366,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
             <select
               value={estado}
               onChange={(e) => setEstado(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="Emitida">Emitida</option>
               <option value="Pagada">Pagada</option>
@@ -7689,7 +8390,7 @@ const FacturaProtocoloModal = ({ onClose, onSave, factura }) => {
                 estado
               })
             }
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
             disabled={!numero || !fecha}
           >
             Guardar
@@ -7808,7 +8509,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
       items: [...prev.items, {
         id: prev.items.length + 1,
         item: '',
-        cantidad: 1,
+        cantidad: 0,
         descripcion: '',
         valorUnitario: 0,
         descuento: 0
@@ -7919,7 +8620,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Nueva Orden de Compra</h3>
@@ -7995,7 +8696,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                     }}
                     onFocus={() => setShowProveedorAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowProveedorAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                   {showProveedorAutocomplete && formData.proveedor && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -8026,7 +8727,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.rutProveedor}
                   onChange={(e) => setFormData({...formData, rutProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -8042,7 +8743,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   type="text"
                   value={formData.cotizacionProveedor}
                   onChange={(e) => setFormData({...formData, cotizacionProveedor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="Ref. del proveedor"
                 />
               </div>
@@ -8055,7 +8756,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.centroCosto}
                   onChange={(e) => setFormData({...formData, centroCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione centro...</option>
                   {CENTROS_COSTO.map((grupo) => (
@@ -8076,7 +8777,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.tipoCosto}
                   onChange={(e) => setFormData({...formData, tipoCosto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white font-semibold"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white font-semibold"
                 >
                   <option value="">Seleccione tipo...</option>
                   {TIPOS_COSTO.map((tipo) => (
@@ -8092,7 +8793,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                 <select
                   value={formData.actividadUso}
                   onChange={(e) => setFormData({...formData, actividadUso: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="">Seleccione actividad...</option>
                   {ACTIVIDADES_USO.map((actividad) => (
@@ -8106,7 +8807,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.formaPago}
                   onChange={(e) => setFormData({...formData, formaPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado Efectivo">Contado Efectivo</option>
@@ -8123,7 +8824,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.tipoDocumento}
                   onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="Factura">Factura</option>
                   <option value="Factura Exenta">Factura Exenta</option>
@@ -8139,7 +8840,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                   required
                   value={formData.responsableCompra}
                   onChange={(e) => setFormData({...formData, responsableCompra: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -8160,7 +8861,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                 <button
                   type="button"
                   onClick={agregarItem}
-                  className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold hover:bg-[#0B1F3B] transition-colors"
+                  className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold hover:bg-[#235250] transition-colors"
                 >
                   + Agregar Item
                 </button>
@@ -8177,17 +8878,17 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
@@ -8206,7 +8907,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div>
@@ -8217,7 +8918,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                     <div className="flex items-end">
@@ -8235,7 +8936,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1E3A8A]"
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#45ad98]"
                       />
                     </div>
                   </div>
@@ -8266,14 +8967,14 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez spa</p>
-              <p className="text-gray-600">77.111.974-3</p>
+              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
+              <p className="text-gray-600">76.226.767-5</p>
             </div>
           </div>
 
@@ -8289,7 +8990,7 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Orden de Compra
             </button>
@@ -8372,7 +9073,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Adjudicar Venta - Crear Protocolo</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -8390,7 +9091,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
               required
               value={selectedCotizacion}
               onChange={(e) => setSelectedCotizacion(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
             >
               <option value="">Seleccione una cotización...</option>
               {cotizacionesGanadas.map((cot) => (
@@ -8415,7 +9116,7 @@ const NuevoProtocoloModal = ({ onClose, onSave, sharedCotizaciones }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Protocolo
             </button>
@@ -8450,7 +9151,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl my-8">
         {/* Header del Protocolo */}
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-3xl font-bold text-white mb-2">Protocolo {protocolo.folio}</h3>
@@ -8482,7 +9183,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowOCClienteModal(true)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
             >
               <FileText className="w-4 h-4" />
               <span>OC Cliente</span>
@@ -8490,18 +9191,18 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
             </button>
             <button
               onClick={() => setShowAddItemModal(true)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
             >
               <Package className="w-4 h-4" />
               <span>Adjudicar Compra</span>
             </button>
-            <button className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+            <button className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors">
               PDF
             </button>
             <select
               value={protocolo.estado}
               onChange={(e) => cambiarEstado(e.target.value)}
-              className="px-4 py-2 bg-white text-[#0B1F3B] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 bg-white text-[#235250] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
             >
               <option value="Abierto">Abierto</option>
               <option value="En Proceso">En Proceso</option>
@@ -8567,7 +9268,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
                       </span>
                     </td>
                     <td className="px-3 py-3">
-                      <span className="font-bold text-[#1E3A8A]">{item.porcentaje}%</span>
+                      <span className="font-bold text-[#45ad98]">{item.porcentaje}%</span>
                     </td>
                   </tr>
                 ))}
@@ -8581,7 +9282,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
               <p className="text-gray-500 mb-4">No hay items en este protocolo</p>
               <button
                 onClick={() => setShowAddItemModal(true)}
-                className="px-6 py-3 bg-[#1E3A8A] text-white rounded-xl font-semibold hover:bg-[#0B1F3B] transition-colors"
+                className="px-6 py-3 bg-[#45ad98] text-white rounded-xl font-semibold hover:bg-[#235250] transition-colors"
               >
                 Agregar Primer Item
               </button>
@@ -8599,7 +9300,7 @@ const DetalleProtocoloModal = ({ protocolo: protocoloInicial, onClose, onUpdate 
           <button
             onClick={onClose}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             Cerrar Tablero
           </button>
@@ -8651,7 +9352,7 @@ const OCClienteModal = ({ onClose, onSave }) => {
             type="text"
             value={numeroOC}
             onChange={(e) => setNumeroOC(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             placeholder="Ej: OC-2025-001"
           />
         </div>
@@ -8664,7 +9365,7 @@ const OCClienteModal = ({ onClose, onSave }) => {
           </button>
           <button
             onClick={() => onSave(numeroOC)}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
           >
             Guardar
           </button>
@@ -8685,7 +9386,7 @@ const AddItemModal = ({
 }) => {
   const baseData = {
     item: '',
-    cantidad: 1,
+    cantidad: 0,
     descripcion: '',
     proveedor1: { nombre: '', cantidad: 0, oc: '', factura: '', estadoPago: 'Pendiente' },
     porcentaje: 0
@@ -8710,7 +9411,7 @@ const AddItemModal = ({
                 type="text"
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: Letrero, Instalación, Transporte"
               />
             </div>
@@ -8723,7 +9424,7 @@ const AddItemModal = ({
                   const next = Number(e.target.value);
                   setFormData({ ...formData, cantidad: Number.isFinite(next) ? next : 0 });
                 }}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
             <div>
@@ -8732,7 +9433,7 @@ const AddItemModal = ({
                 type="text"
                 value={formData.descripcion}
                 onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
           </div>
@@ -8747,7 +9448,7 @@ const AddItemModal = ({
                     type="text"
                     value={formData.proveedor1.nombre}
                     onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, nombre: e.target.value}})}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -8765,7 +9466,7 @@ const AddItemModal = ({
                         }
                       });
                     }}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
                 <div>
@@ -8774,7 +9475,7 @@ const AddItemModal = ({
                     type="text"
                     value={formData.proveedor1.oc}
                     onChange={(e) => setFormData({...formData, proveedor1: {...formData.proveedor1, oc: e.target.value}})}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                 </div>
               </div>
@@ -8790,7 +9491,7 @@ const AddItemModal = ({
           </button>
           <button
             onClick={() => onSave(formData)}
-            className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg font-semibold"
+            className="px-4 py-2 bg-[#45ad98] text-white rounded-lg font-semibold"
           >
             {submitLabel}
           </button>
@@ -8911,7 +9612,7 @@ const ClientesModule = () => {
           <button
             onClick={exportarExcel}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl border-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
+            style={{ borderColor: '#45ad98', color: '#45ad98' }}
           >
             <Download className="w-5 h-5" />
             <span>Exportar Excel</span>
@@ -8919,7 +9620,7 @@ const ClientesModule = () => {
           <button
             onClick={() => setShowNewModal(true)}
             className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-            style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+            style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
           >
             <Users className="w-5 h-5" />
             <span>Nuevo Cliente</span>
@@ -8956,7 +9657,7 @@ const ClientesModule = () => {
           placeholder="Buscar por código, razón social, RUT o email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
         />
       </div>
 
@@ -8964,7 +9665,7 @@ const ClientesModule = () => {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Código</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Razón Social</th>
@@ -8985,7 +9686,7 @@ const ClientesModule = () => {
               ) : clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>{cliente.codigo}</span>
+                    <span className="font-mono font-bold text-lg" style={{ color: '#235250' }}>{cliente.codigo}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
@@ -9160,7 +9861,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nuevo Cliente</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -9181,7 +9882,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9191,7 +9892,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -9202,7 +9903,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -9218,7 +9919,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9228,7 +9929,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9238,7 +9939,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9248,7 +9949,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
@@ -9265,7 +9966,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.personaEncargada}
                   onChange={(e) => setFormData({...formData, personaEncargada: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9275,7 +9976,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="+56 9 1234 5678"
                 />
               </div>
@@ -9286,7 +9987,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="contacto@empresa.cl"
                 />
               </div>
@@ -9300,7 +10001,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               placeholder="Notas adicionales sobre el cliente..."
             />
           </div>
@@ -9317,7 +10018,7 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Cliente
             </button>
@@ -9328,19 +10029,110 @@ const NuevoClienteModal = ({ onClose, onSave }) => {
   );
 };
 
-// Modal Editar Cliente (similar al de crear)
+// Modal Editar Cliente (con gestión de contactos)
 const EditarClienteModal = ({ cliente, onClose, onSave }) => {
   const [formData, setFormData] = useState(cliente);
+  const [contactos, setContactos] = useState([]);
+  const [loadingContactos, setLoadingContactos] = useState(true);
+  const [nuevoContacto, setNuevoContacto] = useState({ nombre: '', cargo: '', email: '', telefono: '' });
+  const [showNuevoContacto, setShowNuevoContacto] = useState(false);
+  const [editandoContacto, setEditandoContacto] = useState(null);
+
+  useEffect(() => {
+    const loadContactos = async () => {
+      try {
+        setLoadingContactos(true);
+        const data = await getContactosByCliente(cliente.id);
+        setContactos(data || []);
+      } catch (error) {
+        console.error('Error cargando contactos:', error);
+        setContactos([]);
+      } finally {
+        setLoadingContactos(false);
+      }
+    };
+    loadContactos();
+  }, [cliente.id]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
   };
 
+  const handleAgregarContacto = async () => {
+    if (!nuevoContacto.nombre.trim()) {
+      alert('El nombre del contacto es requerido');
+      return;
+    }
+    try {
+      const contactoCreado = await createContacto({
+        cliente_id: cliente.id,
+        nombre: nuevoContacto.nombre,
+        cargo: nuevoContacto.cargo || null,
+        email: nuevoContacto.email || null,
+        telefono: nuevoContacto.telefono || null,
+        es_principal: contactos.length === 0
+      });
+      setContactos([...contactos, contactoCreado]);
+      setNuevoContacto({ nombre: '', cargo: '', email: '', telefono: '' });
+      setShowNuevoContacto(false);
+    } catch (error) {
+      console.error('Error creando contacto:', error);
+      alert('Error al crear contacto');
+    }
+  };
+
+  const handleEliminarContacto = async (contactoId) => {
+    if (!confirm('¿Eliminar este contacto?')) return;
+    try {
+      await deleteContacto(contactoId);
+      setContactos(contactos.filter(c => c.id !== contactoId));
+    } catch (error) {
+      console.error('Error eliminando contacto:', error);
+      alert('Error al eliminar contacto');
+    }
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!editandoContacto.nombre.trim()) {
+      alert('El nombre del contacto es requerido');
+      return;
+    }
+    try {
+      await updateContacto(editandoContacto.id, {
+        nombre: editandoContacto.nombre,
+        cargo: editandoContacto.cargo || null,
+        email: editandoContacto.email || null,
+        telefono: editandoContacto.telefono || null
+      });
+      setContactos(contactos.map(c => c.id === editandoContacto.id ? editandoContacto : c));
+      setEditandoContacto(null);
+    } catch (error) {
+      console.error('Error actualizando contacto:', error);
+      alert('Error al actualizar contacto');
+    }
+  };
+
+  const handleMarcarPrincipal = async (contactoId) => {
+    try {
+      // Primero quitar principal de todos
+      for (const c of contactos) {
+        if (c.es_principal) {
+          await updateContacto(c.id, { es_principal: false });
+        }
+      }
+      // Marcar el nuevo como principal
+      await updateContacto(contactoId, { es_principal: true });
+      setContactos(contactos.map(c => ({ ...c, es_principal: c.id === contactoId })));
+    } catch (error) {
+      console.error('Error marcando contacto principal:', error);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Editar Cliente</h3>
@@ -9353,7 +10145,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          {/* Mismo formulario que NuevoClienteModal pero con datos precargados */}
+          {/* Información Básica */}
           <div className="mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Información Básica</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -9364,7 +10156,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.razonSocial}
                   onChange={(e) => setFormData({...formData, razonSocial: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9374,7 +10166,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9384,12 +10176,13 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.giro}
                   onChange={(e) => setFormData({...formData, giro: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
           </div>
 
+          {/* Ubicación */}
           <div className="mb-6">
             <h4 className="text-lg font-semibold text-gray-800 mb-4">Ubicación</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -9399,7 +10192,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9409,7 +10202,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.ciudad}
                   onChange={(e) => setFormData({...formData, ciudad: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9419,7 +10212,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.comuna}
                   onChange={(e) => setFormData({...formData, comuna: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -9429,58 +10222,185 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
                   required
                   value={formData.pais}
                   onChange={(e) => setFormData({...formData, pais: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
             </div>
           </div>
 
+          {/* Contactos */}
           <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-800 mb-4">Contacto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Persona Encargada *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.personaEncargada}
-                  onChange={(e) => setFormData({...formData, personaEncargada: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Teléfono *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-800">Contactos</h4>
+              <button
+                type="button"
+                onClick={() => setShowNuevoContacto(!showNuevoContacto)}
+                className="flex items-center space-x-1 px-3 py-1.5 bg-[#45ad98] text-white rounded-lg text-sm hover:bg-[#3a9482] transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Contacto</span>
+              </button>
             </div>
+
+            {/* Formulario nuevo contacto */}
+            {showNuevoContacto && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-4 border-2 border-dashed border-gray-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Nombre *"
+                    value={nuevoContacto.nombre}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, nombre: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cargo"
+                    value={nuevoContacto.cargo}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, cargo: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={nuevoContacto.email}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, email: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Teléfono"
+                    value={nuevoContacto.telefono}
+                    onChange={(e) => setNuevoContacto({...nuevoContacto, telefono: e.target.value})}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98]"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowNuevoContacto(false); setNuevoContacto({ nombre: '', cargo: '', email: '', telefono: '' }); }}
+                    className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 rounded-lg text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAgregarContacto}
+                    className="px-3 py-1.5 bg-[#45ad98] text-white rounded-lg text-sm hover:bg-[#3a9482]"
+                  >
+                    Guardar Contacto
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lista de contactos */}
+            {loadingContactos ? (
+              <p className="text-gray-500 text-sm">Cargando contactos...</p>
+            ) : contactos.length === 0 ? (
+              <p className="text-gray-500 text-sm">No hay contactos registrados</p>
+            ) : (
+              <div className="space-y-2">
+                {contactos.map((contacto) => (
+                  <div key={contacto.id} className="bg-white border border-gray-200 rounded-xl p-3">
+                    {editandoContacto?.id === contacto.id ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={editandoContacto.nombre}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, nombre: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Nombre"
+                        />
+                        <input
+                          type="text"
+                          value={editandoContacto.cargo || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, cargo: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Cargo"
+                        />
+                        <input
+                          type="email"
+                          value={editandoContacto.email || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, email: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Email"
+                        />
+                        <input
+                          type="text"
+                          value={editandoContacto.telefono || ''}
+                          onChange={(e) => setEditandoContacto({...editandoContacto, telefono: e.target.value})}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Teléfono"
+                        />
+                        <div className="md:col-span-2 flex justify-end space-x-2">
+                          <button type="button" onClick={() => setEditandoContacto(null)} className="px-2 py-1 text-gray-600 text-sm">Cancelar</button>
+                          <button type="button" onClick={handleGuardarEdicion} className="px-2 py-1 bg-[#45ad98] text-white rounded text-sm">Guardar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-semibold text-gray-800">{contacto.nombre}</span>
+                            {contacto.es_principal && (
+                              <span className="px-2 py-0.5 bg-[#45ad98] text-white text-xs rounded-full">Principal</span>
+                            )}
+                            {contacto.cargo && <span className="text-gray-500 text-sm">• {contacto.cargo}</span>}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {contacto.email && <span className="mr-3">{contacto.email}</span>}
+                            {contacto.telefono && <span>{contacto.telefono}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {!contacto.es_principal && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarcarPrincipal(contacto.id)}
+                              className="p-1.5 text-gray-400 hover:text-[#45ad98] hover:bg-gray-100 rounded"
+                              title="Marcar como principal"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditandoContacto(contacto)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-100 rounded"
+                            title="Editar"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarContacto(contacto.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Observaciones */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones</label>
             <textarea
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
 
+          {/* Botones */}
           <div className="flex justify-end space-x-4">
             <button
               type="button"
@@ -9492,7 +10412,7 @@ const EditarClienteModal = ({ cliente, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -9554,7 +10474,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold text-white">Historial de Cotizaciones</h3>
@@ -9577,7 +10497,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
                 <div key={cot.numero} className="bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-mono font-bold text-lg" style={{ color: '#0B1F3B' }}>
+                      <p className="font-mono font-bold text-lg" style={{ color: '#235250' }}>
                         Cotización #{cot.numero}
                       </p>
                       <p className="text-sm text-gray-600">{cot.fecha}</p>
@@ -9609,7 +10529,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
             <button
               onClick={onClose}
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Cerrar
             </button>
@@ -9621,7 +10541,7 @@ const HistorialClienteModal = ({ cliente, onClose }) => {
 };
 
 // Componente de Módulo de Cotizaciones
-const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {}, currentUserName }) => {
+const CotizacionesModule = ({ onAdjudicarVenta, setSharedCotizaciones = () => {}, sharedProtocolos = [], currentUserName }) => {
 const [showNewModal, setShowNewModal] = useState(false);
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -9764,6 +10684,12 @@ const [showNewModal, setShowNewModal] = useState(false);
     return { subtotal, iva, total };
   };
 
+  const getOCClienteDeCotizacion = (cot) => {
+    if (!cot.adjudicada_a_protocolo) return null;
+    const protocolo = sharedProtocolos.find(p => p.folio === cot.adjudicada_a_protocolo);
+    return protocolo?.ocCliente || null;
+  };
+
   const abrirModalGanada = (cotizacion) => {
     const seleccionInicial = {};
     (cotizacion.items || []).forEach((_, index) => {
@@ -9808,7 +10734,7 @@ const [showNewModal, setShowNewModal] = useState(false);
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A8A] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#45ad98] mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando cotizaciones...</p>
         </div>
       </div>
@@ -9826,7 +10752,7 @@ const [showNewModal, setShowNewModal] = useState(false);
         <button
           onClick={() => setShowNewModal(true)}
           className="flex items-center space-x-2 px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
         >
           <FileText className="w-5 h-5" />
           <span>Nueva Cotización</span>
@@ -9870,13 +10796,13 @@ const [showNewModal, setShowNewModal] = useState(false);
               placeholder="Buscar por número o cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
           <select
             value={filterEstado}
             onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+            className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
           >
             <option value="todas">Todos los estados</option>
             <option value="emitida">Emitidas</option>
@@ -9891,7 +10817,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead style={{ backgroundColor: '#1E3A8A' }}>
+            <thead style={{ backgroundColor: '#45ad98' }}>
               <tr>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">N° Cotización</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Fecha</th>
@@ -9901,6 +10827,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Neto</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">IVA</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Total</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-white">OC Cliente</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Responsable</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Estado</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-white">Acciones</th>
@@ -9909,7 +10836,7 @@ const [showNewModal, setShowNewModal] = useState(false);
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={12} className="px-6 py-8 text-center text-gray-500">
                     Cargando cotizaciones...
                   </td>
                 </tr>
@@ -9941,6 +10868,16 @@ const [showNewModal, setShowNewModal] = useState(false);
                       </>
                     );
                   })()}
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const ocCliente = getOCClienteDeCotizacion(cot);
+                      return ocCliente ? (
+                        <span className="font-medium text-gray-700">{ocCliente}</span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-6 py-4 text-gray-700">
                     {cot.cotizadoPor || '—'}
                   </td>
@@ -10091,7 +11028,7 @@ const [showNewModal, setShowNewModal] = useState(false);
       {showDetalleModal && cotizacionSeleccionada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">Detalle Cotización #{cotizacionSeleccionada.numero}</h3>
                 <button onClick={() => setShowDetalleModal(false)} className="text-white hover:bg-white/20 p-2 rounded-lg">
@@ -10123,7 +11060,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Monto</p>
-                  <p className="font-bold text-2xl" style={{color: '#0B1F3B'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
+                  <p className="font-bold text-2xl" style={{color: '#235250'}}>{formatCurrency(cotizacionSeleccionada.monto)}</p>
                 </div>
               </div>
 
@@ -10212,8 +11149,8 @@ const [showNewModal, setShowNewModal] = useState(false);
 
       {showGanadaModal && cotizacionGanada && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex-shrink-0" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-white">
                   Items ganados - Cotización #{cotizacionGanada.numero}
@@ -10229,7 +11166,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </button>
               </div>
             </div>
-            <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               {cotizacionGanada.items && cotizacionGanada.items.length > 0 ? (
                 <div className="space-y-3">
                   {cotizacionGanada.items.map((item, index) => {
@@ -10270,7 +11207,7 @@ const [showNewModal, setShowNewModal] = useState(false);
                 </div>
               )}
             </div>
-            <div className="p-6 border-t flex justify-end space-x-3">
+            <div className="p-6 border-t flex justify-end space-x-3 flex-shrink-0">
               <button
                 onClick={() => {
                   setShowGanadaModal(false);
@@ -10283,7 +11220,7 @@ const [showNewModal, setShowNewModal] = useState(false);
               <button
                 onClick={confirmarGanada}
                 className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-                style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+                style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
               >
                 Confirmar Ganada
               </button>
@@ -10340,7 +11277,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
       items: [...prev.items, {
         id: prev.items.length + 1,
         item: '',
-        cantidad: 1,
+        cantidad: 0,
         descripcion: '',
         valorUnitario: 0,
         descuento: 0
@@ -10403,7 +11340,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
-        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Editar Cotización #{cotizacion.numero}</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg">
@@ -10420,7 +11357,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="date"
                 value={formData.fecha}
                 onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
             <div>
@@ -10428,7 +11365,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               <select
                 value={formData.estado}
                 onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
               >
                 <option value="emitida">Emitida</option>
                 <option value="ganada">Ganada</option>
@@ -10444,7 +11381,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               type="text"
               value={formData.nombreProyecto}
               onChange={(e) => setFormData({ ...formData, nombreProyecto: e.target.value })}
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
             />
           </div>
 
@@ -10454,7 +11391,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
               <select
                 value={formData.unidadNegocio}
                 onChange={(e) => setFormData({ ...formData, unidadNegocio: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
               >
                 <option value="">Seleccione...</option>
                 {BUSINESS_UNITS.map(unit => (
@@ -10469,7 +11406,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 min="0"
                 value={totales.total}
                 readOnly
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
           </div>
@@ -10481,7 +11418,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="text"
                 value={formData.condicionesPago}
                 onChange={(e) => setFormData({ ...formData, condicionesPago: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
             <div>
@@ -10490,7 +11427,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                 type="text"
                 value={formData.cotizadoPor}
                 onChange={(e) => setFormData({ ...formData, cotizadoPor: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               />
             </div>
           </div>
@@ -10499,13 +11436,13 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Package className="w-5 h-5 mr-2 text-[#1E3A8A]" />
+                <Package className="w-5 h-5 mr-2 text-[#45ad98]" />
                 Items
               </h4>
               <button
                 type="button"
                 onClick={agregarItem}
-                className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
               >
                 + Agregar Item
               </button>
@@ -10533,17 +11470,17 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -10552,7 +11489,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
@@ -10571,7 +11508,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
@@ -10582,7 +11519,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                   </div>
@@ -10612,7 +11549,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -10629,7 +11566,7 @@ const EditarCotizacionModal = ({ cotizacion, onClose, onSave }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Guardar Cambios
             </button>
@@ -10651,6 +11588,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     rut: '',
     direccion: '',
     contacto: '',
+    contactoId: null,
     telefono: '',
     fecha: new Date().toISOString().split('T')[0],
     condicionesPago: '',
@@ -10658,7 +11596,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     unidadNegocio: '',
     observaciones: '',
     items: [
-      { id: 1, item: '', cantidad: 1, descripcion: '', valorUnitario: 0, descuento: 0 }
+      { id: 1, item: '', cantidad: 0, descripcion: '', valorUnitario: 0, descuento: 0 }
     ]
   });
 
@@ -10670,6 +11608,8 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   const [clientes, setClientes] = useState([]);
   const [clientesError, setClientesError] = useState('');
   const [showClienteAutocomplete, setShowClienteAutocomplete] = useState(false);
+  const [contactosCliente, setContactosCliente] = useState([]);
+  const [loadingContactos, setLoadingContactos] = useState(false);
 
   useEffect(() => {
     const loadClientes = async () => {
@@ -10695,6 +11635,33 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     loadClientes();
   }, []);
 
+  const cargarContactosCliente = async (clienteId) => {
+    if (!clienteId) {
+      setContactosCliente([]);
+      return;
+    }
+    try {
+      setLoadingContactos(true);
+      const contactos = await getContactosByCliente(clienteId);
+      setContactosCliente(contactos || []);
+      // Si hay un contacto principal, seleccionarlo automáticamente
+      const principal = contactos?.find(c => c.es_principal);
+      if (principal) {
+        setFormData(prev => ({
+          ...prev,
+          contacto: principal.nombre,
+          contactoId: principal.id,
+          telefono: principal.telefono || prev.telefono
+        }));
+      }
+    } catch (error) {
+      console.error('Error cargando contactos:', error);
+      setContactosCliente([]);
+    } finally {
+      setLoadingContactos(false);
+    }
+  };
+
   const buscarCliente = (codigo) => {
     const codigoNormalizado = codigo.trim();
     if (!codigoNormalizado) return;
@@ -10709,8 +11676,10 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
         rut: cliente.rut,
         direccion: cliente.direccion,
         contacto: cliente.contacto,
+        contactoId: null,
         telefono: cliente.telefono
       }));
+      cargarContactosCliente(cliente.id);
     }
   };
 
@@ -10724,21 +11693,39 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
       rut: cliente.rut,
       direccion: cliente.direccion,
       contacto: cliente.contacto,
+      contactoId: null,
       telefono: cliente.telefono
     }));
     setShowClienteAutocomplete(false);
+    cargarContactosCliente(cliente.id);
+  };
+
+  const seleccionarContacto = (contactoId) => {
+    if (!contactoId) {
+      setFormData(prev => ({ ...prev, contacto: '', contactoId: null, telefono: '' }));
+      return;
+    }
+    const contacto = contactosCliente.find(c => c.id === contactoId);
+    if (contacto) {
+      setFormData(prev => ({
+        ...prev,
+        contacto: contacto.nombre,
+        contactoId: contacto.id,
+        telefono: contacto.telefono || prev.telefono
+      }));
+    }
   };
 
   const agregarItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        id: prev.items.length + 1, 
-        item: '', 
-        cantidad: 1, 
-        descripcion: '', 
-        valorUnitario: 0, 
-        descuento: 0 
+      items: [...prev.items, {
+        id: prev.items.length + 1,
+        item: '',
+        cantidad: 0,
+        descripcion: '',
+        valorUnitario: 0,
+        descuento: 0
       }]
     }));
   };
@@ -10800,8 +11787,8 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
     // Obtener todas las cotizaciones para calcular el siguiente número
     const cotizaciones = await getCotizaciones();
     const ultimoNumero = cotizaciones.length > 0
-      ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 1999))
-      : 1999;
+      ? Math.max(...cotizaciones.map(c => parseInt(c.numero) || 5540))
+      : 5540;
     
     const { subtotal } = calcularTotales();
     const nuevaCotizacion = {
@@ -10831,7 +11818,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8">
-        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+        <div className="p-6 border-b border-gray-200" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
           <div className="flex items-center justify-between">
             <h3 className="text-2xl font-bold text-white">Nueva Cotización</h3>
             <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors">
@@ -10844,7 +11831,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           {/* Datos del Cliente */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <Users className="w-5 h-5 mr-2 text-[#1E3A8A]" />
+              <Users className="w-5 h-5 mr-2 text-[#45ad98]" />
               Datos del Cliente
             </h4>
             
@@ -10892,7 +11879,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                     }}
                     onFocus={() => setShowClienteAutocomplete(true)}
                     onBlur={() => setTimeout(() => setShowClienteAutocomplete(false), 150)}
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   />
                   {showClienteAutocomplete && formData.razonSocial && (
                     <div className="absolute z-10 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -10923,7 +11910,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.rut}
                   onChange={(e) => setFormData({...formData, rut: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="12.345.678-9"
                 />
               </div>
@@ -10939,7 +11926,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                 required
                 value={formData.nombreProyecto}
                 onChange={(e) => setFormData({...formData, nombreProyecto: e.target.value})}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 placeholder="Ej: Stand Feria Inmobiliaria 2025"
               />
             </div>
@@ -10951,17 +11938,37 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.direccion}
                   onChange={(e) => setFormData({...formData, direccion: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Contacto</label>
-                <input
-                  type="text"
-                  value={formData.contacto}
-                  onChange={(e) => setFormData({...formData, contacto: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
-                />
+                {loadingContactos ? (
+                  <div className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-500 text-sm">
+                    Cargando contactos...
+                  </div>
+                ) : contactosCliente.length > 0 ? (
+                  <select
+                    value={formData.contactoId || ''}
+                    onChange={(e) => seleccionarContacto(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
+                  >
+                    <option value="">Seleccionar contacto...</option>
+                    {contactosCliente.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}{c.cargo ? ` - ${c.cargo}` : ''}{c.es_principal ? ' (Principal)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.contacto}
+                    onChange={(e) => setFormData({...formData, contacto: e.target.value})}
+                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
+                    placeholder="Nombre del contacto"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">N° Contacto</label>
@@ -10969,8 +11976,9 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   type="text"
                   value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                   placeholder="+56 9 1234 5678"
+                  readOnly={formData.contactoId && contactosCliente.length > 0}
                 />
               </div>
             </div>
@@ -10979,7 +11987,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           {/* Datos de la Cotización */}
           <div className="mb-8">
             <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <FileText className="w-5 h-5 mr-2 text-[#1E3A8A]" />
+              <FileText className="w-5 h-5 mr-2 text-[#45ad98]" />
               Datos de la Cotización
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -10989,7 +11997,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.unidadNegocio}
                   onChange={(e) => setFormData({...formData, unidadNegocio: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                   style={{ fontWeight: '600' }}
                 >
                   <option value="">Seleccione...</option>
@@ -11006,7 +12014,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.fecha}
                   onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div>
@@ -11016,7 +12024,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.cotizadoPor}
                   onChange={(e) => setFormData({...formData, cotizadoPor: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
                 />
               </div>
               <div className="md:col-span-3">
@@ -11025,7 +12033,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                   required
                   value={formData.condicionesPago}
                   onChange={(e) => setFormData({...formData, condicionesPago: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option value="">Seleccione...</option>
                   <option value="Contado">Contado</option>
@@ -11042,13 +12050,13 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Package className="w-5 h-5 mr-2 text-[#1E3A8A]" />
+                <Package className="w-5 h-5 mr-2 text-[#45ad98]" />
                 Items
               </h4>
               <button
                 type="button"
                 onClick={agregarItem}
-                className="px-4 py-2 bg-[#1E3A8A] text-white rounded-lg hover:bg-[#0B1F3B] transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-[#45ad98] text-white rounded-lg hover:bg-[#235250] transition-colors text-sm font-semibold"
               >
                 + Agregar Item
               </button>
@@ -11076,17 +12084,17 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.item}
                         onChange={(e) => actualizarItem(item.id, 'item', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-1">Cantidad</label>
                       <input
                         type="number"
-                        min="1"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        min="0"
+                        value={item.cantidad === 0 ? '' : item.cantidad}
+                        onChange={(e) => actualizarItem(item.id, 'cantidad', parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -11095,7 +12103,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         type="text"
                         value={item.descripcion}
                         onChange={(e) => actualizarItem(item.id, 'descripcion', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
@@ -11114,7 +12122,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         onBlur={(e) => {
                           if (e.target.value === '') actualizarItem(item.id, 'valorUnitario', 0);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                     <div>
@@ -11125,7 +12133,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                         max="100"
                         value={item.descuento}
                         onChange={(e) => actualizarItem(item.id, 'descuento', parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#1E3A8A] text-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#45ad98] text-sm"
                       />
                     </div>
                   </div>
@@ -11146,7 +12154,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
               value={formData.observaciones}
               onChange={(e) => setFormData({...formData, observaciones: e.target.value})}
               rows="3"
-              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A]"
+              className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98]"
               placeholder="Información adicional..."
             />
           </div>
@@ -11167,7 +12175,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
               <span className="text-gray-800 font-bold text-lg">TOTAL:</span>
-              <span className="text-2xl font-bold" style={{ color: '#0B1F3B' }}>
+              <span className="text-2xl font-bold" style={{ color: '#235250' }}>
                 {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(totales.total)}
               </span>
             </div>
@@ -11194,7 +12202,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
                 generarPDFCotizacion(cotizacion);
               }}
               className="px-6 py-3 border-2 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center space-x-2"
-              style={{ borderColor: '#1E3A8A', color: '#1E3A8A' }}
+              style={{ borderColor: '#45ad98', color: '#45ad98' }}
             >
               <Download className="w-5 h-5" />
               <span>Vista Previa PDF</span>
@@ -11202,7 +12210,7 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
             <button
               type="submit"
               className="px-6 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-all"
-              style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}
+              style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}
             >
               Crear Cotización
             </button>
@@ -11214,36 +12222,57 @@ const NuevaCotizacionModal = ({ onClose, onSave, currentUserName }) => {
 };
 
 // Componente Carta Gantt
-const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
-  if (activeModule !== 'gantt') return null;
-
+const CartaGanttModule = ({ activeModule, sharedProtocolos }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filterEstado, setFilterEstado] = useState('todos');
 
-  const mesesEspanol = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
+  if (activeModule !== 'gantt') return null;
 
-  const getWeeksOfMonth = (year, month) => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const monthName = currentDate.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+
+  const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  // Calcular semanas del mes
+  const getWeeksOfMonth = () => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const weeks = [];
-    let current = new Date(firstDay);
-    const dayOfWeek = current.getDay();
-    current.setDate(current.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    while (current <= lastDay || weeks.length < 4) {
-      const weekStart = new Date(current);
-      const weekEnd = new Date(current);
+    // Empezar desde el lunes de la semana del primer día
+    let start = new Date(firstDay);
+    const dayOfWeek = start.getDay();
+    start.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
+
+    while (start <= lastDay || weeks.length === 0) {
+      const weekStart = new Date(start);
+      const weekEnd = new Date(start);
       weekEnd.setDate(weekEnd.getDate() + 6);
       weeks.push({ start: weekStart, end: weekEnd });
-      current.setDate(current.getDate() + 7);
-      if (current > lastDay && weeks.length >= 4) break;
+      start.setDate(start.getDate() + 7);
     }
     return weeks;
   };
 
-  const getEstadoBarColor = (estado) => {
+  const weeks = getWeeksOfMonth();
+  const totalDays = weeks.length * 7;
+  const firstDate = weeks[0].start;
+  const lastDate = new Date(weeks[weeks.length - 1].end);
+
+  const getWeekDays = (week) => {
+    const days = [];
+    const letras = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(week.start);
+      d.setDate(d.getDate() + i);
+      days.push({ letra: letras[i], num: d.getDate(), date: d, isCurrentMonth: d.getMonth() === month });
+    }
+    return days;
+  };
+
+  const getEstadoDotColor = (estado) => {
     switch (estado) {
       case 'Abierto': return 'bg-blue-300';
       case 'En Proceso': return 'bg-blue-500';
@@ -11254,209 +12283,204 @@ const CartaGanttModule = ({ activeModule, sharedProtocolos = [] }) => {
     }
   };
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const weeks = getWeeksOfMonth(year, month);
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
+  const getEstadoBarStyle = (estado) => {
+    switch (estado) {
+      case 'Abierto':
+        return { backgroundColor: '#8dc0d7', color: '#2f4ea3' };
+      case 'En Proceso':
+        return { backgroundColor: '#3f79b8', color: '#98d9e7' };
+      case 'Despachado Parcial':
+        return { backgroundColor: '#f6d267', color: '#6d4b00' };
+      case 'Cerrado':
+        return { backgroundColor: '#9bc798', color: '#008b3d' };
+      case 'Anulado':
+        return { backgroundColor: '#c7ced7', color: '#425466' };
+      default:
+        return { backgroundColor: '#d5dbe3', color: '#425466' };
+    }
+  };
 
-  const protocolosFiltrados = sharedProtocolos.filter(p => {
+  // Filtrar protocolos con fechas y que se solapen con el mes visible
+  const protocolosConFechas = sharedProtocolos.filter(p => {
     if (!p.fechaInicioProduccion || !p.fechaEntrega) return false;
     if (filterEstado !== 'todos' && p.estado !== filterEstado) return false;
-    const pStart = new Date(p.fechaInicioProduccion);
-    const pEnd = new Date(p.fechaEntrega);
-    return pStart <= monthEnd && pEnd >= monthStart;
+    const inicio = new Date(p.fechaInicioProduccion);
+    const fin = new Date(p.fechaEntrega);
+    return inicio <= lastDate && fin >= firstDate;
   });
 
+  // Calcular posición de la barra
   const calculateBarPosition = (protocolo) => {
-    const pStart = new Date(protocolo.fechaInicioProduccion);
-    const pEnd = new Date(protocolo.fechaEntrega);
-    const totalStart = weeks[0].start.getTime();
-    const totalEnd = weeks[weeks.length - 1].end.getTime();
-    const totalDuration = totalEnd - totalStart;
-    const barStart = Math.max(pStart.getTime(), totalStart);
-    const barEnd = Math.min(pEnd.getTime(), totalEnd);
-    const leftPercent = ((barStart - totalStart) / totalDuration) * 100;
-    const widthPercent = ((barEnd - barStart) / totalDuration) * 100;
-    return {
-      left: `${Math.max(0, leftPercent)}%`,
-      width: `${Math.max(1, widthPercent)}%`
-    };
+    const inicio = new Date(protocolo.fechaInicioProduccion);
+    const fin = new Date(protocolo.fechaEntrega);
+    const clampedStart = inicio < firstDate ? firstDate : inicio;
+    const clampedEnd = fin > lastDate ? lastDate : fin;
+    const totalMs = lastDate.getTime() - firstDate.getTime();
+    if (totalMs <= 0) return { left: 0, width: 0 };
+    const left = ((clampedStart.getTime() - firstDate.getTime()) / totalMs) * 100;
+    const width = ((clampedEnd.getTime() - clampedStart.getTime()) / totalMs) * 100;
+    return { left: Math.max(0, left), width: Math.max(1, Math.min(width, 100 - left)) };
   };
 
-  const calculateTodayPosition = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const totalStart = weeks[0].start.getTime();
-    const totalEnd = weeks[weeks.length - 1].end.getTime();
-    if (today < weeks[0].start || today > weeks[weeks.length - 1].end) return null;
-    return `${((today.getTime() - totalStart) / (totalEnd - totalStart)) * 100}%`;
-  };
+  // Posición de "hoy"
+  const today = new Date();
+  const todayPosition = (() => {
+    if (today < firstDate || today > lastDate) return null;
+    const totalMs = lastDate.getTime() - firstDate.getTime();
+    if (totalMs <= 0) return null;
+    return ((today.getTime() - firstDate.getTime()) / totalMs) * 100;
+  })();
 
-  const todayPos = calculateTodayPosition();
-
-  const diasLetra = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];
-
-  const getWeekDays = (week) => {
-    const days = [];
-    const current = new Date(week.start);
-    for (let i = 0; i < 7; i++) {
-      days.push({ letra: diasLetra[current.getDay()], num: current.getDate() });
-      current.setDate(current.getDate() + 1);
-    }
-    return days;
-  };
+  const estados = ['todos', 'Abierto', 'En Proceso', 'Despachado Parcial', 'Cerrado', 'Anulado'];
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Carta Gantt</h2>
-        <p className="text-gray-600">Timeline de producción de protocolos</p>
-      </div>
-
+    <div className="p-6">
+      {/* Header */}
       <div className="bg-white rounded-2xl p-6 shadow-lg mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Carta Gantt</h2>
+            <p className="text-gray-500">Timeline de produccion por protocolo</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Filtro estado */}
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#45ad98]"
             >
+              {estados.map(e => (
+                <option key={e} value={e}>{e === 'todos' ? 'Todos los estados' : e}</option>
+              ))}
+            </select>
+            {/* Navegación */}
+            <button onClick={goToPrevMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <ChevronLeft className="w-5 h-5 text-gray-600" />
             </button>
-            <h3 className="text-xl font-bold text-gray-800 min-w-[200px] text-center">
-              {mesesEspanol[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h3>
-            <button
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="px-4 py-2 text-sm font-semibold rounded-lg text-white"
-              style={{ background: '#1E3A8A' }}
-            >
+            <button onClick={goToToday} className="px-3 py-2 bg-[#45ad98] text-white rounded-lg text-sm font-semibold hover:bg-[#235250] transition-colors">
               Hoy
             </button>
+            <button onClick={goToNextMonth} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+            <span className="text-lg font-bold text-gray-800 capitalize min-w-[180px] text-center">{monthName}</span>
           </div>
-          <select
-            value={filterEstado}
-            onChange={(e) => setFilterEstado(e.target.value)}
-            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="Abierto">Abierto</option>
-            <option value="En Proceso">En Proceso</option>
-            <option value="Despachado Parcial">Despachado Parcial</option>
-            <option value="Cerrado">Cerrado</option>
-            <option value="Anulado">Anulado</option>
-          </select>
-        </div>
-        <div className="flex items-center space-x-4 mt-4 text-sm flex-wrap">
-          <span className="text-gray-500 font-medium">Estado:</span>
-          {[
-            { estado: 'Abierto', color: 'bg-blue-300' },
-            { estado: 'En Proceso', color: 'bg-blue-500' },
-            { estado: 'Desp. Parcial', color: 'bg-yellow-400' },
-            { estado: 'Cerrado', color: 'bg-green-500' },
-            { estado: 'Anulado', color: 'bg-gray-400' }
-          ].map(item => (
-            <div key={item.estado} className="flex items-center space-x-1">
-              <div className={`w-3 h-3 rounded ${item.color}`}></div>
-              <span className="text-gray-600">{item.estado}</span>
-            </div>
-          ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="flex border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-            <div className="w-[260px] min-w-[260px] px-4 py-3 font-semibold text-gray-700 text-sm border-r border-gray-200">
-              Protocolo / Proyecto
+      {/* Leyenda */}
+      <div className="flex items-center space-x-4 mb-4 px-2">
+        {['Abierto', 'En Proceso', 'Despachado Parcial', 'Cerrado', 'Anulado'].map(e => (
+          <div key={e} className="flex items-center space-x-1">
+            <div className={`w-3 h-3 rounded-full ${getEstadoDotColor(e)}`}></div>
+            <span className="text-xs text-gray-600">{e}</span>
+          </div>
+        ))}
+        <div className="flex items-center space-x-1">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className="text-xs text-gray-600">Hoy</span>
+        </div>
+      </div>
+
+      {protocolosConFechas.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 shadow-lg text-center">
+          <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-400 mb-2">Sin protocolos con fechas</h3>
+          <p className="text-gray-400">Asigna fechas de produccion desde el detalle del protocolo</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          {/* Header de semanas */}
+          <div className="flex border-b-2 border-gray-200">
+            {/* Columna fija izquierda */}
+            <div className="w-[260px] min-w-[260px] p-3 border-r-2 border-gray-200 bg-gray-50">
+              <span className="text-sm font-bold text-gray-600">Protocolo</span>
             </div>
-            <div className="flex-1 flex">
-              {weeks.map((week, i) => {
-                const days = getWeekDays(week);
-                return (
-                  <div key={i} className="flex-1 border-r border-gray-100">
-                    <div className="text-center text-xs font-semibold text-gray-600 py-1 border-b border-gray-100">
-                      Sem {i + 1}
+            {/* Semanas */}
+            <div className="flex-1">
+              <div className="flex">
+                {weeks.map((week, wi) => (
+                  <div key={wi} className="flex-1 border-r border-gray-100">
+                    <div className="text-center text-xs font-bold text-gray-500 py-1 bg-gray-50 border-b border-gray-100">
+                      Sem {wi + 1}
                     </div>
                     <div className="flex">
-                      {days.map((day, j) => (
-                        <div key={j} className="flex-1 text-center py-1 text-[10px] text-gray-400 border-r border-gray-50 last:border-r-0">
-                          <span className="font-medium text-gray-500">{day.letra}</span>
-                          <br />
-                          {day.num}
+                      {getWeekDays(week).map((day, di) => (
+                        <div
+                          key={di}
+                          className={`flex-1 text-center py-1 border-r border-gray-50 ${!day.isCurrentMonth ? 'opacity-30' : ''} ${day.date.toDateString() === today.toDateString() ? 'bg-red-50' : ''}`}
+                        >
+                          <div className="text-[10px] text-gray-400">{day.letra}</div>
+                          <div className={`text-[10px] font-semibold ${day.date.toDateString() === today.toDateString() ? 'text-red-500' : 'text-gray-600'}`}>
+                            {day.num}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
-          {protocolosFiltrados.length === 0 ? (
-            <div className="px-8 py-12 text-center text-gray-500">
-              <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="font-semibold">No hay protocolos con fechas de producción para este mes</p>
-              <p className="text-sm mt-1">Asigna fechas de inicio y entrega desde el detalle del protocolo</p>
-            </div>
-          ) : (
-            protocolosFiltrados.map((protocolo) => {
-              const barPos = calculateBarPosition(protocolo);
-              return (
-                <div key={protocolo.id} className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <div className="w-[260px] min-w-[260px] px-4 py-3 border-r border-gray-200">
-                    <p className="font-semibold text-gray-800 text-sm">PT-{protocolo.folio}</p>
-                    <p className="text-xs text-gray-600 truncate" title={protocolo.nombreProyecto}>{protocolo.nombreProyecto}</p>
-                    <p className="text-xs text-gray-400 truncate">{protocolo.cliente}</p>
-                  </div>
-                  <div className="flex-1 relative py-3 px-1" style={{ minHeight: '48px' }}>
-                    <div className="absolute inset-0 flex">
-                      {weeks.map((_, i) => (
-                        <div key={i} className="flex-1 border-r border-gray-100 flex">
-                          {[0,1,2,3,4,5,6].map(j => (
-                            <div key={j} className="flex-1 border-r border-gray-50 last:border-r-0"></div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
+          {/* Filas de protocolos */}
+          {protocolosConFechas.map((protocolo, idx) => {
+            const bar = calculateBarPosition(protocolo);
+            const barStyle = getEstadoBarStyle(protocolo.estado);
+            const nombreProyecto = protocolo.nombreProyecto || protocolo.nombre || `Protocolo ${protocolo.folio}`;
+            const mostrarNombreGrande = bar.width >= 10;
+            return (
+              <div key={protocolo.id || idx} className="flex border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                {/* Info del protocolo */}
+                <div className="w-[260px] min-w-[260px] p-3 border-r-2 border-gray-200">
+                  <p className="text-sm font-bold text-gray-800">PT-{protocolo.folio}</p>
+                  <p className="text-xs text-gray-500 truncate">{protocolo.nombreProyecto || protocolo.nombre || ''}</p>
+                  <p className="text-xs text-gray-400 truncate">{protocolo.cliente}</p>
+                </div>
+                {/* Barra del Gantt */}
+                <div className="flex-1 relative" style={{ minHeight: '56px' }}>
+                  {/* Línea de hoy */}
+                  {todayPosition !== null && (
                     <div
-                      className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-md ${getEstadoBarColor(protocolo.estado)} opacity-90 shadow-sm cursor-default`}
-                      style={{ left: barPos.left, width: barPos.width, minWidth: '8px' }}
-                      title={`${protocolo.folio} - ${protocolo.nombreProyecto}\n${protocolo.fechaInicioProduccion} → ${protocolo.fechaEntrega}\nEstado: ${protocolo.estado}`}
-                    >
-                      <span className="text-xs text-white font-medium px-2 truncate block leading-7">
+                      className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-10"
+                      style={{ left: `${todayPosition}%` }}
+                    />
+                  )}
+                  {/* Barra del protocolo */}
+                  <div
+                    className="absolute top-2 bottom-2 rounded-md cursor-pointer shadow-sm opacity-90 hover:opacity-100 transition-opacity"
+                    style={{ left: `${bar.left}%`, width: `${bar.width}%`, minWidth: '4px', ...barStyle }}
+                    title={`${nombreProyecto} (PT-${protocolo.folio}): ${protocolo.fechaInicioProduccion} a ${protocolo.fechaEntrega} (${protocolo.estado})`}
+                  >
+                    <div className="h-full w-full px-2 flex items-center gap-2 overflow-hidden">
+                      <span className="text-[10px] font-semibold whitespace-nowrap opacity-90">
                         PT-{protocolo.folio}
                       </span>
+                      {mostrarNombreGrande && (
+                        <span className="text-base font-bold truncate tracking-wide">
+                          {nombreProyecto}
+                        </span>
+                      )}
                     </div>
-                    {todayPos && (
-                      <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: todayPos }}>
-                        <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-                      </div>
-                    )}
                   </div>
                 </div>
-              );
-            })
-          )}
+              </div>
+            );
+          })}
         </div>
-      </div>
-
-      <div className="mt-4 text-sm text-gray-500">
-        Mostrando {protocolosFiltrados.length} protocolo{protocolosFiltrados.length !== 1 ? 's' : ''} con fechas de producción asignadas
-      </div>
+      )}
     </div>
   );
 };
 
 // Componente de Dashboard
 const Dashboard = ({ user, onLogout }) => {
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const getDefaultModuleByRole = (role) => {
+    if (role === 'compras') return 'protocolos';
+    return 'dashboard';
+  };
+
+  const [activeModule, setActiveModule] = useState(() => getDefaultModuleByRole(user?.role));
   const [selectedUnit, setSelectedUnit] = useState('Todas');
 
   // ===== ESTADOS COMPARTIDOS ENTRE MÓDULOS =====
@@ -11465,6 +12489,121 @@ const Dashboard = ({ user, onLogout }) => {
   const [sharedOrdenesCompra, setSharedOrdenesCompra] = useState([]);
   const [datosPreOC, setDatosPreOC] = useState(null);
   const [protocoloParaAbrir, setProtocoloParaAbrir] = useState(null);
+  const chatNotifyProcessedIdsRef = useRef(new Set());
+  const chatNotifyLastSyncRef = useRef(new Date().toISOString());
+  const protocolosByIdRef = useRef(new Map());
+
+  useEffect(() => {
+    const byId = new Map();
+    sharedProtocolos.forEach((protocolo) => {
+      if (protocolo?.id) byId.set(protocolo.id, protocolo);
+    });
+    protocolosByIdRef.current = byId;
+  }, [sharedProtocolos]);
+
+  const registerProcessedChatNotify = (messageId) => {
+    if (!messageId) return false;
+    const ids = chatNotifyProcessedIdsRef.current;
+    if (ids.has(messageId)) return true;
+    ids.add(messageId);
+    if (ids.size > 2000) {
+      const keep = Array.from(ids).slice(-1200);
+      chatNotifyProcessedIdsRef.current = new Set(keep);
+    }
+    return false;
+  };
+
+  const updateChatNotifySync = (isoDate) => {
+    if (!isoDate) return;
+    const next = new Date(isoDate).getTime();
+    if (Number.isNaN(next)) return;
+    const prev = chatNotifyLastSyncRef.current ? new Date(chatNotifyLastSyncRef.current).getTime() : null;
+    if (!prev || next > prev) {
+      chatNotifyLastSyncRef.current = isoDate;
+    }
+  };
+
+  const notifyIncomingChatMessage = (mensaje) => {
+    if (!mensaje?.id || !mensaje?.protocolo_id) return;
+    if (registerProcessedChatNotify(mensaje.id)) return;
+
+    updateChatNotifySync(mensaje.created_at || new Date().toISOString());
+
+    const isOwnMessage = (
+      (user?.id && mensaje.user_id && String(user.id) === String(mensaje.user_id)) ||
+      (user?.email && mensaje.user_email && String(user.email).toLowerCase() === String(mensaje.user_email).toLowerCase())
+    );
+
+    if (isOwnMessage) return;
+
+    const protocolo = protocolosByIdRef.current.get(mensaje.protocolo_id);
+    const nombreProyecto = protocolo?.nombreProyecto || `PT-${protocolo?.folio || ''}`;
+    const remitente = String(mensaje.user_name || mensaje.user_email || 'Usuario');
+
+    notifyToast(`Mensaje de ${remitente} en ${nombreProyecto || 'proyecto'}`, 'info');
+    playNotificationSound();
+  };
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('global-chat-notify')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'protocolos_chat_mensajes'
+        },
+        (payload) => {
+          notifyIncomingChatMessage(payload.new || {});
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime global de chat con problemas, activando fallback por polling.');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const pollChatNotifications = async () => {
+      if (cancelled) return;
+      const since = chatNotifyLastSyncRef.current;
+      if (!since) return;
+
+      const { data, error } = await supabase
+        .from('protocolos_chat_mensajes')
+        .select('id, protocolo_id, user_id, user_name, user_email, created_at')
+        .gt('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(200);
+
+      if (error) {
+        if (error.code !== '42P01') {
+          console.error('Error en polling global de notificaciones de chat:', error);
+        }
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      data.forEach((mensaje) => notifyIncomingChatMessage(mensaje));
+    };
+
+    const intervalId = setInterval(pollChatNotifications, 5000);
+    pollChatNotifications();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user?.id, user?.email]);
 
   const calcularNetoCotizacion = (cot) => {
     // Si ya tiene neto, usarlo directamente
@@ -11672,9 +12811,9 @@ const Dashboard = ({ user, onLogout }) => {
       const ultimoFolio = protocolosExistentes.length > 0
         ? Math.max(...protocolosExistentes.map(p => {
             const num = parseInt(p.folio);
-            return isNaN(num) ? 4999 : num;
+            return isNaN(num) ? 30650 : num;
           }))
-        : 4999;
+        : 30649;
 
       // Calcular neto desde la cotización
       const netoCalculado = cotizacion.monto || 0; // Ya es neto después de las correcciones
@@ -11870,6 +13009,12 @@ const Dashboard = ({ user, onLogout }) => {
     return false;
   };
 
+  useEffect(() => {
+    if (!hasAccess(activeModule)) {
+      setActiveModule(getDefaultModuleByRole(user?.role));
+    }
+  }, [activeModule, user?.role]);
+
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'comercial', 'finanzas'] },
@@ -11903,24 +13048,24 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="shadow-md" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
+      <header className="shadow-md sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between relative">
             {/* Logo KODIAK a la izquierda */}
             <div className="flex items-center space-x-3">
-              <img
-                src="/logo-kodiak.png"
-                alt="KODIAK"
+              <img 
+                src="/logo-kodiak.png" 
+                alt="KODIAK" 
                 className="h-12 w-auto"
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
             </div>
-
-            {/* Logo ADL Studio centrado */}
+            
+            {/* Logo Building Me centrado */}
             <div className="absolute left-1/2 transform -translate-x-1/2">
-              <img
-                src="/logo-adl-studio.png"
-                alt="ADL Studio"
+              <img 
+                src="/logo-building-me.png" 
+                alt="Building Me" 
                 className="h-10 w-auto"
               />
             </div>
@@ -11929,7 +13074,7 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-white font-semibold">{user.name}</p>
-                <p className="text-sm text-white/70 capitalize">{user.role}</p>
+                <p className="text-sm text-white/70">{getRoleLabel(user.role)}</p>
               </div>
               <button
                 onClick={onLogout}
@@ -11944,7 +13089,7 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       {/* Navegación horizontal de módulos */}
-      <nav className="bg-white shadow-md border-b border-gray-200">
+      <nav className="bg-white shadow-md border-b border-gray-200 sticky top-[72px] z-40">
         <div className="px-8 py-3">
           <div className="flex items-center justify-center space-x-2 overflow-x-auto">
             {menuItems.map((item) => {
@@ -11960,7 +13105,7 @@ const Dashboard = ({ user, onLogout }) => {
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                     style={activeModule === item.id ? {
-                      background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)'
+                      background: 'linear-gradient(135deg, #235250 0%, #45ad98 100%)'
                     } : {}}
                   >
                     <Icon className="w-5 h-5" />
@@ -11989,7 +13134,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <select
                   value={selectedUnit}
                   onChange={(e) => setSelectedUnit(e.target.value)}
-                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#45ad98] bg-white"
                 >
                   <option>Todas</option>
                   {BUSINESS_UNITS.map(unit => (
@@ -12004,13 +13149,13 @@ const Dashboard = ({ user, onLogout }) => {
                   title="Cotizaciones Emitidas"
                   value={stats.cotizacionesEmitidas}
                   icon={FileText}
-                  color="#3B82F6"
+                  color="#33b4e9"
                 />
                 <StatCard
                   title="Cotizaciones Ganadas"
                   value={stats.cotizacionesGanadas}
                   icon={CheckCircle}
-                  color="#1E3A8A"
+                  color="#45ad98"
                   subtitle={stats.cotizacionesEmitidas > 0 ? `${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito` : '0% tasa de éxito'}
                 />
                 <StatCard
@@ -12051,13 +13196,14 @@ const Dashboard = ({ user, onLogout }) => {
                   );
                   cotizacionesGanadas.forEach((cotizacion) => {
                     const unidad = normalizarUnidad(cotizacion.unidadNegocio);
-                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + (cotizacion.monto || 0);
+                    const neto = cotizacion.montoNeto ?? cotizacion.neto ?? cotizacion.monto ?? 0;
+                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + neto;
                   });
 
                   const resumen = [
                     { label: 'Trade Marketing', key: 'TradeMarketing' },
                     { label: 'Inmobiliaria', key: 'Inmobiliarias' },
-                    { label: 'Stand y Ferias', key: 'Stands' },
+                    { label: 'Stand y Ferias', key: 'Stand y Ferias' },
                     { label: 'Imprenta', key: 'Imprenta' },
                     { label: 'Varios', key: 'Varios' }
                   ];
@@ -12075,7 +13221,7 @@ const Dashboard = ({ user, onLogout }) => {
                       title={`Monto Neto ${item.label}`}
                       value={formatMonto(netoPorUnidad[item.key] || 0)}
                       icon={DollarSign}
-                      color={index % 2 === 0 ? '#0B1F3B' : '#1E3A8A'}
+                      color={index % 2 === 0 ? '#235250' : '#45ad98'}
                       subtitle="CLP"
                     />
                   ));
@@ -12090,7 +13236,7 @@ const Dashboard = ({ user, onLogout }) => {
                     title="Protocolos Abiertos"
                     value={stats.protocolosAbiertos}
                     icon={Package}
-                    color="#1E3A8A"
+                    color="#45ad98"
                   />
                   <StatCard
                     title="Protocolos En Proceso"
@@ -12166,9 +13312,10 @@ const Dashboard = ({ user, onLogout }) => {
           )}
 
           {activeModule === 'cotizaciones' && (
-            <CotizacionesModule 
+            <CotizacionesModule
               sharedCotizaciones={sharedCotizaciones}
               setSharedCotizaciones={setSharedCotizaciones}
+              sharedProtocolos={sharedProtocolos}
               onAdjudicarVenta={handleAdjudicarVentaDesdeCotizacion}
               currentUserName={user?.name}
             />
@@ -12192,7 +13339,7 @@ const Dashboard = ({ user, onLogout }) => {
           <CartaGanttModule activeModule={activeModule} sharedProtocolos={sharedProtocolos} />
 
           {activeModule === 'ordenes' && hasAccess('ordenes') && (
-  <OrdenesCompraModule
+  <OrdenesCompraModule 
     user={user}
     sharedOrdenesCompra={sharedOrdenesCompra}
     setSharedOrdenesCompra={setSharedOrdenesCompra}
@@ -12224,6 +13371,7 @@ const Dashboard = ({ user, onLogout }) => {
             sharedProtocolos={sharedProtocolos}
             selectedUnit={selectedUnit}
           />
+
         </main>
     </div>
   );
@@ -12245,7 +13393,7 @@ export default function App() {
             email: profile.email,
             username: profile.email,
             name: profile.nombre,
-            role: profile.rol
+            role: normalizeRole(profile.rol)
           });
         }
       } catch (e) {
@@ -12269,7 +13417,10 @@ export default function App() {
   }, []);
 
   const handleLogin = (userData) => {
-    setUser(userData);
+    setUser({
+      ...userData,
+      role: normalizeRole(userData.role)
+    });
   };
 
   const handleLogout = async () => {

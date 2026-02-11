@@ -44,6 +44,16 @@ export const updateInventarioItem = async (id, updates) => {
   return data[0]
 }
 
+export const deleteInventarioItem = async (id) => {
+  const { error } = await supabase
+    .from(ITEMS_TABLE)
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}
+
 export const createInventarioReserva = async (reserva) => {
   const { data, error } = await supabase
     .from(RESERVAS_TABLE)
@@ -63,4 +73,29 @@ export const updateInventarioReserva = async (id, updates) => {
 
   if (error) throw error
   return data[0]
+}
+
+export const deleteInventarioReserva = async (id) => {
+  const { error } = await supabase
+    .from(RESERVAS_TABLE)
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}
+
+export const deleteInventarioReservasByItem = async (itemId, { onlyReturned = false } = {}) => {
+  let query = supabase
+    .from(RESERVAS_TABLE)
+    .delete()
+    .eq('item_id', itemId)
+
+  if (onlyReturned) {
+    query = query.eq('devuelto', true)
+  }
+
+  const { error } = await query
+  if (error) throw error
+  return true
 }
