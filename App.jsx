@@ -13003,11 +13003,12 @@ const Dashboard = ({ user, onLogout }) => {
   }, [sharedCotizaciones, sharedProtocolos, sharedOrdenesCompra, selectedUnit]);
 
   const isAdminLike = ['admin', 'comercial'].includes(user.role);
+  const isCompras = user.role === 'compras';
 
   // Permisos por rol
   const hasAccess = (module) => {
     if (isAdminLike) return true;
-    if (user.role === 'compras' && ['protocolos', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
+    if (user.role === 'compras' && ['dashboard', 'protocolos', 'gantt', 'ordenes', 'proveedores', 'inventario'].includes(module)) return true;
     if (user.role === 'finanzas' && ['cotizaciones', 'clientes', 'facturacion'].includes(module)) return true;
     return false;
   };
@@ -13019,10 +13020,10 @@ const Dashboard = ({ user, onLogout }) => {
   }, [activeModule, user?.role]);
 
   const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas'] },
+    { id: 'dashboard', name: 'Dashboard', icon: BarChart3, roles: ['admin', 'comercial', 'finanzas', 'compras'] },
     { id: 'cotizaciones', name: 'Cotizaciones', icon: FileText, roles: ['admin', 'comercial', 'finanzas'] },
     { id: 'protocolos', name: 'Protocolos de Compra', icon: Package, roles: ['admin', 'comercial', 'compras'] },
-    { id: 'gantt', name: 'Carta Gantt', icon: Calendar, roles: ['admin', 'comercial'] },
+    { id: 'gantt', name: 'Carta Gantt', icon: Calendar, roles: ['admin', 'comercial', 'compras'] },
     { id: 'ordenes', name: 'Órdenes de Compra', icon: ShoppingCart, roles: ['admin', 'comercial', 'compras'] },
     { id: 'inventario', name: 'Bodega/Inventario', icon: Package, roles: ['admin', 'comercial', 'compras'] },
     { id: 'proveedores', name: 'Proveedores', icon: Building2, roles: ['admin', 'comercial', 'compras'] },
@@ -13128,108 +13129,112 @@ const Dashboard = ({ user, onLogout }) => {
             <div>
               <div className="mb-8">
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">Dashboard</h2>
-                <p className="text-gray-600">Vista general de proyectos y ventas</p>
+                <p className="text-gray-600">{isCompras ? 'Estado de protocolos y alertas' : 'Vista general de proyectos y ventas'}</p>
               </div>
 
-              {/* Filtro por Unidad de Negocio */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Unidad de Negocio</label>
-                <select
-                  value={selectedUnit}
-                  onChange={(e) => setSelectedUnit(e.target.value)}
-                  className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
-                >
-                  <option>Todas</option>
-                  {BUSINESS_UNITS.map(unit => (
-                    <option key={unit}>{unit}</option>
-                  ))}
-                </select>
-              </div>
+              {!isCompras && (
+                <>
+                  {/* Filtro por Unidad de Negocio */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Unidad de Negocio</label>
+                    <select
+                      value={selectedUnit}
+                      onChange={(e) => setSelectedUnit(e.target.value)}
+                      className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#1E3A8A] bg-white"
+                    >
+                      <option>Todas</option>
+                      {BUSINESS_UNITS.map(unit => (
+                        <option key={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard
-                  title="Cotizaciones Emitidas"
-                  value={stats.cotizacionesEmitidas}
-                  icon={FileText}
-                  color="#33b4e9"
-                />
-                <StatCard
-                  title="Cotizaciones Ganadas"
-                  value={stats.cotizacionesGanadas}
-                  icon={CheckCircle}
-                  color="#1E3A8A"
-                  subtitle={stats.cotizacionesEmitidas > 0 ? `${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito` : '0% tasa de éxito'}
-                />
-                <StatCard
-                  title="Cotizaciones Perdidas"
-                  value={stats.cotizacionesPerdidas}
-                  icon={XCircle}
-                  color="#ef4444"
-                />
-                <StatCard
-                  title="Cotizaciones Standby"
-                  value={stats.cotizacionesStandby}
-                  icon={Pause}
-                  color="#f59e0b"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {(() => {
-                  const normalizarUnidad = (unidadNegocio) => {
-                    const value = String(unidadNegocio || '').toLowerCase();
-                    if (value.includes('inmobiliaria')) return 'Inmobiliarias';
-                    if (value.includes('stand')) return 'Stand y Ferias';
-                    if (value.includes('trade')) return 'TradeMarketing';
-                    if (value.includes('imprenta')) return 'Imprenta';
-                    if (value.includes('vario')) return 'Varios';
-                    return unidadNegocio || 'Sin asignar';
-                  };
-
-                  const netoPorUnidad = sharedProtocolos.reduce((acc, protocolo) => {
-                    const unidad = normalizarUnidad(protocolo.unidadNegocio);
-                    const neto = protocolo.montoNetoCotizacion ?? protocolo.montoTotal ?? 0;
-                    acc[unidad] = (acc[unidad] || 0) + neto;
-                    return acc;
-                  }, {});
-
-                  const cotizacionesGanadas = sharedCotizaciones.filter(
-                    (c) => c.estado === 'ganada' && !c.adjudicada_a_protocolo
-                  );
-                  cotizacionesGanadas.forEach((cotizacion) => {
-                    const unidad = normalizarUnidad(cotizacion.unidadNegocio);
-                    const neto = cotizacion.montoNeto ?? cotizacion.neto ?? cotizacion.monto ?? 0;
-                    netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + neto;
-                  });
-
-                  const resumen = [
-                    { label: 'Trade Marketing', key: 'TradeMarketing' },
-                    { label: 'Inmobiliaria', key: 'Inmobiliarias' },
-                    { label: 'Stand y Ferias', key: 'Stand y Ferias' },
-                    { label: 'Imprenta', key: 'Imprenta' },
-                    { label: 'Varios', key: 'Varios' }
-                  ];
-
-                  const formatMonto = (monto) =>
-                    new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      minimumFractionDigits: 0
-                    }).format(monto || 0);
-
-                  return resumen.map((item, index) => (
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <StatCard
-                      key={item.key}
-                      title={`Monto Neto ${item.label}`}
-                      value={formatMonto(netoPorUnidad[item.key] || 0)}
-                      icon={DollarSign}
-                      color={index % 2 === 0 ? '#0B1F3B' : '#1E3A8A'}
-                      subtitle="CLP"
+                      title="Cotizaciones Emitidas"
+                      value={stats.cotizacionesEmitidas}
+                      icon={FileText}
+                      color="#33b4e9"
                     />
-                  ));
-                })()}
-              </div>
+                    <StatCard
+                      title="Cotizaciones Ganadas"
+                      value={stats.cotizacionesGanadas}
+                      icon={CheckCircle}
+                      color="#1E3A8A"
+                      subtitle={stats.cotizacionesEmitidas > 0 ? `${Math.round((stats.cotizacionesGanadas / stats.cotizacionesEmitidas) * 100)}% tasa de éxito` : '0% tasa de éxito'}
+                    />
+                    <StatCard
+                      title="Cotizaciones Perdidas"
+                      value={stats.cotizacionesPerdidas}
+                      icon={XCircle}
+                      color="#ef4444"
+                    />
+                    <StatCard
+                      title="Cotizaciones Standby"
+                      value={stats.cotizacionesStandby}
+                      icon={Pause}
+                      color="#f59e0b"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {(() => {
+                      const normalizarUnidad = (unidadNegocio) => {
+                        const value = String(unidadNegocio || '').toLowerCase();
+                        if (value.includes('inmobiliaria')) return 'Inmobiliarias';
+                        if (value.includes('stand')) return 'Stand y Ferias';
+                        if (value.includes('trade')) return 'TradeMarketing';
+                        if (value.includes('imprenta')) return 'Imprenta';
+                        if (value.includes('vario')) return 'Varios';
+                        return unidadNegocio || 'Sin asignar';
+                      };
+
+                      const netoPorUnidad = sharedProtocolos.reduce((acc, protocolo) => {
+                        const unidad = normalizarUnidad(protocolo.unidadNegocio);
+                        const neto = protocolo.montoNetoCotizacion ?? protocolo.montoTotal ?? 0;
+                        acc[unidad] = (acc[unidad] || 0) + neto;
+                        return acc;
+                      }, {});
+
+                      const cotizacionesGanadas = sharedCotizaciones.filter(
+                        (c) => c.estado === 'ganada' && !c.adjudicada_a_protocolo
+                      );
+                      cotizacionesGanadas.forEach((cotizacion) => {
+                        const unidad = normalizarUnidad(cotizacion.unidadNegocio);
+                        const neto = cotizacion.montoNeto ?? cotizacion.neto ?? cotizacion.monto ?? 0;
+                        netoPorUnidad[unidad] = (netoPorUnidad[unidad] || 0) + neto;
+                      });
+
+                      const resumen = [
+                        { label: 'Trade Marketing', key: 'TradeMarketing' },
+                        { label: 'Inmobiliaria', key: 'Inmobiliarias' },
+                        { label: 'Stand y Ferias', key: 'Stand y Ferias' },
+                        { label: 'Imprenta', key: 'Imprenta' },
+                        { label: 'Varios', key: 'Varios' }
+                      ];
+
+                      const formatMonto = (monto) =>
+                        new Intl.NumberFormat('es-CL', {
+                          style: 'currency',
+                          currency: 'CLP',
+                          minimumFractionDigits: 0
+                        }).format(monto || 0);
+
+                      return resumen.map((item, index) => (
+                        <StatCard
+                          key={item.key}
+                          title={`Monto Neto ${item.label}`}
+                          value={formatMonto(netoPorUnidad[item.key] || 0)}
+                          icon={DollarSign}
+                          color={index % 2 === 0 ? '#0B1F3B' : '#1E3A8A'}
+                          subtitle="CLP"
+                        />
+                      ));
+                    })()}
+                  </div>
+                </>
+              )}
 
               {/* Sección de Protocolos */}
               <div className="mt-8">
