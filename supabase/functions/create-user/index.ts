@@ -53,9 +53,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!['admin', 'compras', 'finanzas', 'comercial', 'auditor', 'trade_marketing'].includes(rol)) {
+    if (!['admin', 'compras', 'finanzas', 'comercial'].includes(rol)) {
       return new Response(
-        JSON.stringify({ error: 'Rol inválido. Debe ser: admin, compras, finanzas, comercial, auditor o trade_marketing' }),
+        JSON.stringify({ error: 'Rol inválido. Debe ser: admin, compras, finanzas o comercial' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
