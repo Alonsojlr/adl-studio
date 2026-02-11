@@ -4317,8 +4317,8 @@ const NuevaOCModal = ({ onClose, onSave, currentUserName }) => {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">76.226.767-5</p>
+              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez SPA</p>
+              <p className="text-gray-600">77.111.974-3</p>
             </div>
           </div>
 
@@ -4851,8 +4851,8 @@ const DetalleOCModal = ({ orden: ordenInicial, onClose, onUpdate, onSave, onSave
 
             <div className="bg-blue-50 rounded-xl p-6">
               <h5 className="font-semibold text-gray-800 mb-4">Facturar a:</h5>
-              <p className="font-bold text-gray-800">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">RUT: 76.226.767-5</p>
+              <p className="font-bold text-gray-800">Grafica Lopez y Ramirez SPA</p>
+              <p className="text-gray-600">RUT: 77.111.974-3</p>
               <p className="text-gray-600 mt-2">La Capitanía 80, Las Condes</p>
               <p className="text-gray-600">Santiago - Chile</p>
             </div>
@@ -8974,8 +8974,8 @@ const FormularioOCDesdeProtocolo = ({ datosProtocolo, onClose, onGuardar, curren
             </div>
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-sm font-semibold text-gray-700">Facturar a:</p>
-              <p className="text-gray-800 font-medium">Maria Paula Ross EIRL</p>
-              <p className="text-gray-600">76.226.767-5</p>
+              <p className="text-gray-800 font-medium">Grafica Lopez y Ramirez SPA</p>
+              <p className="text-gray-600">77.111.974-3</p>
             </div>
           </div>
 
