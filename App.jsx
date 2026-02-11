@@ -334,7 +334,7 @@ const LoginPage = ({ onLogin }) => {
         </div>
 
         {/* Cards de Login */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className={`${LOGIN_PORTALS.length === 1 ? 'flex justify-center' : 'grid grid-cols-1 md:grid-cols-3'} gap-6`}>
           {LOGIN_PORTALS.map((portal) => {
             const portalData = credentials[portal.id];
             const portalError = errors[portal.id];
@@ -343,7 +343,7 @@ const LoginPage = ({ onLogin }) => {
             return (
               <div
                 key={portal.id}
-                className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-6"
+                className={`backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-6 w-full ${LOGIN_PORTALS.length === 1 ? 'max-w-md' : ''}`}
                 style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
               >
                 <h2 className="text-2xl font-bold text-white text-center">{portal.title}</h2>
@@ -416,15 +416,16 @@ const LoginPage = ({ onLogin }) => {
           })}
         </div>
 
-        {/* Footer con logo ADL Studio */}
+        {/* Footer con logo Kodiak */}
         <div className="text-center mt-10">
           <p className="text-white/70 text-sm mb-4">
             ADL Studio © 2025 - Todos los derechos reservados
           </p>
           <img 
-            src="/logo-adl-studio.png" 
-            alt="ADL Studio" 
+            src="/logo-kodiak.png" 
+            alt="Kodiak" 
             className="h-20 mx-auto opacity-90"
+            style={{ filter: 'brightness(0) invert(1)' }}
           />
         </div>
       </div>
@@ -13051,11 +13052,11 @@ const Dashboard = ({ user, onLogout }) => {
       <header className="shadow-md sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #0B1F3B 0%, #1E3A8A 100%)' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between relative">
-            {/* Logo ADL Studio a la izquierda */}
+            {/* Logo Kodiak en blanco a la izquierda */}
             <div className="flex items-center space-x-3">
               <img 
-                src="/logo-adl-studio.png" 
-                alt="ADL Studio" 
+                src="/logo-kodiak.png" 
+                alt="Kodiak" 
                 className="h-12 w-auto"
                 style={{ filter: 'brightness(0) invert(1)' }}
               />
